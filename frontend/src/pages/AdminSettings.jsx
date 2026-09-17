@@ -15,6 +15,7 @@ import {
   updateSecretKey,
   rotateSecretKey,
   getNetworkInfo,
+  getSystemStatus,
   getBackups,
   createBackupNow,
   downloadBackup,
@@ -109,6 +110,12 @@ function AdminSettings() {
   const [networkError, setNetworkError] = useState("");
   const [copiedUrl, setCopiedUrl] = useState("");
 
+  // Dipakai HANYA untuk mengetahui database.is_sqlite — supaya tab
+  // "Backup" bisa disembunyikan sepenuhnya kalau database aktif
+  // Postgres/Neon (fitur backup ini memang cuma mendukung SQLite,
+  // lihat backup_service.py & routers/system.py).
+  const [systemStatus, setSystemStatus] = useState(null);
+
 
   // ======================================================
   // BACKUP (Pengaturan > Backup)
@@ -168,7 +175,24 @@ function AdminSettings() {
     // "Jaringan" perlu ditampilkan sama sekali (disembunyikan kalau
     // mode "production" — IP LAN tidak relevan di server cloud).
     loadNetworkInfo();
+    // Sama seperti di atas: dimuat di awal (bukan cuma saat tab
+    // "Backup" diklik) supaya kita tahu database.is_sqlite lebih
+    // dulu, untuk memutuskan apakah tab "Backup" perlu ditampilkan.
+    loadSystemStatus();
   }, []);
+
+
+  async function loadSystemStatus() {
+    try {
+      const data = await getSystemStatus();
+      setSystemStatus(data);
+    } catch (err) {
+      console.error("GET SYSTEM STATUS ERROR:", err);
+      // Sengaja tidak set error state terpisah — kegagalan di sini
+      // cuma berarti tab "Backup" tetap ditampilkan apa adanya
+      // (fallback aman di visibleTabs di bawah), bukan bug fatal.
+    }
+  }
 
 
   useEffect(() => {
@@ -340,19 +364,37 @@ function AdminSettings() {
   // tidak relevan di situ. Selama networkInfo belum termuat, tab
   // tetap ditampilkan dulu (menghindari salah sembunyi sebelum
   // tahu mode-nya).
-  const visibleTabs = TABS.filter(
-    (tab) => tab.key !== "network" || networkInfo?.mode !== "production"
-  );
+  //
+  // Tab "Backup" disembunyikan sepenuhnya kalau database aktif
+  // BUKAN SQLite (mis. Postgres/Neon) — fitur backup ini memang
+  // cuma mendukung SQLite (backup_service.py). Untuk Postgres/Neon,
+  // backup diserahkan ke fitur bawaan provider-nya (point-in-time
+  // restore), bukan ditampilkan di sini sebagai tombol yang error.
+  // Sama seperti tab Jaringan: selama systemStatus belum termuat,
+  // tab tetap ditampilkan dulu (fallback aman, bukan default salah
+  // sembunyi).
+  const visibleTabs = TABS.filter((tab) => {
+    if (tab.key === "network") {
+      return networkInfo?.mode !== "production";
+    }
+    if (tab.key === "backup") {
+      return systemStatus?.database?.is_sqlite !== false;
+    }
+    return true;
+  });
 
-  // Kalau tab "Jaringan" sedang aktif tapi ternyata mode-nya
-  // "production" (misal admin sempat klik sebelum data termuat),
-  // otomatis pindah ke tab Profil supaya tidak terjebak di tab
-  // yang sudah disembunyikan.
+  // Kalau tab "Jaringan"/"Backup" sedang aktif tapi ternyata sudah
+  // seharusnya disembunyikan (misal admin sempat klik sebelum data
+  // termuat), otomatis pindah ke tab Profil supaya tidak terjebak
+  // di tab yang sudah disembunyikan.
   useEffect(() => {
     if (activeTab === "network" && networkInfo?.mode === "production") {
       setActiveTab("profile");
     }
-  }, [activeTab, networkInfo]);
+    if (activeTab === "backup" && systemStatus?.database?.is_sqlite === false) {
+      setActiveTab("profile");
+    }
+  }, [activeTab, networkInfo, systemStatus]);
 
 
 

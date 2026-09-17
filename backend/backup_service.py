@@ -74,9 +74,15 @@ def _resolve_sqlite_path(database_url: str) -> Path:
     """
 
     if not database_url.startswith("sqlite:///"):
+        # Sengaja TIDAK menyertakan database_url di pesan ini — untuk
+        # Postgres (mis. Neon), DATABASE_URL mengandung username &
+        # password, dan pesan ini bisa diteruskan mentah-mentah ke
+        # response API (lihat routers/settings.py: detail=str(exc)).
         raise ValueError(
-            "Backup otomatis ini cuma mendukung SQLite. "
-            f"DATABASE_URL saat ini: {database_url}"
+            "Fitur backup ini hanya mendukung SQLite. Database yang "
+            "sedang aktif sekarang bukan SQLite — gunakan fitur "
+            "backup/restore bawaan provider database Anda (mis. "
+            "point-in-time restore di Neon)."
         )
 
     raw_path = database_url.split("sqlite:///", 1)[1]

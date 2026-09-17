@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, IS_SQLITE
 from dependencies import get_current_user, require_role
 from config import DATABASE_URL, OLLAMA_BASE_URL, GEMINI_BASE_URL, FRONTEND_PORT, BACKEND_PORT, APP_MODE
 from models import User
@@ -20,19 +20,33 @@ router = APIRouter(
 
 
 # =========================================================
-# HELPER — pecah DATABASE_URL (sqlite:///...) jadi info
-# direktori & nama file database, supaya frontend bisa
-# menampilkan lokasi database yang SEBENARNYA dipakai
-# (mengikuti .env / config.py), bukan teks statis.
+# HELPER — pecah DATABASE_URL jadi info engine/nama/direktori
+# untuk ditampilkan di frontend (kartu "Informasi Sistem" di
+# Dashboard, endpoint ini bisa diakses semua role yang login).
+#
+# PENTING: untuk Postgres/lainnya, JANGAN PERNAH kembalikan
+# database_url mentah — itu mengandung username & password
+# (mis. postgresql://user:password@host/db). Ambil host & nama
+# DB saja lewat urlparse, tanpa userinfo.
 # =========================================================
 
-def parse_sqlite_info(database_url: str) -> dict:
+def parse_db_info(database_url: str) -> dict:
+
+    if database_url.startswith("postgresql"):
+
+        parsed = urlparse(database_url)
+
+        return {
+            "engine": "PostgreSQL",
+            "name": (parsed.path or "").lstrip("/") or "-",
+            "directory": parsed.hostname or "-",
+        }
 
     if not database_url.startswith("sqlite"):
 
         return {
             "engine": "Database Lain",
-            "name": database_url,
+            "name": "-",
             "directory": "-",
         }
 
@@ -200,7 +214,7 @@ async def get_system_status(
     }
 
     # --- DATABASE ---
-    db_info = parse_sqlite_info(DATABASE_URL)
+    db_info = parse_db_info(DATABASE_URL)
 
     try:
         db.execute(text("SELECT 1"))
@@ -213,6 +227,10 @@ async def get_system_status(
         "engine": db_info["engine"],
         "name": db_info["name"],
         "directory": db_info["directory"],
+        # Dipakai frontend (AdminSettings.jsx) untuk menyembunyikan tab
+        # "Backup" sepenuhnya kalau database aktif bukan SQLite — fitur
+        # backup ini memang cuma mendukung SQLite (lihat backup_service.py).
+        "is_sqlite": IS_SQLITE,
     }
 
     # --- AUTH ---
