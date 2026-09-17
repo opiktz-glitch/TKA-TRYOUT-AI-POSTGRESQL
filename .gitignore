@@ -1,0 +1,34 @@
+# Environment files (JANGAN pernah commit — berisi SECRET_KEY, DATABASE_URL, dll)
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+backend/backups/
+
+# Node / frontend build
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
