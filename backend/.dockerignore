@@ -1,0 +1,48 @@
+# .env berisi secret asli (SECRET_KEY, GEMINI_API_KEY, DATABASE_URL
+# Neon, dll) -- env var sungguhan di production diisi lewat dashboard
+# Back4App, BUKAN lewat file ini ikut ter-bundle ke image. Kalau
+# sampai ke-COPY ke image, secret bisa bocor ke siapa pun yang punya
+# akses ke image (termasuk lewat `docker history`/layer inspection).
+.env
+.env.*
+!.env.example
+
+# Virtual environment lokal -- besar, platform-specific, dan
+# percuma di-copy karena Dockerfile install ulang semua dependency
+# dari requirements.txt sendiri.
+venv/
+env/
+.venv/
+
+# Bytecode cache Python -- tidak perlu ikut, akan otomatis
+# ter-generate ulang saat container jalan.
+__pycache__/
+*.pyc
+*.pyo
+
+# Database SQLite lokal (mode fallback dev) dan folder backup --
+# JANGAN sampai data lokal/lama ikut ter-bundle ke image production
+# yang memang seharusnya connect ke Neon, bukan file lokal.
+database/
+backups/
+
+# Git & file editor/OS, tidak relevan sama sekali di dalam image.
+.git/
+.gitignore
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
+
+# File cadangan manual (pola " lama" yang beberapa kali dipakai
+# selama pengembangan project ini) -- jangan ikut ke image kalau
+# kebetulan masih ada tercecer di folder lokal.
+*lama*.py
+*lama*.js
+*lama*.jsx
+
+# Dump/export data mentah -- tidak pernah dibutuhkan runtime,
+# dan bisa berisi data sensitif (password hash, dll).
+dump.sql
+*.sql

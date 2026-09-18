@@ -1,0 +1,26 @@
+server {
+    listen ${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Semua asset statis hasil build Vite (JS/CSS/gambar) boleh
+    # di-cache lama oleh browser -- nama filenya sudah mengandung
+    # hash konten (mis. index-Da_UFMC7.js), jadi kalau isinya
+    # berubah, nama filenya otomatis ikut berubah juga.
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # SPA fallback -- React Router menangani routing di sisi
+    # browser (client-side), jadi nginx harus tetap mengembalikan
+    # index.html untuk path apa pun yang tidak cocok file statis
+    # (mis. buka langsung /login atau refresh di /dashboard),
+    # bukan 404. Ini persis yang dilakukan rewrite rule di
+    # vercel.json untuk deployment Vercel.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

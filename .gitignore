@@ -1,9 +1,13 @@
 # Environment files (JANGAN pernah commit — berisi SECRET_KEY, DATABASE_URL, dll)
-.env
-.env.local
-.env.production
-backend/.env
-frontend/.env
+# Pola generik "*.env" di bawah ini sengaja dipasang supaya SEMUA
+# variasi nama file .env (docker.env, dockeronline.env, staging.env,
+# dst — bukan cuma nama yang sudah kepikiran sekarang) otomatis ikut
+# ter-exclude, tanpa perlu nambah baris baru tiap kali bikin file
+# .env dengan nama baru.
+*.env
+.env.*
+!.env.example
+!*/.env.example
 
 # Python
 __pycache__/
@@ -32,3 +36,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Docker image export (besar, tidak perlu ikut repo)
+*.tar

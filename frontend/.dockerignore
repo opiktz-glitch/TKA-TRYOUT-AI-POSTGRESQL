@@ -1,0 +1,27 @@
+# Paling penting: node_modules JANGAN ikut ter-copy ke image.
+# Ukurannya besar, platform-specific (binary native module beda
+# antara Windows/Mac/Linux), dan percuma karena Dockerfile install
+# ulang semua dependency dari nol lewat "npm ci" di dalam container
+# Linux -- membawa node_modules dari luar container bisa malah
+# bikin error (native module ke-compile untuk OS yang salah).
+node_modules/
+
+# Hasil build lama -- akan di-generate ulang oleh "npm run build"
+# di dalam image, membawa yang lama cuma buang-buang waktu copy.
+dist/
+build/
+
+.env
+.env.*
+!.env.example
+
+.git/
+.gitignore
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
+
+*lama*.jsx
+*lama*.js
