@@ -443,14 +443,7 @@ function StudentTryoutAttempt() {
 
           {error && <div className="error-message">{error}</div>}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 220px",
-              gap: 14,
-              alignItems: "start",
-            }}
-          >
+          <div className="tryout-attempt-grid">
             {/* =================================================
                 SOAL
             ================================================= */}

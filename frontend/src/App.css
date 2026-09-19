@@ -117,20 +117,6 @@ button {
 }
 
 
-.form-group input[type="checkbox"] {
-
-  width: 16px;
-
-  height: 16px;
-
-  padding: 0;
-
-  flex-shrink: 0;
-
-  accent-color: var(--accent);
-}
-
-
 .form-group input:focus {
 
   border-color: var(--accent);
@@ -791,6 +777,44 @@ button {
   gap: 14px;
 
   margin-bottom: 14px;
+}
+
+
+/* =====================================================
+   TRYOUT ATTEMPT GRID (Soal + Navigasi Soal)
+
+   Beda dari .dashboard-grid di atas: kolom kedua (Navigasi
+   Soal) lebar TETAP 220px (bukan proporsi fr), supaya
+   tombol nomor soal tidak ikut membesar/mengecil sesuai
+   lebar layar -- tapi ini juga sebabnya wajib ada breakpoint
+   mobile eksplisit, karena kolom fixed-width tidak otomatis
+   menyusut seperti kolom fr.
+   ===================================================== */
+
+.tryout-attempt-grid {
+
+  display: grid;
+
+  grid-template-columns: 1fr 220px;
+
+  gap: 14px;
+
+  align-items: start;
+}
+
+
+@media (max-width: 768px) {
+
+  .tryout-attempt-grid {
+
+    /* Satu kolom, ditumpuk vertikal -- kartu Soal duluan,
+       baru Navigasi Soal di bawahnya. Urutan ini otomatis
+       mengikuti urutan JSX (Soal ditulis duluan), tidak
+       perlu diatur manual. */
+
+    grid-template-columns: 1fr;
+
+  }
 }
 
 
@@ -2193,9 +2217,11 @@ button {
 }
 
 .question-image-attempt {
-  margin-bottom: 20px;
+  margin: 0 auto 20px;
 
-  max-height: 360px;
+  max-width: 420px;
+
+  max-height: 260px;
 
   object-fit: contain;
 }

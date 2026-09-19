@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { IconBarChart, IconCheck, IconTrophy } from "../components/Icons";
+import QuestionImage from "../components/QuestionImage";
 
 import {
   getAttemptHistory,
@@ -375,6 +376,14 @@ function StudentHistory() {
                         <p style={{ fontSize: 14, marginBottom: 10 }}>
                           {q.question_text}
                         </p>
+
+                        {q.has_image && (
+                          <QuestionImage
+                            questionId={q.question_id}
+                            alt={`Gambar soal ${q.question_number}`}
+                            className="question-image-attempt"
+                          />
+                        )}
 
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           {q.options.map((option) => {
