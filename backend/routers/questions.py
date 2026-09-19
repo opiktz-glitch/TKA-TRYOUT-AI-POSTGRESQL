@@ -3,11 +3,12 @@ import logging
 import random
 import re
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 
 import ai_providers
 import document_parser
+import image_service
 from database import get_db
 from models import (
     Question,
@@ -300,7 +301,8 @@ def build_ai_prompt(
     subject_name: str,
     difficulty: str,
     materi: str,
-    additional_instruction: str | None
+    additional_instruction: str | None,
+    with_image: bool = False,
 ) -> str:
 
     difficulty_label = DIFFICULTY_LABELS.get(
@@ -316,12 +318,34 @@ def build_ai_prompt(
             + additional_instruction.strip()
         )
 
+    # Dua blok di bawah ini HANYA disisipkan kalau guru mencentang
+    # "Buat soal bergambar" (with_image=True). AI cuma diminta
+    # MENDESKRIPSIKAN ilustrasi yang cocok lewat field
+    # "image_description" -- TIDAK benar-benar membuat file gambar
+    # (lihat catatan with_image di schemas.py). Guru tetap harus
+    # menyiapkan/mengunggah gambar sungguhan sendiri.
+    image_kind_word = " BERGAMBAR" if with_image else ""
+
+    image_instruction_line = (
+        '- Ilustrasi / Gambar: Buat deskripsi visual atau ilustrasi '
+        'yang sangat jelas dan spesifik pada field "image_description" '
+        'untuk membantu siswa memahami soal (misalnya diagram organ '
+        'pernapasan, skema aliran darah, dll.).\n'
+        if with_image else ""
+    )
+
+    image_field_line = (
+        '  "image_description": "Deskripsi visual/ilustrasi yang '
+        'mendampingi soal untuk digambar atau dicari asetnya",\n'
+        if with_image else ""
+    )
+
     return f"""Anda adalah seorang guru mata pelajaran {subject_name} yang sedang menyusun soal ujian tryout TKA untuk siswa kelas 6 SD.
 
-Buatkan SATU soal pilihan ganda dengan ketentuan berikut:
+Buatkan SATU soal pilihan ganda{image_kind_word} dengan ketentuan berikut:
 - Tingkat kesulitan: {difficulty_label}
 - Materi / lingkup soal: {materi.strip()}
-- Format Teks: Buatlah sebuah teks bacaan nonfiksi atau fiksi pendek yang utuh (MAKSIMAL 2 kalimat, jangan lebih) di dalam question_text, diikuti dengan kalimat tanya yang jelas di bagian akhir teks. Hindari kalimat pembuka yang kaku seperti "Baca teks berikut:".
+{image_instruction_line}- Format Teks: Buatlah sebuah teks bacaan nonfiksi atau fiksi pendek yang utuh (MAKSIMAL 2 kalimat, jangan lebih) di dalam question_text, diikuti dengan kalimat tanya yang jelas di bagian akhir teks. Hindari kalimat pembuka yang kaku seperti "Baca teks berikut:".
 - Kualitas Bahasa: Menggunakan bahasa Indonesia baku, logis, dan ramah anak.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac{{a}}{{b}}, \\times, \\div, \\sqrt, \\^, dan sejenisnya) di question_text maupun options, karena teks ini ditampilkan APA ADANYA ke siswa tanpa ada yang merender LaTeX. Tulis pecahan dan operasi hitung dalam bentuk teks biasa yang mudah dibaca siswa SD, misalnya "2 1/4 bagian" (bukan "$2 \\frac{{1}}{{4}}$"), "3 x 4" (bukan "3 \\times 4"), "12 : 3" (bukan "12 \\div 3"). Untuk kuadrat/pangkat, pakai simbol superscript langsung seperti "5\u00b2" atau eja "5 pangkat 2" / "5 kuadrat" (bukan "5^2" atau "$5^2$").
 - Pilihan Jawaban: Keempat pilihan (A-D) harus berisi teks yang BERBEDA satu sama lain, jangan ada dua pilihan dengan isi yang sama persis atau hanya beda kata sedikit tapi maknanya identik.
@@ -333,7 +357,7 @@ PENTING - urutan berpikir: Tentukan dan HITUNG dulu jawaban yang benar secara ma
 
 Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, dengan format persis seperti ini:
 {{
-  "question_text": "teks soal di sini",
+{image_field_line}  "question_text": "teks soal di sini",
   "correct_answer_text": "isi jawaban yang benar, sama persis dengan salah satu option_text di bawah",
   "options": [
     {{"option_code": "A", "option_text": "...", "is_correct": false}},
@@ -657,6 +681,7 @@ async def preview_ai_prompt(
         difficulty=request_data.difficulty,
         materi=request_data.materi,
         additional_instruction=request_data.additional_instruction,
+        with_image=request_data.with_image,
     )
 
     return AIPromptPreviewResponse(prompt=prompt)
@@ -726,6 +751,7 @@ async def generate_question_ai(
             difficulty=request_data.difficulty,
             materi=request_data.materi,
             additional_instruction=request_data.additional_instruction,
+            with_image=request_data.with_image,
         )
 
     ai_result = await ai_providers.call_active_provider(prompt, db)
@@ -882,6 +908,18 @@ async def generate_question_ai(
         str(ai_result.get("explanation", "")).strip()
     ) or None
 
+    # Cuma diambil kalau guru memang mencentang "Buat soal
+    # bergambar" -- kalau tidak, abaikan meskipun AI entah kenapa
+    # tetap mengembalikan field ini (jangan sampai deskripsi
+    # nyasar muncul untuk soal yang tidak diminta bergambar).
+    image_description = None
+
+    if request_data.with_image:
+
+        image_description = str(
+            ai_result.get("image_description", "")
+        ).strip() or None
+
     # -----------------------------------------------------
     # Verifikasi konsistensi jawaban, 2 tahap (lihat penjelasan
     # lengkap di komentar _check_self_consistency /
@@ -915,6 +953,7 @@ async def generate_question_ai(
         explanation=explanation,
         points=1,
         options=options,
+        image_description=image_description,
         consistency_warning=consistency_warning,
     )
 
@@ -1596,3 +1635,145 @@ def delete_question(
         "success": True,
         "message": "Soal berhasil dihapus"
     }
+
+
+# =========================================================
+# GAMBAR SOAL
+#
+# Sengaja endpoint TERPISAH dari create/update soal (bukan field di
+# QuestionCreate/QuestionUpdate), karena upload gambar itu multipart
+# (UploadFile), sedangkan create/update soal itu body JSON biasa --
+# mencampur keduanya di 1 endpoint bikin schema-nya rumit tanpa
+# manfaat nyata. Pola ini sama seperti impor soal dari dokumen
+# (prepare_document_extraction dkk di atas) yang juga endpoint
+# terpisah dari create_question.
+#
+# Response GET /api/questions (list) & GET /api/questions/{id} TIDAK
+# ikut membawa bytes gambar -- cuma field has_image (lihat
+# QuestionResponse di schemas.py & property has_image di
+# models.py). Bytes gambar baru diambil kalau benar-benar mau
+# ditampilkan, lewat endpoint GET di bawah ini, dipanggil langsung
+# oleh <img src="..."> di frontend.
+# =========================================================
+
+@router.post("/{question_id}/image", response_model=QuestionResponse)
+async def upload_question_image(
+    question_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("ADMIN", "GURU")
+    )
+):
+
+    question = (
+        db.query(Question)
+        .filter(Question.id == question_id)
+        .first()
+    )
+
+    if not question:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Soal tidak ditemukan"
+        )
+
+    raw_bytes = await file.read()
+
+    # process_question_image() sendiri yang validasi ukuran & format,
+    # dan mengembalikan bytes WebP siap simpan (lihat image_service.py
+    # untuk detail aturan resize/kompresinya).
+    webp_bytes = image_service.process_question_image(raw_bytes)
+
+    question.image_data = webp_bytes
+    question.image_mime_type = image_service.OUTPUT_MIME_TYPE
+
+    db.commit()
+    db.refresh(question)
+
+    question.options = (
+        db.query(QuestionOption)
+        .filter(QuestionOption.question_id == question.id)
+        .order_by(QuestionOption.option_code)
+        .all()
+    )
+
+    return question
+
+
+@router.get("/{question_id}/image")
+def get_question_image(
+    question_id: int,
+    db: Session = Depends(get_db),
+    # ADMIN/GURU: mengelola bank soal. SISWA: melihat gambar soal
+    # yang sedang dikerjakan saat tryout -- gambar bukan informasi
+    # rahasia seperti jawaban benar, jadi aman ditampilkan ke siswa
+    # yang sudah login (sama levelnya dengan question_text sendiri,
+    # yang juga sudah terlihat siswa lewat endpoint attempt).
+    current_user: User = Depends(
+        require_role("ADMIN", "GURU", "SISWA")
+    )
+):
+
+    question = (
+        db.query(Question)
+        .filter(Question.id == question_id)
+        .first()
+    )
+
+    if not question or not question.image_data:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Soal ini tidak punya gambar"
+        )
+
+    return Response(
+        content=question.image_data,
+        media_type=question.image_mime_type or "image/webp",
+        # Gambar hasil proses immutable (upload baru = bytes baru,
+        # bukan modifikasi in-place) -- aman di-cache lama oleh
+        # browser, mengurangi request berulang tiap kali soal yang
+        # sama tampil lagi (mis. siswa balik ke soal sebelumnya saat
+        # ujian).
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.delete("/{question_id}/image", response_model=QuestionResponse)
+def delete_question_image(
+    question_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("ADMIN", "GURU")
+    )
+):
+
+    question = (
+        db.query(Question)
+        .filter(Question.id == question_id)
+        .first()
+    )
+
+    if not question:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Soal tidak ditemukan"
+        )
+
+    question.image_data = None
+    question.image_mime_type = None
+
+    db.commit()
+    db.refresh(question)
+
+    question.options = (
+        db.query(QuestionOption)
+        .filter(QuestionOption.question_id == question.id)
+        .order_by(QuestionOption.option_code)
+        .all()
+    )
+
+    return question

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { IconClock, IconCheck } from "../components/Icons";
+import QuestionImage from "../components/QuestionImage";
 
 import {
   getStudentAttempt,
@@ -479,6 +480,14 @@ function StudentTryoutAttempt() {
                   <p style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 20 }}>
                     {currentQuestion.question_text}
                   </p>
+
+                  {currentQuestion.has_image && (
+                    <QuestionImage
+                      questionId={currentQuestion.question_id}
+                      alt={`Gambar soal ${currentQuestion.question_number}`}
+                      className="question-image-attempt"
+                    />
+                  )}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {currentQuestion.options.map((option) => {

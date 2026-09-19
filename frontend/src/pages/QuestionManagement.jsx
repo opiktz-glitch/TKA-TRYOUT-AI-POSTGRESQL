@@ -4,12 +4,15 @@ import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { IconEdit, IconTrash, IconCheck, IconBook, IconEye } from "../components/Icons";
 import PanduanSoalModal from "../components/PanduanSoalModal";
+import QuestionImage from "../components/QuestionImage";
 import {
   getSubjects,
   getQuestions,
   createQuestion,
   updateQuestion,
   deleteQuestion as deleteQuestionApi,
+  uploadQuestionImage,
+  deleteQuestionImage,
   generateAIQuestion,
   previewAIPrompt,
   getAIStatus,
@@ -113,6 +116,13 @@ function QuestionManagement() {
   const [aiConsistencyWarning, setAiConsistencyWarning] =
     useState(null);
 
+  // Diisi dari result.image_description saat guru mencentang
+  // "Buat soal bergambar" dan AI mengembalikan saran ilustrasi.
+  // Cuma teks pengingat untuk guru -- BUKAN gambar sungguhan,
+  // guru tetap upload manual lewat input file di bawah.
+  const [aiImageDescription, setAiImageDescription] =
+    useState(null);
+
   // "form"   -> isi mata pelajaran/kesulitan/materi
   // "prompt" -> tampilkan prompt (bisa diedit) sebelum generate
   const [aiStep, setAiStep] = useState("form");
@@ -127,6 +137,7 @@ function QuestionManagement() {
     difficulty: "MEDIUM",
     materi: "",
     additional_instruction: "",
+    with_image: false,
   });
 
   const [aiForm, setAiForm] = useState(
@@ -255,6 +266,60 @@ function QuestionManagement() {
   const [formError, setFormError] = useState("");
 
   const [formSuccess, setFormSuccess] = useState("");
+
+  // ------------------------------------------------------
+  // GAMBAR SOAL
+  //
+  // selectedImageFile: file baru yang dipilih guru, BELUM diupload
+  // ke server -- baru benar-benar diupload saat handleSubmit
+  // (setelah soal berhasil dibuat/diupdate, karena upload butuh
+  // question_id yang cuma ada setelah itu).
+  //
+  // imagePreviewUrl: preview LOKAL (URL.createObjectURL langsung
+  // dari File yang dipilih, belum lewat server sama sekali) supaya
+  // guru langsung lihat hasilnya tanpa nunggu upload selesai.
+  //
+  // removeExistingImage: guru klik "Hapus gambar" saat mode edit
+  // soal yang sudah punya gambar -- ditandai dulu, baru benar-benar
+  // dihapus (panggil deleteQuestionImage) saat handleSubmit, biar
+  // konsisten dengan field form lain yang juga baru "commit" saat
+  // submit (bukan langsung waktu diklik).
+  // ------------------------------------------------------
+
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [removeExistingImage, setRemoveExistingImage] = useState(false);
+  const [imageActionError, setImageActionError] = useState("");
+
+  function handleImageFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setImageActionError("");
+
+    // Buang preview lama dulu (kalau ada) sebelum bikin yang baru --
+    // blob URL yang tidak di-revoke akan terus makan memori browser.
+    setImagePreviewUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      return URL.createObjectURL(file);
+    });
+
+    setSelectedImageFile(file);
+    setRemoveExistingImage(false);
+  }
+
+  function handleRemoveImageClick() {
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setImagePreviewUrl(null);
+    setSelectedImageFile(null);
+    setRemoveExistingImage(true);
+  }
 
   // ======================================================
   // FORM
@@ -407,7 +472,18 @@ function QuestionManagement() {
     setFormSuccess("");
     setAiGeneratedNotice(false);
     setAiConsistencyWarning(null);
+    setAiImageDescription(null);
     setEditAiUnavailableMessage("");
+
+    setSelectedImageFile(null);
+    setImagePreviewUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      return null;
+    });
+    setRemoveExistingImage(false);
+    setImageActionError("");
 
     setShowModal(true);
   }
@@ -475,7 +551,18 @@ function QuestionManagement() {
     setFormSuccess("");
     setAiGeneratedNotice(false);
     setAiConsistencyWarning(null);
+    setAiImageDescription(null);
     setEditAiUnavailableMessage("");
+
+    setSelectedImageFile(null);
+    setImagePreviewUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      return null;
+    });
+    setRemoveExistingImage(false);
+    setImageActionError("");
 
     setShowModal(true);
   }
@@ -501,6 +588,7 @@ function QuestionManagement() {
     setFormSuccess("");
     setAiGeneratedNotice(false);
     setAiConsistencyWarning(null);
+    setAiImageDescription(null);
     setEditAiUnavailableMessage("");
   }
 
@@ -551,6 +639,7 @@ function QuestionManagement() {
       subject_id: form.subject_id,
       difficulty: form.difficulty,
       materi: "",
+      with_image: false,
       additional_instruction: form.question_text
         ? `Buatkan soal PENGGANTI untuk soal lama berikut (topik ` +
           `boleh sejenis, tapi teks soal & pilihan jawaban harus ` +
@@ -740,6 +829,7 @@ function QuestionManagement() {
         materi: aiForm.materi.trim(),
         additional_instruction:
           aiForm.additional_instruction.trim() || null,
+        with_image: aiForm.with_image,
       });
 
       setAiPrompt(result.prompt);
@@ -785,11 +875,11 @@ function QuestionManagement() {
 
   function handleAiFormChange(event) {
 
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
 
     setAiForm(prev => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
@@ -840,6 +930,7 @@ function QuestionManagement() {
         materi: aiForm.materi.trim(),
         additional_instruction:
           aiForm.additional_instruction.trim() || null,
+        with_image: aiForm.with_image,
         prompt: aiPrompt.trim(),
       });
 
@@ -889,6 +980,7 @@ function QuestionManagement() {
       setFormSuccess("");
       setAiGeneratedNotice(true);
       setAiConsistencyWarning(result.consistency_warning || null);
+      setAiImageDescription(result.image_description || null);
 
       setShowAiModal(false);
       setAiStep("form");
@@ -1574,6 +1666,44 @@ function QuestionManagement() {
         : await createQuestion(payload);
 
 
+      // --------------------------------------------------
+      // GAMBAR SOAL — dijalankan SETELAH soal tersimpan (baru ada
+      // data.id di titik ini). Try/catch TERPISAH dari penyimpanan
+      // soal di atas: kalau bagian ini gagal, soal itu sendiri TETAP
+      // tersimpan (jangan sampai guru mengira seluruh soal gagal
+      // disimpan gara-gara gambar yang bermasalah).
+      // --------------------------------------------------
+
+      let imageStepFailed = false;
+
+      if (selectedImageFile) {
+
+        try {
+          await uploadQuestionImage(data.id, selectedImageFile);
+        } catch (imageErr) {
+          console.error("UPLOAD IMAGE ERROR:", imageErr);
+          imageStepFailed = true;
+          setImageActionError(
+            "Soal berhasil disimpan, tapi gambar gagal diupload: " +
+              (imageErr.message || "kesalahan tidak diketahui") +
+              ". Coba upload ulang gambarnya."
+          );
+        }
+
+      } else if (removeExistingImage && editingQuestion?.has_image) {
+
+        try {
+          await deleteQuestionImage(data.id);
+        } catch (imageErr) {
+          console.error("DELETE IMAGE ERROR:", imageErr);
+          imageStepFailed = true;
+          setImageActionError(
+            "Soal berhasil disimpan, tapi gagal menghapus gambar: " +
+              (imageErr.message || "kesalahan tidak diketahui")
+          );
+        }
+      }
+
       setFormSuccess(
         data.message ||
         (editingQuestion
@@ -1582,6 +1712,15 @@ function QuestionManagement() {
       );
 
       await loadQuestions();
+
+      // Kalau langkah gambar gagal, modal SENGAJA tidak ditutup
+      // otomatis -- biarkan guru lihat pesan errornya dan bisa
+      // langsung coba upload ulang tanpa harus buka form dari awal
+      // lagi (soal itu sendiri sudah aman tersimpan).
+      if (imageStepFailed) {
+        setSelectedImageFile(null);
+        return;
+      }
 
       /*
        * Tunggu sebentar supaya admin sempat melihat
@@ -1592,6 +1731,15 @@ function QuestionManagement() {
         setEditingQuestion(null);
         setForm(createEmptyForm());
         setFormSuccess("");
+        setSelectedImageFile(null);
+        setImagePreviewUrl((previousUrl) => {
+          if (previousUrl) {
+            URL.revokeObjectURL(previousUrl);
+          }
+          return null;
+        });
+        setRemoveExistingImage(false);
+        setImageActionError("");
       }, 900);
 
 
@@ -2597,6 +2745,75 @@ function QuestionManagement() {
               </div>
 
 
+              <div className="form-group">
+
+                <label>
+                  Gambar Soal (opsional)
+                </label>
+
+                {aiImageDescription && (
+                  <div
+                    className="success-message"
+                    style={{ marginBottom: 10 }}
+                  >
+                    ✨ Saran ilustrasi dari AI (bukan gambar jadi —
+                    siapkan/unggah sendiri gambar yang sesuai):
+                    <br />
+                    <em>{aiImageDescription}</em>
+                  </div>
+                )}
+
+                {imagePreviewUrl && (
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Preview gambar soal"
+                    className="question-image-form-preview"
+                  />
+                )}
+
+                {!imagePreviewUrl &&
+                  !removeExistingImage &&
+                  editingQuestion?.has_image && (
+                    <QuestionImage
+                      questionId={editingQuestion.id}
+                      alt="Gambar soal saat ini"
+                      className="question-image-form-preview"
+                    />
+                  )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                  disabled={saving}
+                />
+
+                <span className="form-hint">
+                  Format apa saja (JPG/PNG/dll), maksimal 5 MB —
+                  otomatis dikompres & diubah ke WebP saat disimpan.
+                </span>
+
+                {(imagePreviewUrl ||
+                  (editingQuestion?.has_image && !removeExistingImage)) && (
+                  <button
+                    type="button"
+                    className="btn-link-danger"
+                    onClick={handleRemoveImageClick}
+                    disabled={saving}
+                  >
+                    Hapus gambar
+                  </button>
+                )}
+
+                {imageActionError && (
+                  <div className="form-error-message">
+                    {imageActionError}
+                  </div>
+                )}
+
+              </div>
+
+
               <div className="options-section">
 
                 <div className="section-title">
@@ -2984,6 +3201,41 @@ function QuestionManagement() {
                     disabled={aiPromptLoading}
                     required
                   />
+
+                </div>
+
+
+                <div className="form-group">
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontWeight: 400,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      name="with_image"
+                      checked={aiForm.with_image}
+                      onChange={handleAiFormChange}
+                      disabled={aiPromptLoading}
+                    />
+                    Buat soal bergambar
+                  </label>
+
+                  <span
+                    className="form-hint"
+                    style={{ display: "block", textAlign: "left" }}
+                  >
+                    AI cuma menyarankan deskripsi gambar yang cocok
+                    (bukan membuat file gambarnya) — gambar
+                    sungguhan tetap perlu kamu siapkan &amp; unggah
+                    sendiri lewat form soal setelah digenerate.
+                  </span>
 
                 </div>
 
@@ -3679,6 +3931,14 @@ function QuestionManagement() {
               <div className="review-print-questions">
 
                 <div className="review-print-question">
+
+                  {previewQuestion.has_image && (
+                    <QuestionImage
+                      questionId={previewQuestion.id}
+                      alt="Gambar soal"
+                      className="review-print-image"
+                    />
+                  )}
 
                   <div className="review-print-question-text">
                     <span>{previewQuestion.question_text}</span>

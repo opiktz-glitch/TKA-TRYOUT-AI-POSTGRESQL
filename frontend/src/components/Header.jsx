@@ -1,4 +1,5 @@
 import { useAuth } from "../auth/AuthContext";
+import { useUI } from "../context/UIContext";
 import { IconMenu, IconBell, IconChevronDown } from "./Icons";
 
 
@@ -8,6 +9,10 @@ function Header() {
     user
   } = useAuth();
 
+  const {
+    toggleMobileMenu
+  } = useUI();
+
 
   return (
 
@@ -15,7 +20,11 @@ function Header() {
 
       <div className="header-left">
 
-        <button className="mobile-menu-button">
+        <button
+          className="mobile-menu-button"
+          onClick={toggleMobileMenu}
+          aria-label="Buka menu"
+        >
           <IconMenu size={20} />
         </button>
 

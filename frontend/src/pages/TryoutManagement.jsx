@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import QuestionImage from "../components/QuestionImage";
 import { IconEdit, IconTrash, IconCheck, IconEye } from "../components/Icons";
 import {
   getSubjects,
@@ -1700,6 +1701,14 @@ function TryoutManagement() {
                       key={question.question_id}
                       className="review-print-question"
                     >
+                      {question.has_image && (
+                        <QuestionImage
+                          questionId={question.question_id}
+                          alt="Gambar soal"
+                          className="review-print-image"
+                        />
+                      )}
+
                       <div className="review-print-question-text">
                         <span className="review-print-number">
                           {question.question_number}.
@@ -1754,6 +1763,14 @@ function TryoutManagement() {
                         key={question.question_id}
                         className="review-print-question"
                       >
+                        {question.has_image && (
+                          <QuestionImage
+                            questionId={question.question_id}
+                            alt="Gambar soal"
+                            className="review-print-image"
+                          />
+                        )}
+
                         <div className="review-print-question-text">
                           <span className="review-print-number">
                             {question.question_number}.

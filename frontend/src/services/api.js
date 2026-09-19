@@ -312,6 +312,56 @@ export async function deleteQuestion(questionId) {
   });
 }
 
+// -----------------------------------------------------
+// GAMBAR SOAL
+//
+// GET /api/questions/{id}/image butuh header Authorization (sama
+// seperti endpoint lain) -- tag <img src="..."> polos TIDAK BISA
+// mengirim header sendiri, jadi tidak bisa langsung dipasang sebagai
+// src. Solusinya: fetch manual pakai token (BUKAN lewat apiFetch,
+// karena apiFetch selalu coba response.json() -- responsnya di sini
+// bytes gambar, bukan JSON), lalu ubah jadi blob URL lokal browser
+// yang BARU BISA dipasang ke <img src>.
+//
+// Pemanggil WAJIB memanggil URL.revokeObjectURL(url) waktu selesai
+// pakai (biasanya di cleanup useEffect) -- kalau tidak, blob URL
+// menumpuk di memori browser tiap kali komponennya render ulang.
+// -----------------------------------------------------
+
+export async function fetchQuestionImageUrl(questionId) {
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/questions/${questionId}/image`,
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Gagal memuat gambar soal");
+  }
+
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+export async function uploadQuestionImage(questionId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiFetch(`/api/questions/${questionId}/image`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function deleteQuestionImage(questionId) {
+  return apiFetch(`/api/questions/${questionId}/image`, {
+    method: "DELETE",
+  });
+}
+
 // Generate draft soal pakai AI (Ollama lokal). Generation lokal
 // bisa memakan waktu cukup lama, jadi dikasih timeout sendiri
 // (150 detik) yang lebih longgar daripada request biasa, supaya

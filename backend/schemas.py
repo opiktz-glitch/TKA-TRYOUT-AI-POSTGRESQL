@@ -160,6 +160,17 @@ class AIQuestionGenerateRequest(BaseModel):
     materi: str = Field(min_length=1)
     additional_instruction: str | None = None
 
+    # True kalau guru mencentang "Buat soal bergambar" di form.
+    # Menambahkan instruksi & field "image_description" ke prompt
+    # AI (lihat build_ai_prompt di routers/questions.py) -- AI
+    # HANYA mendeskripsikan gambar yang cocok dalam bentuk teks,
+    # TIDAK benar-benar membuat file gambarnya (provider AI yang
+    # dipakai project ini adalah model teks, bukan model generate
+    # gambar). Guru tetap harus mencari/membuat gambar itu sendiri
+    # dan mengunggahnya manual lewat form Tambah/Edit Soal seperti
+    # biasa.
+    with_image: bool = False
+
     # Prompt final yang sudah diperiksa/diedit guru di langkah
     # preview. Kalau diisi, dipakai APA ADANYA untuk memanggil
     # Ollama (menggantikan build_ai_prompt otomatis). Kalau
@@ -180,6 +191,15 @@ class AIQuestionGenerateResponse(BaseModel):
     explanation: str | None = None
     points: float = 1
     options: list[QuestionOptionCreate]
+
+    # Diisi HANYA kalau request_data.with_image = True dan AI
+    # benar-benar mengembalikan field "image_description" yang
+    # tidak kosong. Ini teks saran/deskripsi ilustrasi dari AI --
+    # BUKAN gambar sungguhan (lihat catatan with_image di atas).
+    # Ditampilkan ke guru sebagai pengingat di form Tambah/Edit
+    # Soal supaya tahu gambar seperti apa yang perlu disiapkan &
+    # diunggah manual.
+    image_description: str | None = None
 
     # Diisi kalau lapisan verifikasi mandiri (lihat
     # routers/questions.py -> _verify_answer_consistency)
@@ -371,6 +391,7 @@ class QuestionResponse(BaseModel):
     points: float
     is_active: bool
     created_by: int | None = None
+    has_image: bool = False
     options: list[QuestionOptionResponse] = Field(
         default_factory=list
     )

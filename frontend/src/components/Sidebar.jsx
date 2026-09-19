@@ -1,4 +1,5 @@
 import { useAuth } from "../auth/AuthContext";
+import { useUI } from "../context/UIContext";
 import { NavLink } from "react-router-dom";
 
 import {
@@ -24,6 +25,11 @@ function Sidebar() {
     logout
   } = useAuth();
 
+  const {
+    mobileMenuOpen,
+    closeMobileMenu
+  } = useUI();
+
 
   const role = user?.role;
 
@@ -38,7 +44,24 @@ function Sidebar() {
 
 
   return (
-    <aside className="sidebar">
+    <>
+
+      {/* =================================================
+          OVERLAY — cuma render saat drawer mobile terbuka.
+          Tap di luar area sidebar (di bagian gelap ini) akan
+          menutup menu, mirip pola drawer pada umumnya.
+          ================================================= */}
+
+      {mobileMenuOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      <aside
+        className={`sidebar${mobileMenuOpen ? " sidebar-mobile-open" : ""}`}
+      >
 
 
       {/* =================================================
@@ -70,7 +93,10 @@ function Sidebar() {
           MENU
           ================================================= */}
 
-      <nav className="sidebar-menu">
+      <nav
+        className="sidebar-menu"
+        onClick={closeMobileMenu}
+      >
 
 
         {/* =================================================
@@ -558,7 +584,10 @@ function Sidebar() {
 
         <button
           className="sidebar-logout"
-          onClick={logout}
+          onClick={() => {
+            closeMobileMenu();
+            logout();
+          }}
         >
 
           <span style={{ display: "flex" }}>
@@ -574,6 +603,8 @@ function Sidebar() {
 
 
     </aside>
+
+    </>
   );
 }
 

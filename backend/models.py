@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     Index,
+    LargeBinary,
     text,
 )
 from sqlalchemy.orm import relationship
@@ -233,6 +234,46 @@ class Question(Base):
         DateTime,
         default=datetime.utcnow
     )
+
+    # =====================================================
+    # GAMBAR SOAL (opsional) — HANYA di pertanyaan, TIDAK di
+    # opsi jawaban (keputusan sengaja, per diskusi fitur ini).
+    #
+    # image_data: bytes mentah gambar, SUDAH dikonversi ke WebP
+    # & di-resize server-side sebelum sampai sini (lihat
+    # image_service.py) — bukan file asli upload guru apa
+    # adanya. LargeBinary -> kolom BYTEA di Postgres, BLOB di
+    # SQLite; SQLAlchemy otomatis konversi ke/dari `bytes`
+    # Python, tidak perlu encoding manual (base64 dsb) di kode
+    # aplikasi.
+    #
+    # image_mime_type: praktis selalu "image/webp" (karena semua
+    # upload dikonversi paksa ke WebP di image_service.py), tapi
+    # tetap disimpan eksplisit alih-alih di-hardcode di banyak
+    # tempat, jaga-jaga kalau format lain perlu didukung nanti.
+    #
+    # Keduanya nullable=True -- mayoritas soal tidak pakai
+    # gambar sama sekali.
+    # =====================================================
+    image_data = Column(
+        LargeBinary,
+        nullable=True
+    )
+
+    image_mime_type = Column(
+        String(50),
+        nullable=True
+    )
+
+    @property
+    def has_image(self) -> bool:
+        """Dipakai QuestionResponse (lihat schemas.py) -- list/detail
+        soal biasa cuma perlu tahu ADA/TIDAKNYA gambar, bukan ikut
+        membawa bytes gambar (berat kalau dikalikan puluhan soal
+        sekaligus). Bytes-nya sendiri baru diambil lewat endpoint
+        terpisah GET /api/questions/{id}/image, dipanggil browser
+        langsung lewat <img src="...">."""
+        return self.image_data is not None
 
     options = relationship(
         "QuestionOption",

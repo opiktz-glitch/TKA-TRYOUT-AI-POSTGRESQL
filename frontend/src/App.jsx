@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { UIProvider } from "./context/UIContext";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -390,7 +391,11 @@ function App() {
 
       <AuthProvider>
 
-        <AppRoutes />
+        <UIProvider>
+
+          <AppRoutes />
+
+        </UIProvider>
 
       </AuthProvider>
 

@@ -1230,7 +1230,9 @@ def get_attempt_result_detail(
 
         questions.append({
             "question_number": tq.question_number,
+            "question_id": question.id,
             "question_text": question.question_text,
+            "has_image": question.image_data is not None,
             "explanation": question.explanation,
 
             "options": [
@@ -1425,6 +1427,8 @@ def get_attempt(
             "difficulty": question.difficulty,
 
             "points": tq.points,
+
+            "has_image": question.image_data is not None,
 
             "options": [
                 {

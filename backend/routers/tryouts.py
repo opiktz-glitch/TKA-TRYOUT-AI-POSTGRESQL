@@ -11,7 +11,7 @@ from models import (
     User,
     Attempt,
 )
-from schemas import TryoutCreate, TryoutUpdate
+from schemas import TryoutCreate, TryoutUpdate, QuestionResponse
 from dependencies import require_role
 
 
@@ -282,6 +282,7 @@ def get_tryout_review(
             "question_type": question.question_type,
             "points": tryout_question.points,
             "explanation": question.explanation,
+            "has_image": question.has_image,
             "options": [
                 {
                     "option_code": option.option_code,
@@ -311,7 +312,10 @@ def get_tryout_review(
 # =========================================================
 # ROUTE INI HARUS SEBELUM /{tryout_id}
 
-@router.get("/available/questions")
+@router.get(
+    "/available/questions",
+    response_model=list[QuestionResponse],
+)
 def get_available_questions(
     subject_id: int,
     difficulty: str | None = None,
