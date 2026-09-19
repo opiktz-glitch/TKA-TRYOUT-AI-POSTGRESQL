@@ -9,7 +9,7 @@ from schemas import (
     UserResponse,
     PasswordReset
 )
-from auth import hash_password
+from auth import hash_password, end_session
 from dependencies import require_role
 
 
@@ -145,6 +145,44 @@ def reset_user_password(
     return {
         "success": True,
         "message": "Password berhasil diubah"
+    }
+
+
+# =========================================================
+# PAKSA LOGOUT (dipaksa oleh ADMIN)
+#
+# Jalan keluar darurat kalau ada user yang "kejebak" —
+# sesinya masih tercatat aktif di database (mis. browser
+# crash / laptop mati di tengah ujian sebelum sempat klik
+# Logout), padahal user itu sudah tidak benar-benar online.
+# ADMIN bisa membebaskan slot sesinya secara manual di sini
+# supaya user tersebut bisa login lagi tanpa perlu menunggu
+# token lamanya kedaluwarsa dengan sendirinya.
+# =========================================================
+
+@router.post("/{user_id}/force-logout")
+def force_logout_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN"))
+):
+    user = db.query(User).filter(
+        User.id == user_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User tidak ditemukan"
+        )
+
+    end_session(user)
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Sesi user berhasil di-logout paksa"
     }
 
 

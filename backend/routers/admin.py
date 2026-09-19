@@ -50,6 +50,94 @@ def admin_dashboard(
 
 
 # ============================================================
+# RINGKASAN DASHBOARD (ADMIN)
+#
+# Dulu Dashboard.jsx mengambil SELURUH baris user, siswa, guru,
+# tryout, dan soal (5 request paralel, tiap satu bisa berisi
+# ratusan/ribuan baris) HANYA untuk dihitung .length dan dicari
+# id terbesarnya di JavaScript. Di koneksi lambat, itu jadi lama
+# banget cuma untuk menampilkan 4 angka + 3 baris "terbaru".
+#
+# Endpoint ini menggantikannya dengan query database yang murah
+# (COUNT dan "ambil 1 baris terurut"), jadi payload-nya kecil
+# dan konstan berapa pun jumlah datanya.
+# ============================================================
+
+@router.get("/dashboard-summary")
+def get_admin_dashboard_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+
+    total_users = db.query(User).count()
+    total_students = db.query(Student).count()
+    total_teachers = db.query(Teacher).count()
+    total_admins = (
+        db.query(User)
+        .filter(User.role == "ADMIN")
+        .count()
+    )
+
+    latest_user = (
+        db.query(User)
+        .order_by(User.id.desc())
+        .first()
+    )
+
+    latest_tryout = (
+        db.query(Tryout)
+        .order_by(Tryout.id.desc())
+        .first()
+    )
+
+    latest_question = (
+        db.query(Question)
+        .order_by(Question.id.desc())
+        .first()
+    )
+
+    return {
+
+        "stats": {
+            "total_users": total_users,
+            "total_students": total_students,
+            "total_teachers": total_teachers,
+            "total_admins": total_admins,
+        },
+
+        "activity": {
+
+            "latest_user": (
+                {
+                    "id": latest_user.id,
+                    "full_name": latest_user.full_name,
+                    "username": latest_user.username,
+                }
+                if latest_user else None
+            ),
+
+            "latest_tryout": (
+                {
+                    "id": latest_tryout.id,
+                    "title": latest_tryout.title,
+                }
+                if latest_tryout else None
+            ),
+
+            "latest_question": (
+                {
+                    "id": latest_question.id,
+                    "question_text": latest_question.question_text,
+                }
+                if latest_question else None
+            ),
+
+        },
+
+    }
+
+
+# ============================================================
 # GET LAPORAN ANALITIK SISTEM (ADMIN)
 #
 # Ringkasan lintas seluruh guru & tryout: rata-rata skor per

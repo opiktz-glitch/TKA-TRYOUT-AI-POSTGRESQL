@@ -201,6 +201,16 @@ export async function getCurrentUser() {
   return apiFetch("/api/auth/me");
 }
 
+export async function logoutApi() {
+  // Best-effort: membebaskan slot sesi di server supaya akun ini
+  // bisa langsung dipakai login lagi di tempat lain. Kegagalan di
+  // sini TIDAK boleh menghalangi logout lokal (hapus token) tetap
+  // jalan — lihat pemanggilnya di AuthContext.jsx.
+  return apiFetch("/api/auth/logout", {
+    method: "POST",
+  });
+}
+
 export async function changeMyPassword(currentPassword, newPassword) {
   return apiFetch("/api/auth/change-password", {
     method: "PUT",
@@ -251,6 +261,12 @@ export async function resetUserPassword(userId, newPassword) {
   return apiFetch(`/api/users/${userId}/password`, {
     method: "PUT",
     body: { new_password: newPassword },
+  });
+}
+
+export async function forceLogoutUser(userId) {
+  return apiFetch(`/api/users/${userId}/force-logout`, {
+    method: "POST",
   });
 }
 
@@ -830,6 +846,25 @@ export async function getSystemStatus() {
 
 
 // =========================================================
+// RINGKASAN DASHBOARD (per role) — dipakai Dashboard.jsx
+// sebagai pengganti banyak request full-list yang dulu dipakai
+// cuma untuk menghitung total di JavaScript.
+// =========================================================
+
+export async function getAdminDashboardSummary() {
+  return apiFetch("/api/admin/dashboard-summary");
+}
+
+export async function getTeacherDashboardSummary() {
+  return apiFetch("/api/teacher/dashboard-summary");
+}
+
+export async function getStudentDashboardSummary() {
+  return apiFetch("/api/student/dashboard-summary");
+}
+
+
+// =========================================================
 // PENGATURAN > JARINGAN — IP untuk akses dari laptop lain
 // lewat WiFi/LAN yang sama.
 // =========================================================
@@ -952,5 +987,25 @@ export async function restoreFromUpload(file) {
   return apiFetch("/api/settings/backups/restore-upload", {
     method: "POST",
     body: formData,
+  });
+}
+
+// ==========================================
+// NOTIFIKASI
+// ==========================================
+
+export async function getNotifications() {
+  return await apiFetch("/api/notifications");
+}
+
+export async function markNotificationRead(notificationId) {
+  return await apiFetch(`/api/notifications/${notificationId}/read`, {
+    method: "POST",
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return await apiFetch("/api/notifications/read-all", {
+    method: "POST",
   });
 }

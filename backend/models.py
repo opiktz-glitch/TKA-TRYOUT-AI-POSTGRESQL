@@ -48,6 +48,36 @@ class User(Base):
         default=datetime.utcnow
     )
 
+    # =========================================================
+    # SESI LOGIN AKTIF (single-session enforcement)
+    #
+    # Dipakai supaya 1 akun cuma bisa dipakai login di SATU
+    # tempat pada satu waktu — mencegah joki/berbagi akun saat
+    # tryout. Diisi ulang tiap kali login berhasil (lihat
+    # routers/auth.py: login()), dan dicocokkan ke klaim "sid"
+    # di dalam JWT pada SETIAP request (lihat dependencies.py:
+    # get_current_user()) — bukan cuma dipercaya dari isi token,
+    # supaya sesi lama benar-benar bisa "dicabut" sebelum token-
+    # nya sendiri kedaluwarsa (mis. lewat tombol Logout, atau
+    # tombol 'Paksa Logout' oleh ADMIN).
+    #
+    # active_session_expires_at SENGAJA disimpan terpisah dari
+    # masa berlaku token JWT-nya sendiri: dipakai login() untuk
+    # tahu apakah sesi yang tercatat di sini masih "hidup" atau
+    # sudah kedaluwarsa dengan sendirinya (sehingga login baru
+    # boleh lewat tanpa perlu menunggu ADMIN memaksa logout).
+    # =========================================================
+
+    active_session_id = Column(
+        String,
+        nullable=True
+    )
+
+    active_session_expires_at = Column(
+        DateTime,
+        nullable=True
+    )
+
 
 # =========================================================
 # STUDENT
@@ -660,6 +690,59 @@ class Result(Base):
     completed_at = Column(
         DateTime,
         nullable=True
+    )
+
+
+# =========================================================
+# NOTIFICATION
+#
+# Tabel notifikasi generik lintas role (admin/guru/siswa). Dipicu
+# server-side dari finalize_attempt() di routers/student.py setiap
+# ada siswa menyelesaikan tryout -- bukan dari halaman frontend
+# manapun, jadi tidak perlu mengubah kode di frontend/src/pages/.
+# =========================================================
+
+class Notification(Base):
+    __tablename__ = "t_notification"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Penerima notifikasi -- t_user.id (bisa admin/guru/siswa,
+    # tergantung siapa yang seharusnya menerima notifikasi ini).
+    user_id = Column(
+        Integer,
+        ForeignKey("t_user.id"),
+        nullable=False,
+        index=True
+    )
+
+    title = Column(
+        String(200),
+        nullable=False
+    )
+
+    message = Column(
+        Text,
+        nullable=True
+    )
+
+    # Path frontend (mis. "/student/history") yang dibuka kalau
+    # notifikasi ini diklik. Nullable -- boleh kosong kalau
+    # notifikasi cuma informasi tanpa tujuan klik tertentu.
+    link = Column(
+        String(200),
+        nullable=True
+    )
+
+    is_read = Column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
     )
 
 

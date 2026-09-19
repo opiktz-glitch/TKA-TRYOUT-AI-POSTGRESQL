@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
-import { IconEdit, IconTrash, IconKey, IconEye, IconEyeOff, IconCheck } from "../components/Icons";
+import { IconEdit, IconTrash, IconKey, IconEye, IconEyeOff, IconCheck, IconLogOut } from "../components/Icons";
 
 import {
   getUsers,
   createUser,
   updateUser,
   deleteUser,
-  resetUserPassword
+  resetUserPassword,
+  forceLogoutUser
 } from "../services/api";
 
 
@@ -324,6 +325,45 @@ function UserManagement() {
   }
 
 
+  async function handleForceLogout(user) {
+
+    const confirmed = window.confirm(
+      `Paksa logout user "${user.username}"? Sesi aktifnya di `
+      + `perangkat lain akan langsung berakhir, dan akun ini bisa `
+      + `langsung dipakai login lagi di tempat baru.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+
+      setActionError("");
+      setActionSuccess("");
+
+      await forceLogoutUser(user.id);
+
+      setActionSuccess(
+        `Sesi user "${user.username}" berhasil di-logout paksa`
+      );
+
+      setTimeout(() => {
+        setActionSuccess("");
+      }, 2500);
+
+    } catch (err) {
+
+      console.error(err);
+
+      setActionError(
+        err.message || "Gagal memaksa logout user"
+      );
+
+    }
+  }
+
+
   async function handleResetPassword(event) {
     event.preventDefault();
 
@@ -619,6 +659,14 @@ function UserManagement() {
                               onClick={() => openPasswordModal(item)}
                             >
                               <IconKey size={16} />
+                            </button>
+
+                            <button
+                              className="password-button"
+                              title="Paksa Logout"
+                              onClick={() => handleForceLogout(item)}
+                            >
+                              <IconLogOut size={16} />
                             </button>
 
                           </div>

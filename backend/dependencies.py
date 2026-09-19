@@ -47,6 +47,8 @@ def get_current_user(
 
         username = payload.get("sub")
 
+        sid = payload.get("sid")
+
 
         if username is None:
 
@@ -82,6 +84,30 @@ def get_current_user(
         raise HTTPException(
             status_code=400,
             detail="User tidak aktif"
+        )
+
+
+    # -----------------------------------------------------
+    # SINGLE-SESSION ENFORCEMENT
+    #
+    # Token bisa saja masih valid secara kriptografis (belum
+    # "exp") tapi sesinya sudah dicabut di database — lewat
+    # Logout manual, atau 'Paksa Logout' oleh ADMIN, atau
+    # ter-overwrite karena hal lain. Tanpa cek ini, token lama
+    # tetap bisa dipakai sampai kedaluwarsa alami walau sudah
+    # di-logout secara eksplisit.
+    # -----------------------------------------------------
+
+    if sid is None or user.active_session_id != sid:
+
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Sesi Anda sudah berakhir (mungkin sudah logout, "
+                "atau login dari perangkat lain). Silakan login "
+                "kembali."
+            ),
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
 

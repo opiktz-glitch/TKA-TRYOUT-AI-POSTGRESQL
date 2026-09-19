@@ -3211,7 +3211,9 @@ function QuestionManagement() {
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "flex-start",
                       gap: 8,
+                      width: "100%",
                       fontWeight: 400,
                       cursor: "pointer",
                       textAlign: "left",
@@ -3224,7 +3226,9 @@ function QuestionManagement() {
                       onChange={handleAiFormChange}
                       disabled={aiPromptLoading}
                     />
-                    Buat soal bergambar
+                    <span>
+                      Buat soal bergambar
+                    </span>
                   </label>
 
                   <span

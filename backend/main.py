@@ -30,6 +30,7 @@ from routers import teachers
 from routers import teacher
 from routers import system
 from routers import settings
+from routers import notifications
 
 
 # ==========================================
@@ -288,6 +289,10 @@ app.include_router(
 
 app.include_router(
     settings.router
+)
+
+app.include_router(
+    notifications.router
 )
 
 

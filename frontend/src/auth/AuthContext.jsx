@@ -7,6 +7,7 @@ import {
 
 import {
   login as apiLogin,
+  logoutApi,
   getCurrentUser
 } from "../services/api";
 
@@ -62,7 +63,16 @@ export function AuthProvider({
   // dipakai oleh listener sesi kedaluwarsa)
   // ==========================================
 
-  const logout = () => {
+  const logout = async () => {
+
+    try {
+      // Best-effort — kalau gagal (mis. sudah offline), tetap
+      // lanjut hapus token lokal di bawah supaya user tidak
+      // "kejebak" tidak bisa logout dari device ini sendiri.
+      await logoutApi();
+    } catch (error) {
+      console.error("Gagal memberi tahu server saat logout:", error);
+    }
 
     localStorage.removeItem(
       "access_token"

@@ -22,37 +22,11 @@ import {
 } from "../components/Icons";
 
 import {
-  getUsers,
-  getStudentProfiles,
-  getTeacherProfiles,
-  getQuestions,
-  getTryouts,
-  getTeacherScores,
-  getStudentTryouts,
-  getAttemptHistory,
+  getAdminDashboardSummary,
+  getTeacherDashboardSummary,
+  getStudentDashboardSummary,
   getSystemStatus,
 } from "../services/api";
-
-
-// =====================================================
-// HELPER — ambil item dengan id terbesar.
-//
-// Dipakai sebagai proxy "paling baru dibuat" untuk data
-// user/tryout/soal, karena endpoint-endpoint tersebut tidak
-// mengembalikan field created_at ke frontend (hanya id yang
-// auto-increment dan pasti urut sesuai waktu pembuatan).
-// =====================================================
-
-function getLatestById(items) {
-  if (!items || items.length === 0) {
-    return null;
-  }
-
-  return items.reduce(
-    (latest, item) => (item.id > latest.id ? item : latest),
-    items[0]
-  );
-}
 
 
 // =====================================================
@@ -220,7 +194,7 @@ function Dashboard() {
       if (currentUser.role === "ADMIN") {
         await loadAdminData();
       } else if (currentUser.role === "GURU") {
-        await loadTeacherData(currentUser);
+        await loadTeacherData();
       } else if (currentUser.role === "SISWA") {
         await loadStudentData();
       }
@@ -235,103 +209,50 @@ function Dashboard() {
   }
 
   async function loadAdminData() {
-    const [
-      usersData,
-      studentsData,
-      teachersData,
-      tryoutsData,
-      questionsData,
-    ] = await Promise.all([
-      getUsers(),
-      getStudentProfiles(),
-      getTeacherProfiles(),
-      getTryouts(),
-      getQuestions(),
-    ]);
+    const data = await getAdminDashboardSummary();
 
     setAdminStats({
-      totalUsers: usersData.length,
-      totalStudents: studentsData.length,
-      totalTeachers: teachersData.length,
-      totalAdmins: usersData.filter(
-        (u) => u.role === "ADMIN"
-      ).length,
+      totalUsers: data.stats.total_users,
+      totalStudents: data.stats.total_students,
+      totalTeachers: data.stats.total_teachers,
+      totalAdmins: data.stats.total_admins,
     });
 
     setAdminActivity({
-      latestUser: getLatestById(usersData),
-      latestTryout: getLatestById(tryoutsData),
-      latestQuestion: getLatestById(questionsData),
+      latestUser: data.activity.latest_user,
+      latestTryout: data.activity.latest_tryout,
+      latestQuestion: data.activity.latest_question,
     });
   }
 
-  async function loadTeacherData(currentUser) {
-    const [questionsData, tryoutsData, scoresData] = await Promise.all([
-      getQuestions(),
-      getTryouts(),
-      getTeacherScores(),
-    ]);
-
-    const myQuestions = questionsData.filter(
-      (q) => q.created_by === currentUser.id
-    );
-
-    const myTryouts = tryoutsData.filter(
-      (t) => t.created_by === currentUser.id
-    );
-
-    // getTeacherScores() untuk role GURU sudah otomatis
-    // difilter di backend, hanya berisi hasil dari tryout
-    // miliknya sendiri.
-    const uniqueStudents = new Set(
-      scoresData.map((s) => s.student_id)
-    );
+  async function loadTeacherData() {
+    const data = await getTeacherDashboardSummary();
 
     setTeacherStats({
-      totalSoal: myQuestions.length,
-      totalTryout: myTryouts.length,
-      totalPeserta: uniqueStudents.size,
-      totalHasil: scoresData.length,
+      totalSoal: data.stats.total_soal,
+      totalTryout: data.stats.total_tryout,
+      totalPeserta: data.stats.total_peserta,
+      totalHasil: data.stats.total_hasil,
     });
 
     setTeacherActivity({
-      latestQuestion: getLatestById(myQuestions),
-      latestTryout: getLatestById(myTryouts),
+      latestQuestion: data.activity.latest_question,
+      latestTryout: data.activity.latest_tryout,
     });
   }
 
   async function loadStudentData() {
-    const [tryoutsData, historyData] = await Promise.all([
-      getStudentTryouts(),
-      getAttemptHistory(),
-    ]);
-
-    // "Siap dikerjakan" = belum pernah submit (null / IN_PROGRESS)
-    const belumSelesai = tryoutsData.filter(
-      (t) => t.attempt_status !== "SUBMITTED"
-    );
-
-    const scores = historyData
-      .map((h) => h.score)
-      .filter((score) => score !== null && score !== undefined);
-
-    const averageScore = scores.length
-      ? Math.round(
-          (scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10
-        ) / 10
-      : null;
+    const data = await getStudentDashboardSummary();
 
     setStudentStats({
-      tryoutTersedia: belumSelesai.length,
-      tryoutDiikuti: historyData.length,
-      nilaiTerakhir:
-        historyData.length > 0 ? historyData[0].score : null,
-      rataRata: averageScore,
-      lastAttemptDate:
-        historyData.length > 0 ? historyData[0].finished_at : null,
+      tryoutTersedia: data.stats.tryout_tersedia,
+      tryoutDiikuti: data.stats.tryout_diikuti,
+      nilaiTerakhir: data.stats.nilai_terakhir,
+      rataRata: data.stats.rata_rata,
+      lastAttemptDate: data.stats.last_attempt_date,
     });
 
-    setStudentTryoutsPreview(tryoutsData.slice(0, 3));
+    setStudentTryoutsPreview(data.preview);
   }
 
 

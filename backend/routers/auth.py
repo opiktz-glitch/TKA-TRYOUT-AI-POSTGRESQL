@@ -19,7 +19,10 @@ from schemas import (
 from auth import (
     verify_password,
     create_access_token,
-    hash_password
+    hash_password,
+    is_session_active,
+    start_session,
+    end_session
 )
 
 from dependencies import get_current_user
@@ -147,17 +150,55 @@ def login(
         )
 
 
+    # -----------------------------------------------------
+    # SINGLE-SESSION ENFORCEMENT
+    #
+    # Kredensial benar, TAPI kalau akun ini masih punya sesi
+    # aktif di tempat lain (belum logout & belum kedaluwarsa
+    # dengan sendirinya), tolak login baru ini. Ini yang
+    # mencegah 1 akun dipakai bersamaan di 2 device saat
+    # tryout (lihat auth.py: is_session_active()).
+    #
+    # PENGECUALIAN: berlaku HANYA untuk SISWA. ADMIN & GURU
+    # tidak pernah ditolak — untuk mereka, login baru langsung
+    # "mengambil alih" dan sesi lama otomatis ter-logout begitu
+    # start_session() di bawah menimpa active_session_id-nya,
+    # tanpa perlu tombol 'Paksa Logout'. Pembatasan single-
+    # session ini memang niatnya mencegah joki/berbagi akun SAAT
+    # TRYOUT, yang cuma relevan untuk SISWA.
+    #
+    # Sengaja TIDAK dihitung sebagai "percobaan gagal" di rate
+    # limiter di atas — kredensialnya benar, cuma ditolak
+    # karena kebijakan sesi.
+    # -----------------------------------------------------
+
+    if user.role == "SISWA" and is_session_active(user):
+        return LoginResponse(
+            success=False,
+            message=(
+                "Akun ini sedang digunakan di perangkat/browser "
+                "lain. Logout dari sana dulu, atau hubungi ADMIN "
+                "untuk memaksa logout sesi tersebut."
+            )
+        )
+
+
     _reset_failures(limiter_key)
 
     expires = timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
+    session_id = start_session(user, expires)
+
+    db.commit()
+
 
     token = create_access_token(
         data={
             "sub": user.username,
-            "role": user.role
+            "role": user.role,
+            "sid": session_id
         },
         db=db,
         expires_delta=expires
@@ -170,6 +211,26 @@ def login(
         access_token=token,
         token_type="bearer"
     )
+
+
+# ==========================================
+# LOGOUT
+# ==========================================
+
+@router.post("/logout")
+def logout(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Membebaskan slot sesi user ini, supaya akun yang sama
+    bisa langsung login lagi di tempat lain tanpa perlu
+    menunggu token-nya kedaluwarsa secara alami."""
+
+    end_session(current_user)
+
+    db.commit()
+
+    return {"message": "Logout berhasil"}
 
 
 # ==========================================

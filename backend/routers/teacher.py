@@ -24,6 +24,98 @@ router = APIRouter(
 
 
 # ============================================================
+# RINGKASAN DASHBOARD (GURU)
+#
+# Dulu Dashboard.jsx memanggil getQuestions() + getTryouts()
+# (SELURUH soal & tryout di sistem, lalu difilter created_by di
+# JavaScript) DITAMBAH getTeacherScores() (endpoint /scores di
+# atas, yang menjalankan beberapa query PER BARIS attempt) --
+# semua itu cuma untuk 4 angka + 2 baris "terbaru". Endpoint ini
+# menggantikannya dengan COUNT langsung di database, jadi jauh
+# lebih ringan terutama di koneksi lambat.
+# ============================================================
+
+@router.get("/dashboard-summary")
+def get_teacher_dashboard_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("GURU")),
+):
+
+    total_soal = (
+        db.query(Question)
+        .filter(Question.created_by == current_user.id)
+        .count()
+    )
+
+    total_tryout = (
+        db.query(Tryout)
+        .filter(Tryout.created_by == current_user.id)
+        .count()
+    )
+
+    completed_attempts_query = (
+        db.query(Attempt)
+        .join(Tryout, Tryout.id == Attempt.tryout_id)
+        .filter(Tryout.created_by == current_user.id)
+        .filter(Attempt.status != "IN_PROGRESS")
+    )
+
+    total_hasil = completed_attempts_query.count()
+
+    total_peserta = (
+        completed_attempts_query
+        .with_entities(Attempt.student_id)
+        .distinct()
+        .count()
+    )
+
+    latest_question = (
+        db.query(Question)
+        .filter(Question.created_by == current_user.id)
+        .order_by(Question.id.desc())
+        .first()
+    )
+
+    latest_tryout = (
+        db.query(Tryout)
+        .filter(Tryout.created_by == current_user.id)
+        .order_by(Tryout.id.desc())
+        .first()
+    )
+
+    return {
+
+        "stats": {
+            "total_soal": total_soal,
+            "total_tryout": total_tryout,
+            "total_peserta": total_peserta,
+            "total_hasil": total_hasil,
+        },
+
+        "activity": {
+
+            "latest_question": (
+                {
+                    "id": latest_question.id,
+                    "question_text": latest_question.question_text,
+                }
+                if latest_question else None
+            ),
+
+            "latest_tryout": (
+                {
+                    "id": latest_tryout.id,
+                    "title": latest_tryout.title,
+                }
+                if latest_tryout else None
+            ),
+
+        },
+
+    }
+
+
+# ============================================================
 # GET REKAP NILAI
 #
 # Untuk GURU: hanya menampilkan hasil dari tryout yang dia

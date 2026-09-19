@@ -131,6 +131,15 @@ export function IconBell(props) {
   );
 }
 
+export function IconSearch(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M20 20l-4.35-4.35" />
+    </Svg>
+  );
+}
+
 export function IconChevronDown(props) {
   return (
     <Svg {...props}>

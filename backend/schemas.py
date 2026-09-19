@@ -1,5 +1,23 @@
 from datetime import datetime
-from pydantic import BaseModel, Field 
+from pydantic import BaseModel, Field
+
+
+# ==========================================
+# NOTIFICATION
+# ==========================================
+
+class NotificationResponse(BaseModel):
+
+    id: int
+    title: str
+    message: str | None = None
+    link: str | None = None
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 
 # ==========================================

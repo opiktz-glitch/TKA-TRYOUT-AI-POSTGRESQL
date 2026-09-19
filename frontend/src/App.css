@@ -101,7 +101,7 @@ button {
 }
 
 
-.form-group input {
+.form-group input:not([type="checkbox"]):not([type="radio"]) {
 
   width: 100%;
 
@@ -117,7 +117,7 @@ button {
 }
 
 
-.form-group input:focus {
+.form-group input:focus:not([type="checkbox"]):not([type="radio"]) {
 
   border-color: var(--accent);
 
@@ -275,6 +275,47 @@ button {
   padding: 10px 10px;
 
   overflow-y: auto;
+
+  /* Scrollbar disembunyikan secara default, cuma muncul saat
+     mouse melintas di atas area menu ini -- lihat aturan
+     :hover di bawah. scrollbar-width/scrollbar-color untuk
+     Firefox, ::-webkit-scrollbar* untuk Chrome/Edge/Safari. */
+
+  scrollbar-width: thin;
+
+  scrollbar-color: transparent transparent;
+}
+
+
+.sidebar-menu:hover {
+
+  scrollbar-color: #c7ccd4 transparent;
+}
+
+
+.sidebar-menu::-webkit-scrollbar {
+
+  width: 6px;
+}
+
+
+.sidebar-menu::-webkit-scrollbar-track {
+
+  background: transparent;
+}
+
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+
+  background: transparent;
+
+  border-radius: 3px;
+}
+
+
+.sidebar-menu:hover::-webkit-scrollbar-thumb {
+
+  background: #c7ccd4;
 }
 
 
@@ -466,6 +507,200 @@ button {
 
 
 /* =====================================================
+   SIDEBAR COLLAPSED (desktop saja)
+
+   Class "sidebar-collapsed" ditaruh di <body> lewat
+   UIContext.jsx (bukan di-props ke tiap halaman satu-satu) --
+   lihat catatan panjang di UIContext.jsx untuk alasannya.
+   Dibatasi (min-width: 769px) supaya tidak bentrok dengan
+   mode drawer mobile yang sudah ada di breakpoint 768px ke
+   bawah (konsep beda: itu buka/tutup penuh, ini ciut ke ikon).
+   ===================================================== */
+
+.sidebar-collapse-toggle {
+
+  position: absolute;
+
+  top: 66px;
+
+  right: -12px;
+
+  width: 24px;
+
+  height: 24px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border: 1px solid var(--line);
+
+  border-radius: 50%;
+
+  background: var(--paper);
+
+  color: #5c6470;
+
+  cursor: pointer;
+
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+
+  z-index: 5;
+
+  transition: 0.15s;
+}
+
+
+.sidebar-collapse-toggle:hover {
+
+  color: var(--accent);
+
+  border-color: var(--accent-soft-strong);
+}
+
+
+.sidebar-collapse-toggle svg {
+
+  transform: rotate(-90deg);
+
+  transition: transform 0.2s;
+}
+
+
+@media (max-width: 768px) {
+
+  /* Konsep collapse-ke-ikon ini khusus desktop -- di layar
+     sempit sidebar sudah punya mode drawer sendiri (geser
+     masuk/keluar penuh), jadi tombolnya disembunyikan di sini
+     supaya tidak duplikat/bentrok dengan tombol hamburger di
+     Header. */
+
+  .sidebar-collapse-toggle {
+
+    display: none;
+
+  }
+
+}
+
+
+@media (min-width: 769px) {
+
+  body.sidebar-collapsed .sidebar {
+
+    width: 70px;
+
+  }
+
+
+  body.sidebar-collapsed .main-content {
+
+    width: calc(100% - 70px);
+
+    margin-left: 70px;
+
+  }
+
+
+  body.sidebar-collapsed .sidebar-collapse-toggle svg {
+
+    transform: rotate(90deg);
+
+  }
+
+
+  /* Sembunyikan semua teks label, sisakan ikonnya saja --
+     dipilih lewat CSS (bukan render kondisional per menu item
+     di JSX) supaya tidak perlu ubah puluhan baris NavLink satu
+     per satu; cukup 1 tempat ini. */
+
+  body.sidebar-collapsed .logo-text,
+  body.sidebar-collapsed .menu-section,
+  body.sidebar-collapsed .menu-item span:not(.menu-icon),
+  body.sidebar-collapsed .sidebar-user-info,
+  body.sidebar-collapsed .sidebar-logout-text {
+
+    display: none;
+
+  }
+
+
+  body.sidebar-collapsed .sidebar-logo {
+
+    justify-content: center;
+
+    padding: 0;
+
+  }
+
+
+  body.sidebar-collapsed .menu-item {
+
+    justify-content: center;
+
+  }
+
+
+  body.sidebar-collapsed .sidebar-user {
+
+    justify-content: center;
+
+    margin-bottom: 10px;
+
+  }
+
+}
+
+
+/* =====================================================
+   TOOLTIP saat sidebar diciutkan
+
+   TIDAK dibuat lewat CSS ::after murni -- sempat dicoba, tapi
+   ke-clip (terpotong invisible) oleh .sidebar-menu yang punya
+   overflow-y:auto (efek samping overflow-y non-visible: browser
+   otomatis ikut meng-clip sumbu X juga). Solusinya: posisi
+   tooltip dihitung di JS (lihat handleTooltipEnter di
+   Sidebar.jsx) dan dirender sebagai elemen mengambang
+   TERPISAH, sebagai anak langsung <aside> (di LUAR
+   .sidebar-menu yang meng-clip), lewat position:fixed --
+   posisinya tidak diatur oleh box induk mana pun, jadi tidak
+   ikut ter-clip.
+   ===================================================== */
+
+.sidebar-floating-tooltip {
+
+  position: fixed;
+
+  transform: translateY(-50%);
+
+  background: #eceef1;
+
+  color: #1f2937;
+
+  font-size: 13px;
+
+  font-weight: 500;
+
+  white-space: nowrap;
+
+  padding: 7px 14px;
+
+  border-radius: 6px;
+
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+
+  z-index: 50;
+
+  pointer-events: none;
+}
+
+
+
+
+
+/* =====================================================
    MAIN CONTENT
    ===================================================== */
 
@@ -497,7 +732,7 @@ button {
 
 .header {
 
-  height: 62px;
+  height: 50px;
 
   padding: 0 30px;
 
@@ -507,10 +742,154 @@ button {
 
   align-items: center;
 
-  background: white;
+  background: var(--paper);
+}
 
-  border-bottom:
-    1px solid #e5e7eb;
+
+.header-breadcrumb {
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color: #6b7280;
+
+  letter-spacing: 0.2px;
+}
+
+
+.header-nav-search {
+
+  position: relative;
+
+  flex: 1;
+
+  max-width: 360px;
+
+  margin: 0 20px;
+
+  display: flex;
+
+  align-items: center;
+}
+
+
+.header-nav-search-icon {
+
+  position: absolute;
+
+  left: 12px;
+
+  color: #9ca3af;
+
+  pointer-events: none;
+}
+
+
+.header-nav-search input {
+
+  width: 100%;
+
+  height: 34px;
+
+  padding: 0 12px 0 34px;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 8px;
+
+  font-size: 13px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #1f2937;
+}
+
+
+.header-nav-search input:focus {
+
+  border-color: var(--accent);
+}
+
+
+.header-nav-dropdown {
+
+  position: absolute;
+
+  top: calc(100% + 6px);
+
+  left: 0;
+
+  right: 0;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 8px;
+
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+
+  max-height: 320px;
+
+  overflow-y: auto;
+
+  z-index: 50;
+
+  padding: 6px;
+}
+
+
+.header-nav-dropdown-item {
+
+  display: block;
+
+  width: 100%;
+
+  text-align: left;
+
+  padding: 9px 10px;
+
+  border: 0;
+
+  background: transparent;
+
+  border-radius: 6px;
+
+  font-size: 13.5px;
+
+  color: #1f2937;
+
+  cursor: pointer;
+}
+
+
+.header-nav-dropdown-item:hover {
+
+  background: #f3f4f6;
+}
+
+
+.header-nav-dropdown-empty {
+
+  padding: 9px 10px;
+
+  font-size: 13px;
+
+  color: #9ca3af;
+}
+
+
+@media (max-width: 768px) {
+
+  .header-nav-search {
+
+    display: none;
+
+  }
+
 }
 
 
@@ -529,6 +908,12 @@ button {
   margin: 0;
 
   font-size: 20px;
+
+  font-weight: 700;
+
+  color: var(--ink);
+
+  letter-spacing: -0.3px;
 }
 
 
@@ -544,6 +929,8 @@ button {
 
 .notification-button {
 
+  position: relative;
+
   width: 38px;
 
   height: 38px;
@@ -557,6 +944,231 @@ button {
   cursor: pointer;
 
   font-size: 16px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+}
+
+
+.notification-badge {
+
+  position: absolute;
+
+  top: -2px;
+
+  right: -2px;
+
+  min-width: 16px;
+
+  height: 16px;
+
+  padding: 0 3px;
+
+  border-radius: 999px;
+
+  background: #ef4444;
+
+  color: #ffffff;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  line-height: 16px;
+
+  text-align: center;
+}
+
+
+.header-notif {
+
+  position: relative;
+}
+
+
+.header-notif-dropdown {
+
+  position: absolute;
+
+  top: calc(100% + 8px);
+
+  right: 0;
+
+  width: 320px;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 8px;
+
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+
+  max-height: 400px;
+
+  overflow-y: auto;
+
+  z-index: 50;
+}
+
+
+.header-notif-dropdown-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 12px 14px;
+
+  border-bottom: 1px solid #f3f4f6;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color: #1f2937;
+
+  position: sticky;
+
+  top: 0;
+
+  background: #ffffff;
+}
+
+
+.header-notif-mark-all {
+
+  border: 0;
+
+  background: transparent;
+
+  color: var(--accent);
+
+  font-size: 12px;
+
+  font-weight: 500;
+
+  cursor: pointer;
+
+  padding: 0;
+}
+
+
+.header-notif-empty {
+
+  padding: 20px 14px;
+
+  text-align: center;
+
+  font-size: 13px;
+
+  color: #9ca3af;
+}
+
+
+.header-notif-item {
+
+  display: block;
+
+  width: 100%;
+
+  text-align: left;
+
+  padding: 10px 14px;
+
+  border: 0;
+
+  border-bottom: 1px solid #f9fafb;
+
+  background: transparent;
+
+  cursor: pointer;
+}
+
+
+.header-notif-item:hover {
+
+  background: #f9fafb;
+}
+
+
+.header-notif-item-unread {
+
+  background: #f0fdfa;
+}
+
+
+.header-notif-item-unread:hover {
+
+  background: #e6fbf6;
+}
+
+
+.header-notif-item-title {
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color: #1f2937;
+}
+
+
+.header-notif-item-unread .header-notif-item-title::before {
+
+  content: "";
+
+  display: inline-block;
+
+  width: 6px;
+
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: var(--accent);
+
+  margin-right: 6px;
+}
+
+
+.header-notif-item-message {
+
+  font-size: 12.5px;
+
+  color: #6b7280;
+
+  margin-top: 2px;
+
+  line-height: 1.4;
+}
+
+
+.header-notif-item-time {
+
+  font-size: 11px;
+
+  color: #9ca3af;
+
+  margin-top: 4px;
+}
+
+
+@media (max-width: 480px) {
+
+  .header-notif-dropdown {
+
+    width: 280px;
+
+    right: -60px;
+
+  }
+
 }
 
 
@@ -603,6 +1215,8 @@ button {
   font-size: 13px;
 
   font-weight: 600;
+
+  color: var(--ink);
 }
 
 
@@ -610,9 +1224,13 @@ button {
 
   margin-top: 2px;
 
-  font-size: 11px;
+  font-size: 10.5px;
 
-  color: #6b7280;
+  font-weight: 600;
+
+  color: var(--accent);
+
+  letter-spacing: 0.4px;
 }
 
 
@@ -636,7 +1254,7 @@ button {
 
 .content {
 
-  padding: 20px 0 20px 26px;
+  padding: 10px 0 20px 26px;
 }
 
 
@@ -657,8 +1275,6 @@ button {
   margin: 0;
 
   font-size: 23px;
-
-  font-family: var(--font-voice);
 
   font-weight: 600;
 }
@@ -1929,7 +2545,7 @@ button {
 }
 
 
-.form-group input,
+.form-group input:not([type="checkbox"]):not([type="radio"]),
 .form-group select {
   width: 100%;
 
@@ -1947,7 +2563,7 @@ button {
 }
 
 
-.form-group input:focus,
+.form-group input:focus:not([type="checkbox"]):not([type="radio"]),
 .form-group select:focus {
   border-color: var(--accent);
 
@@ -2427,7 +3043,7 @@ button {
   color: #444;
 }
 
-.form-group input,
+.form-group input:not([type="checkbox"]):not([type="radio"]),
 .form-group select,
 .form-group textarea {
   width: 100%;
@@ -2445,7 +3061,7 @@ button {
   line-height: 1.5;
 }
 
-.form-group input:focus,
+.form-group input:focus:not([type="checkbox"]):not([type="radio"]),
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;

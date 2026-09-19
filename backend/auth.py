@@ -224,6 +224,61 @@ def verify_password(
 
 
 # ==========================================
+# SESI LOGIN AKTIF (single-session enforcement)
+#
+# Lihat catatan panjang di models.py (User.active_session_id)
+# untuk alasan desainnya. Ringkasnya: 1 akun cuma boleh dipakai
+# login di satu tempat pada satu waktu.
+# ==========================================
+
+def generate_session_id() -> str:
+    return secrets.token_urlsafe(24)
+
+
+def is_session_active(user) -> bool:
+    """True kalau user SEDANG punya sesi login yang masih
+    berlaku (belum logout & belum kedaluwarsa dengan sendirinya).
+
+    PENTING: pakai datetime.utcnow() (naive) di sini, BUKAN
+    datetime.now(timezone.utc) — kolom active_session_expires_at
+    tersimpan tanpa timezone (konsisten dengan created_at di
+    seluruh models.py), jadi membandingkannya dengan datetime
+    timezone-aware akan melempar TypeError."""
+
+    if not user.active_session_id:
+        return False
+
+    if not user.active_session_expires_at:
+        return False
+
+    return user.active_session_expires_at > datetime.utcnow()
+
+
+def start_session(user, expires_delta: timedelta) -> str:
+    """Dipanggil saat login berhasil. Mengembalikan session_id
+    baru yang disisipkan sebagai klaim 'sid' di JWT — TIDAK
+    melakukan commit, caller (endpoint login) yang commit."""
+
+    session_id = generate_session_id()
+
+    user.active_session_id = session_id
+    user.active_session_expires_at = (
+        datetime.utcnow() + expires_delta
+    )
+
+    return session_id
+
+
+def end_session(user) -> None:
+    """Membebaskan slot sesi user ini — dipanggil saat logout
+    manual maupun 'Paksa Logout' oleh ADMIN. TIDAK melakukan
+    commit, caller yang commit."""
+
+    user.active_session_id = None
+    user.active_session_expires_at = None
+
+
+# ==========================================
 # JWT
 # ==========================================
 

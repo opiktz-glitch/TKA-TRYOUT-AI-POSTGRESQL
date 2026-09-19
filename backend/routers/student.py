@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from models import (
     Attempt,
     Answer,
     Result,
+    Notification,
 )
 
 
@@ -377,6 +379,71 @@ def finalize_attempt(
 
     db.refresh(result)
 
+    # =====================================================
+    # NOTIFIKASI: hasil keluar (siswa) + siswa selesai (pembuat tryout)
+    #
+    # Dipicu di sini (bukan di endpoint submit_attempt) supaya
+    # notifikasi TETAP terkirim juga untuk kasus auto-expire
+    # (attempt yang habis waktu dan ditutup otomatis lewat
+    # save_answer()), bukan cuma submit manual. Kalau baris ini
+    # error karena alasan apapun, JANGAN sampai menggagalkan
+    # penilaian yang sudah berhasil disimpan di atas -- makanya
+    # dibungkus try/except tersendiri.
+    # =====================================================
+
+    try:
+
+        student = (
+            db.query(Student)
+            .filter(Student.id == attempt.student_id)
+            .first()
+        )
+
+        if student:
+
+            db.add(Notification(
+                user_id=student.user_id,
+                title="Hasil tryout sudah keluar",
+                message=(
+                    f'Hasil tryout "{tryout.title}" sudah bisa dilihat. '
+                    f"Skor kamu: {round(score, 2)}."
+                ),
+                link="/student/history",
+            ))
+
+            if tryout.created_by:
+
+                creator = (
+                    db.query(User)
+                    .filter(User.id == tryout.created_by)
+                    .first()
+                )
+
+                if creator:
+
+                    creator_link = (
+                        "/admin/scores"
+                        if creator.role == "ADMIN"
+                        else "/teacher/scores"
+                    )
+
+                    db.add(Notification(
+                        user_id=creator.id,
+                        title="Siswa menyelesaikan tryout",
+                        message=(
+                            f'{student.full_name} baru saja menyelesaikan '
+                            f'tryout "{tryout.title}" (skor: {round(score, 2)}).'
+                        ),
+                        link=creator_link,
+                    ))
+
+            db.commit()
+
+    except Exception:
+        # Notifikasi gagal dibuat bukan alasan untuk menggagalkan
+        # keseluruhan request penilaian yang sudah tersimpan.
+        db.rollback()
+
     return {
         "success": True,
 
@@ -482,6 +549,152 @@ def update_my_profile(
 # ============================================================
 # GET DAFTAR TRYOUT SISWA
 # ============================================================
+
+@router.get("/dashboard-summary")
+def get_student_dashboard_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Ringkasan untuk Dashboard siswa. Sebelumnya Dashboard.jsx
+    memanggil getStudentTryouts() (SEMUA tryout aktif, tiap satu
+    lewat 3 query terpisah -- lihat komentar di /tryouts di
+    bawah) dan getAttemptHistory() (SEMUA riwayat attempt, juga
+    beberapa query per baris), padahal cuma untuk 4-5 angka
+    ringkasan + 3 kartu preview.
+
+    Di sini, angka-angka dihitung lewat COUNT/AVG di database,
+    dan preview tryout DIBATASI 3 (bukan seluruh tryout aktif)
+    sebelum baru dicek detailnya satu per satu -- jadi jumlah
+    query tidak lagi ikut membengkak seiring bertambahnya jumlah
+    tryout/soal di sistem.
+    """
+
+    student = get_student(current_user, db)
+
+    # --- Tryout tersedia (aktif, belum SUBMITTED oleh siswa ini) ---
+
+    submitted_tryout_ids = (
+        db.query(Attempt.tryout_id)
+        .filter(Attempt.student_id == student.id)
+        .filter(Attempt.status == "SUBMITTED")
+        .subquery()
+    )
+
+    tryout_tersedia = (
+        db.query(Tryout)
+        .filter(Tryout.is_active == True)
+        .filter(~Tryout.id.in_(db.query(submitted_tryout_ids.c.tryout_id)))
+        .count()
+    )
+
+    # --- Riwayat (attempt yang sudah selesai, bukan IN_PROGRESS) ---
+
+    score_expr = func.coalesce(Result.score, Attempt.score)
+
+    completed_base = (
+        db.query(Attempt)
+        .outerjoin(Result, Result.attempt_id == Attempt.id)
+        .filter(Attempt.student_id == student.id)
+        .filter(Attempt.status != "IN_PROGRESS")
+    )
+
+    tryout_diikuti = completed_base.count()
+
+    rata_rata = (
+        db.query(func.avg(score_expr))
+        .select_from(Attempt)
+        .outerjoin(Result, Result.attempt_id == Attempt.id)
+        .filter(Attempt.student_id == student.id)
+        .filter(Attempt.status != "IN_PROGRESS")
+        .filter(score_expr.isnot(None))
+        .scalar()
+    )
+
+    latest_row = (
+        db.query(Attempt, Result)
+        .outerjoin(Result, Result.attempt_id == Attempt.id)
+        .filter(Attempt.student_id == student.id)
+        .filter(Attempt.status != "IN_PROGRESS")
+        .order_by(
+            Attempt.finished_at.desc(),
+            Attempt.created_at.desc(),
+        )
+        .first()
+    )
+
+    nilai_terakhir = None
+    last_attempt_date = None
+
+    if latest_row:
+        latest_attempt, latest_result = latest_row
+
+        nilai_terakhir = (
+            latest_result.score
+            if latest_result and latest_result.score is not None
+            else latest_attempt.score
+        )
+
+        last_attempt_date = latest_attempt.finished_at
+
+    # --- Preview 3 tryout terbaru (bukan semua tryout aktif) ---
+
+    preview_tryouts = (
+        db.query(Tryout)
+        .filter(Tryout.is_active == True)
+        .order_by(Tryout.created_at.desc())
+        .limit(3)
+        .all()
+    )
+
+    preview = []
+
+    for tryout in preview_tryouts:
+
+        subject = (
+            db.query(Subject)
+            .filter(Subject.id == tryout.subject_id)
+            .first()
+        )
+
+        latest_attempt = (
+            db.query(Attempt)
+            .filter(
+                Attempt.tryout_id == tryout.id,
+                Attempt.student_id == student.id,
+            )
+            .order_by(Attempt.created_at.desc())
+            .first()
+        )
+
+        preview.append({
+            "id": tryout.id,
+            "title": tryout.title,
+            "subject_name": subject.name if subject else None,
+            "attempt_status": (
+                latest_attempt.status if latest_attempt else None
+            ),
+            "score": (
+                latest_attempt.score if latest_attempt else None
+            ),
+        })
+
+    return {
+
+        "stats": {
+            "tryout_tersedia": tryout_tersedia,
+            "tryout_diikuti": tryout_diikuti,
+            "nilai_terakhir": nilai_terakhir,
+            "rata_rata": (
+                round(rata_rata, 1) if rata_rata is not None else None
+            ),
+            "last_attempt_date": last_attempt_date,
+        },
+
+        "preview": preview,
+
+    }
+
 
 @router.get("/tryouts")
 def get_student_tryouts(
