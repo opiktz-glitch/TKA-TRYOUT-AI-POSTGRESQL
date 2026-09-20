@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import Sidebar from "../components/Sidebar";
@@ -8,6 +8,7 @@ import { IconBarChart, IconCheck, IconTarget, IconUsers } from "../components/Ic
 
 import { getTeacherScores, getTryouts } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
+import { readPageCache, writePageCache } from "../services/pageCache";
 
 
 // =====================================================
@@ -38,14 +39,39 @@ function formatDate(value) {
 }
 
 
+// =====================================================
+// CACHE — kunci (lihat services/pageCache.js)
+// Rekap nilai di-cache per FILTER TRYOUT yang dikirim ke server.
+// =====================================================
+
+const TRYOUT_OPTIONS_CACHE_KEY = "teacher-scores-options";
+
+function scoresCacheKey(tryoutId) {
+  return `teacher-scores:${tryoutId}`;
+}
+
+
 function TeacherScores() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  const [scores, setScores] = useState([]);
-  const [tryoutOptions, setTryoutOptions] = useState([]);
+  // Data dari kunjungan sebelumnya di sesi ini. Filter tryout selalu
+  // mulai dari "semua" saat halaman dibuka, jadi yang dipakai di awal
+  // adalah cache untuk filter kosong. Kalau ada, langsung tampil (tanpa
+  // "Memuat rekap nilai...") lalu diperbarui diam-diam.
+  const cachedScores = readPageCache(user?.id, scoresCacheKey(""));
+  const cachedTryoutOptions = readPageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY);
 
-  const [loading, setLoading] = useState(true);
+  // Kunci filter yang hasilnya sedang ditunggu. Dipakai untuk mengabaikan
+  // respons yang sudah usang (filter keburu diganti).
+  const latestScoresKeyRef = useRef(null);
+
+  const [scores, setScores] = useState(() => cachedScores ?? []);
+  const [tryoutOptions, setTryoutOptions] = useState(
+    () => cachedTryoutOptions ?? []
+  );
+
+  const [loading, setLoading] = useState(() => !cachedScores);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -63,6 +89,7 @@ function TeacherScores() {
         : data;
 
       setTryoutOptions(mine);
+      writePageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY, mine);
     } catch (err) {
       console.error("LOAD TRYOUT OPTIONS ERROR:", err);
     }
@@ -70,20 +97,44 @@ function TeacherScores() {
 
 
   const loadScores = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+    const cacheKey = scoresCacheKey(selectedTryoutId);
 
+    const cachedData = readPageCache(user?.id, cacheKey);
+
+    latestScoresKeyRef.current = cacheKey;
+
+    if (cachedData) {
+      // Filter ini pernah dimuat: tampilkan langsung, lalu perbarui
+      // diam-diam (tanpa loading; kalau gagal, data lama dibiarkan).
+      setScores(cachedData);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    setError("");
+
+    try {
       const data = await getTeacherScores(selectedTryoutId || undefined);
 
-      setScores(data);
+      writePageCache(user?.id, cacheKey, data);
+
+      // Abaikan hasil kalau filter sudah berganti selama menunggu.
+      if (latestScoresKeyRef.current === cacheKey) {
+        setScores(data);
+      }
     } catch (err) {
       console.error("LOAD SCORES ERROR:", err);
-      setError(err.message || "Gagal memuat rekap nilai");
+
+      if (!cachedData && latestScoresKeyRef.current === cacheKey) {
+        setError(err.message || "Gagal memuat rekap nilai");
+      }
     } finally {
-      setLoading(false);
+      if (latestScoresKeyRef.current === cacheKey) {
+        setLoading(false);
+      }
     }
-  }, [selectedTryoutId]);
+  }, [selectedTryoutId, user?.id]);
 
 
   useEffect(() => {

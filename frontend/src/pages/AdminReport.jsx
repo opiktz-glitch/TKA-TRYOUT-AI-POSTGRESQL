@@ -12,6 +12,8 @@ import {
 } from "../components/Icons";
 
 import { getAdminReportOverview } from "../services/api";
+import { useAuth } from "../auth/AuthContext";
+import { readPageCache, writePageCache } from "../services/pageCache";
 
 
 // =====================================================
@@ -49,9 +51,19 @@ function wrongBadgeStyle(percentage) {
 }
 
 
+// Kunci cache halaman ini (lihat services/pageCache.js).
+const REPORT_CACHE_KEY = "admin-report";
+
+
 function AdminReport() {
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  // Laporan dari kunjungan sebelumnya di sesi ini. Kalau ada, langsung
+  // ditampilkan (tanpa "Memuat laporan...") lalu diperbarui diam-diam.
+  const cachedReport = readPageCache(user?.id, REPORT_CACHE_KEY);
+
+  const [report, setReport] = useState(() => cachedReport ?? null);
+  const [loading, setLoading] = useState(() => !cachedReport);
   const [error, setError] = useState("");
 
 
@@ -61,16 +73,27 @@ function AdminReport() {
 
 
   async function loadReport() {
+    // Sudah ada laporan lama di layar -> perbarui diam-diam: tanpa
+    // loading, dan kalau gagal, laporan lama dibiarkan.
+    const hasCachedReport = Boolean(readPageCache(user?.id, REPORT_CACHE_KEY));
+
     try {
-      setLoading(true);
+      if (!hasCachedReport) {
+        setLoading(true);
+      }
+
       setError("");
 
       const data = await getAdminReportOverview();
 
       setReport(data);
+      writePageCache(user?.id, REPORT_CACHE_KEY, data);
     } catch (err) {
       console.error("LOAD ADMIN REPORT ERROR:", err);
-      setError(err.message || "Gagal memuat laporan");
+
+      if (!hasCachedReport) {
+        setError(err.message || "Gagal memuat laporan");
+      }
     } finally {
       setLoading(false);
     }

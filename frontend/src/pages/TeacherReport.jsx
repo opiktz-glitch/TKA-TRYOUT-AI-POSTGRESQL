@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -13,6 +13,7 @@ import {
 
 import { getTeacherReport, getTryouts } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
+import { readPageCache, writePageCache } from "../services/pageCache";
 
 
 // =====================================================
@@ -32,15 +33,45 @@ function wrongBadgeStyle(percentage) {
 }
 
 
+// =====================================================
+// CACHE — kunci (lihat services/pageCache.js)
+// Daftar tryout di-cache satu kali; laporan di-cache PER TRYOUT.
+// =====================================================
+
+const TRYOUT_OPTIONS_CACHE_KEY = "teacher-report-options";
+
+function reportCacheKey(tryoutId) {
+  return `teacher-report:${tryoutId}`;
+}
+
+
 function TeacherReport() {
   const { user } = useAuth();
 
-  const [tryoutOptions, setTryoutOptions] = useState([]);
-  const [selectedTryoutId, setSelectedTryoutId] = useState("");
+  // Data dari kunjungan sebelumnya di sesi ini. Pilihan tryout selalu
+  // mulai dari tryout PERTAMA di daftar (seperti sebelumnya), jadi cache
+  // yang dipakai di awal adalah daftar tryout + laporan tryout pertama.
+  // Kalau ada, langsung tampil (tanpa "Memuat...") lalu diperbarui
+  // diam-diam.
+  const cachedOptions = readPageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY);
 
-  const [report, setReport] = useState(null);
+  const initialTryoutId =
+    cachedOptions && cachedOptions.length > 0 ? String(cachedOptions[0].id) : "";
 
-  const [loadingOptions, setLoadingOptions] = useState(true);
+  const cachedReport = initialTryoutId
+    ? readPageCache(user?.id, reportCacheKey(initialTryoutId))
+    : undefined;
+
+  // Tryout yang laporannya sedang ditunggu. Dipakai untuk mengabaikan
+  // respons yang sudah usang (pilihan keburu diganti).
+  const latestReportKeyRef = useRef(null);
+
+  const [tryoutOptions, setTryoutOptions] = useState(() => cachedOptions ?? []);
+  const [selectedTryoutId, setSelectedTryoutId] = useState(initialTryoutId);
+
+  const [report, setReport] = useState(() => cachedReport ?? null);
+
+  const [loadingOptions, setLoadingOptions] = useState(() => !cachedOptions);
   const [loadingReport, setLoadingReport] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,8 +90,17 @@ function TeacherReport() {
 
 
   async function loadTryoutOptions() {
+    // Sudah ada daftar lama di layar -> perbarui diam-diam: tanpa
+    // "Memuat daftar tryout...", dan kalau gagal, daftar lama dibiarkan.
+    const hasCachedOptions = Boolean(
+      readPageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY)
+    );
+
     try {
-      setLoadingOptions(true);
+      if (!hasCachedOptions) {
+        setLoadingOptions(true);
+      }
+
       setError("");
 
       const data = await getTryouts();
@@ -72,13 +112,28 @@ function TeacherReport() {
         : data;
 
       setTryoutOptions(mine);
+      writePageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY, mine);
 
-      if (mine.length > 0) {
-        setSelectedTryoutId(String(mine[0].id));
+      // Pilih tryout pertama kalau belum ada pilihan. Kalau user sudah
+      // memilih tryout lain selagi daftar diperbarui, pilihannya
+      // dipertahankan (selama tryout itu masih ada di daftar).
+      setSelectedTryoutId((current) => {
+        if (current && mine.some((t) => String(t.id) === current)) {
+          return current;
+        }
+
+        return mine.length > 0 ? String(mine[0].id) : "";
+      });
+
+      if (mine.length === 0) {
+        setReport(null);
       }
     } catch (err) {
       console.error("LOAD TRYOUT OPTIONS ERROR:", err);
-      setError(err.message || "Gagal memuat daftar tryout");
+
+      if (!hasCachedOptions) {
+        setError(err.message || "Gagal memuat daftar tryout");
+      }
     } finally {
       setLoadingOptions(false);
     }
@@ -86,19 +141,43 @@ function TeacherReport() {
 
 
   async function loadReport(tryoutId) {
-    try {
-      setLoadingReport(true);
-      setError("");
+    const cacheKey = reportCacheKey(tryoutId);
 
+    const cachedData = readPageCache(user?.id, cacheKey);
+
+    latestReportKeyRef.current = cacheKey;
+
+    if (cachedData) {
+      // Tryout ini pernah dimuat: tampilkan langsung, lalu perbarui
+      // diam-diam (tanpa loading; kalau gagal, laporan lama dibiarkan).
+      setReport(cachedData);
+      setLoadingReport(false);
+    } else {
+      setLoadingReport(true);
+    }
+
+    setError("");
+
+    try {
       const data = await getTeacherReport(tryoutId);
 
-      setReport(data);
+      writePageCache(user?.id, cacheKey, data);
+
+      // Abaikan hasil kalau pilihan tryout sudah berganti selama menunggu.
+      if (latestReportKeyRef.current === cacheKey) {
+        setReport(data);
+      }
     } catch (err) {
       console.error("LOAD REPORT ERROR:", err);
-      setError(err.message || "Gagal memuat laporan");
-      setReport(null);
+
+      if (!cachedData && latestReportKeyRef.current === cacheKey) {
+        setError(err.message || "Gagal memuat laporan");
+        setReport(null);
+      }
     } finally {
-      setLoadingReport(false);
+      if (latestReportKeyRef.current === cacheKey) {
+        setLoadingReport(false);
+      }
     }
   }
 

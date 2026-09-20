@@ -11,6 +11,9 @@ import {
   getCurrentUser
 } from "../services/api";
 
+import { clearDashboardCache } from "../services/dashboardCache";
+import { clearPageCache } from "../services/pageCache";
+
 
 const AuthContext = createContext(null);
 
@@ -78,6 +81,10 @@ export function AuthProvider({
       "access_token"
     );
 
+    // Data dashboard user ini tidak boleh tertinggal di memori.
+    clearDashboardCache();
+    clearPageCache();
+
     setUser(null);
 
   };
@@ -96,6 +103,9 @@ export function AuthProvider({
   useEffect(() => {
 
     function handleUnauthorized() {
+      clearDashboardCache();
+      clearPageCache();
+
       setUser(null);
     }
 

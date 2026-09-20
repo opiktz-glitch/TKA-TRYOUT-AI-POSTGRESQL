@@ -413,6 +413,32 @@ export async function generateAIQuestion(payload) {
 }
 
 
+// Draf pembahasan dari AI untuk soal yang sedang diisi/diedit (tombol
+// "Pembahasan dengan AI" di form soal). Tidak menyimpan apa pun. Keluaran
+// AI-nya pendek, jadi batas waktunya lebih pendek daripada generateAIQuestion.
+export async function generateAIExplanation(payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 130000);
+
+  try {
+    return await apiFetch("/api/questions/ai-explanation", {
+      method: "POST",
+      body: payload,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(
+        "AI terlalu lama merespons (lebih dari 130 detik). Coba lagi, atau gunakan model Ollama yang lebih ringan."
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+
 // =====================================================
 // IMPOR SOAL DARI DOKUMEN (PDF/DOCX/TXT) — 2 LANGKAH
 //
@@ -853,6 +879,14 @@ export async function getSystemStatus() {
 
 export async function getAdminDashboardSummary() {
   return apiFetch("/api/admin/dashboard-summary");
+}
+
+// Angka "live" dashboard admin (Sedang Mengerjakan, Selesai Hari Ini).
+// Ringan & dipanggil berkala (polling) oleh Dashboard.jsx -- sengaja
+// dipisah dari getAdminDashboardSummary supaya ringkasan yang lebih
+// berat tidak ikut diambil ulang tiap beberapa detik.
+export async function getAdminLiveSummary() {
+  return apiFetch("/api/admin/live-summary");
 }
 
 export async function getTeacherDashboardSummary() {

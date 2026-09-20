@@ -7,8 +7,11 @@ import PanduanSoalModal from "../components/PanduanSoalModal";
 import QuestionImage from "../components/QuestionImage";
 import QuestionPreviewModal from "../components/QuestionPreviewModal";
 import ImportDocumentModal from "../components/ImportDocumentModal";
+import ImportImageButton from "../components/ImportImageButton";
+import ExplanationField from "../components/ExplanationField";
 import OptionsEditor from "../components/OptionsEditor";
 import useAiStatusGate from "../hooks/useAiStatusGate";
+import { useAuth } from "../auth/AuthContext";
 import { OPTION_CODES, DIFFICULTIES } from "../data/questionConstants";
 import {
   getSubjects,
@@ -23,6 +26,35 @@ import {
 } from "../services/api";
 
 function QuestionManagement() {
+  // ======================================================
+  // HAK AKSES
+  //
+  // Hapus soal (backend: DELETE /api/questions/{id}, routers/questions.py
+  // -> delete_question):
+  //   ADMIN -> boleh menghapus SEMUA soal.
+  //   GURU  -> hanya soal yang DIA BUAT SENDIRI (created_by == id user
+  //            yang login). Soal tanpa pencatat pembuat (created_by
+  //            kosong, mis. data lama) hanya bisa dihapus ADMIN.
+  // Lihat / tambah / edit boleh ADMIN & GURU. Tombol hapus hanya
+  // ditampilkan kalau backend akan mengizinkannya; kalau aturan di
+  // backend berubah, ubah fungsi ini juga.
+  // ======================================================
+  const { user } = useAuth();
+
+  function canDeleteQuestion(question) {
+    if (!user) {
+      return false;
+    }
+
+    if (user.role === "ADMIN") {
+      return true;
+    }
+
+    return (
+      user.role === "GURU" && question.created_by != null && question.created_by === user.id
+    );
+  }
+
   // ======================================================
   // DATA
   // ======================================================
@@ -727,6 +759,14 @@ function QuestionManagement() {
     loadQuestions();
   }
 
+  // Sama seperti handleImported, untuk fitur Import dari Gambar
+  // (components/ImportImageButton.jsx).
+  function handleImportedFromImage(successCount) {
+    setActionSuccess(`${successCount} soal berhasil diimpor dari gambar.`);
+
+    loadQuestions();
+  }
+
   // ======================================================
   // FORM CHANGE
   // ======================================================
@@ -968,6 +1008,10 @@ function QuestionManagement() {
   // ======================================================
 
   async function handleDelete(question) {
+    if (!canDeleteQuestion(question)) {
+      return;
+    }
+
     const confirmed = window.confirm("Apakah Anda yakin ingin menghapus soal ini?");
 
     if (!confirmed) {
@@ -992,7 +1036,16 @@ function QuestionManagement() {
     } catch (err) {
       console.error("DELETE QUESTION ERROR:", err);
 
-      setActionError(err.message || "Gagal menghapus soal");
+      // Jaring pengaman: kalau backend tetap menolak (mis. role akun
+      // diubah admin saat sesi masih berjalan), tampilkan pesan yang
+      // menjelaskan solusinya, bukan sekadar "Tidak memiliki hak akses".
+      // (Penolakan karena soal milik orang lain sudah membawa pesan
+      // sendiri dari backend dan ditampilkan apa adanya.)
+      setActionError(
+        err.message === "Tidak memiliki hak akses"
+          ? "Anda tidak memiliki hak untuk menghapus soal ini. Untuk menyembunyikan soal dari daftar, nonaktifkan lewat tombol Edit."
+          : err.message || "Gagal menghapus soal",
+      );
     } finally {
       setDeletingId(null);
     }
@@ -1104,6 +1157,8 @@ function QuestionManagement() {
               >
                 {importGate.checking ? "Mengecek AI..." : "📄 Impor dari Dokumen"}
               </button>
+
+              <ImportImageButton subjects={subjects} onImported={handleImportedFromImage} />
 
               <button
                 type="button"
@@ -1272,13 +1327,15 @@ function QuestionManagement() {
                               <IconEdit size={16} />
                             </button>
 
-                            <button
-                              className="delete-button"
-                              onClick={() => handleDelete(question)}
-                              disabled={deletingId === question.id}
-                            >
-                              <IconTrash size={16} />
-                            </button>
+                            {canDeleteQuestion(question) && (
+                              <button
+                                className="delete-button"
+                                onClick={() => handleDelete(question)}
+                                disabled={deletingId === question.id}
+                              >
+                                <IconTrash size={16} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1429,12 +1486,23 @@ function QuestionManagement() {
             {editingQuestion && (
               <div
                 style={{
-                  padding: "0 24px",
+                  // Modal (.modal) sudah punya padding 24px sendiri, jadi wrapper
+                  // ini TIDAK boleh menambah padding horizontal lagi.
+                  // Tombol + teks penjelasan diletakkan di tengah modal.
+                  padding: 0,
                   marginTop: "16px",
+                  marginBottom: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
                 }}
               >
                 {editAiGate.message && (
-                  <div className="form-error-message" style={{ marginBottom: "10px" }}>
+                  <div
+                    className="form-error-message"
+                    style={{ marginBottom: "10px", width: "100%", textAlign: "left" }}
+                  >
                     {editAiGate.message}
                   </div>
                 )}
@@ -1454,6 +1522,7 @@ function QuestionManagement() {
                     color: "#6b7280",
                     marginTop: "8px",
                     marginBottom: "0",
+                    maxWidth: "560px",
                   }}
                 >
                   AI akan membuatkan draft soal pengganti untuk soal ini. Draft akan mengisi form di
@@ -1595,18 +1664,21 @@ function QuestionManagement() {
                 onCorrectChange={handleCorrectAnswer}
               />
 
-              <div className="form-group">
-                <label>Pembahasan</label>
-
-                <textarea
-                  name="explanation"
-                  value={form.explanation}
-                  onChange={handleChange}
-                  placeholder="Tuliskan pembahasan atau penjelasan jawaban..."
-                  rows="3"
-                  disabled={saving}
-                />
-              </div>
+              <ExplanationField
+                value={form.explanation}
+                onTextChange={(text) =>
+                  setForm((prev) => ({ ...prev, explanation: text }))
+                }
+                disabled={saving}
+                questionText={form.question_text}
+                options={form.options}
+                subjectId={form.subject_id}
+                hasImage={
+                  Boolean(imagePreviewUrl) ||
+                  Boolean(editingQuestion?.has_image && !removeExistingImage) ||
+                  Boolean(aiImageDescription)
+                }
+              />
 
               <div className="form-row">
                 <div className="form-group">

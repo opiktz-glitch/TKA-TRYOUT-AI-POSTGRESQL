@@ -6,11 +6,9 @@ import { useAuth } from "../auth/AuthContext";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import StatCard from "../components/StatCard";
+import { readDashboardCache, writeDashboardCache } from "../services/dashboardCache";
 import {
-  IconUsers,
   IconGraduationCap,
-  IconUser,
-  IconShield,
   IconNotebook,
   IconClipboard,
   IconBarChart,
@@ -18,11 +16,14 @@ import {
   IconTrophy,
   IconTrendingUp,
   IconClock,
+  IconCheck,
   IconRefresh,
+  IconCpu,
 } from "../components/Icons";
 
 import {
   getAdminDashboardSummary,
+  getAdminLiveSummary,
   getTeacherDashboardSummary,
   getStudentDashboardSummary,
   getSystemStatus,
@@ -85,55 +86,198 @@ function timeAgo(dateString) {
 }
 
 
+// =====================================================
+// KOMPOSISI BANK SOAL (widget dashboard admin)
+//
+// Sel dengan jumlah soal di bawah batas ini diberi warna supaya
+// admin langsung melihat "celah" bank soal. Ubah angkanya kalau
+// dirasa terlalu ketat/longgar untuk skala soal Anda.
+// =====================================================
+
+const MIN_QUESTIONS_PER_CELL = 5;
+
+
+// =====================================================
+// Jeda refresh angka "live" di dashboard admin (Sedang
+// Mengerjakan, Selesai Hari Ini), dalam milidetik.
+// =====================================================
+
+const LIVE_REFRESH_MS = 30000;
+
+function bankCellStyle(count) {
+  if (count === 0) {
+    return { background: "#f8d7da", color: "#842029", fontWeight: 600 };
+  }
+
+  if (count < MIN_QUESTIONS_PER_CELL) {
+    return { background: "#fff3cd", color: "#856404", fontWeight: 600 };
+  }
+
+  return undefined;
+}
+
+
+// =====================================================
+// PANEL "PERLU PERHATIAN" (dashboard admin)
+// =====================================================
+
+function formatBytes(bytes) {
+  if (!bytes) {
+    return "0 KB";
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const ATTENTION_BADGE_BASE = {
+  marginLeft: "auto",
+  flexShrink: 0,
+  padding: "3px 10px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+};
+
+// tone: "warn" (perlu dicek), "ok" (aman), "info" (netral)
+function attentionBadgeStyle(tone) {
+  if (tone === "warn") {
+    return { ...ATTENTION_BADGE_BASE, background: "#fff3cd", color: "#856404" };
+  }
+
+  if (tone === "ok") {
+    return { ...ATTENTION_BADGE_BASE, background: "#d1e7dd", color: "#0f5132" };
+  }
+
+  return { ...ATTENTION_BADGE_BASE, background: "#f3f4f6", color: "#374151" };
+}
+
+
+// =====================================================
+// CACHE DASHBOARD — kunci cache per role
+// (lihat services/dashboardCache.js)
+// =====================================================
+
+function roleCacheKey(role) {
+  if (role === "ADMIN") {
+    return "admin";
+  }
+
+  if (role === "GURU") {
+    return "teacher";
+  }
+
+  if (role === "SISWA") {
+    return "student";
+  }
+
+  return null;
+}
+
+
 function Dashboard() {
   // Tambahkan 'loading' dari useAuth()
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
-  const [dashLoading, setDashLoading] = useState(true);
+  // Data dari kunjungan dashboard sebelumnya di sesi ini (lihat
+  // services/dashboardCache.js). Kosong ({}) saat pertama kali login
+  // atau setelah halaman di-refresh -- saat itu loading tampil seperti
+  // biasa. Kalau ada, langsung ditampilkan (tanpa "..." / kartu kosong)
+  // lalu diperbarui diam-diam di belakang layar.
+  const cached = readDashboardCache(user?.id);
+
+  // "Sedang memuat" hanya kalau BELUM ada data lama untuk role ini.
+  const [dashLoading, setDashLoading] = useState(
+    () => !cached[roleCacheKey(user?.role)]
+  );
   const [dashError, setDashError] = useState("");
 
   // ADMIN
-  const [adminStats, setAdminStats] = useState({
-    totalUsers: 0,
-    totalStudents: 0,
-    totalTeachers: 0,
-    totalAdmins: 0,
-  });
+  const [adminStats, setAdminStats] = useState(
+    () =>
+      cached.admin?.stats ?? {
+        totalStudents: 0,
+        totalTryouts: 0,
+        activeTryouts: 0,
+      }
+  );
 
-  const [adminActivity, setAdminActivity] = useState({
-    latestUser: null,
-    latestTryout: null,
-    latestQuestion: null,
-  });
+  // Angka "live" (Sedang Mengerjakan, Selesai Hari Ini). null = belum
+  // pernah berhasil dimuat; failed = pemuatan terakhir gagal.
+  const [liveStats, setLiveStats] = useState(() =>
+    cached.live
+      ? { ...cached.live, failed: false }
+      : {
+          inProgress: null,
+          finishedToday: null,
+          failed: false,
+        }
+  );
+
+  const [questionBank, setQuestionBank] = useState(
+    () =>
+      cached.admin?.questionBank ?? {
+        subjects: [],
+        totalActive: 0,
+        unusedCount: 0,
+      }
+  );
+
+  const [attention, setAttention] = useState(
+    () =>
+      cached.admin?.attention ?? {
+        inactiveTryouts: { count: 0, items: [] },
+        withoutExplanation: 0,
+        imageStorage: { count: 0, bytes: 0 },
+        questionTableSize: { bytes: null },
+      }
+  );
 
   // GURU
-  const [teacherStats, setTeacherStats] = useState({
-    totalSoal: 0,
-    totalTryout: 0,
-    totalPeserta: 0,
-    totalHasil: 0,
-  });
+  const [teacherStats, setTeacherStats] = useState(
+    () =>
+      cached.teacher?.stats ?? {
+        totalSoal: 0,
+        totalTryout: 0,
+        totalPeserta: 0,
+        totalHasil: 0,
+      }
+  );
 
-  const [teacherActivity, setTeacherActivity] = useState({
-    latestQuestion: null,
-    latestTryout: null,
-  });
+  const [teacherActivity, setTeacherActivity] = useState(
+    () =>
+      cached.teacher?.activity ?? {
+        latestQuestion: null,
+        latestTryout: null,
+      }
+  );
 
   // SISWA
-  const [studentStats, setStudentStats] = useState({
-    tryoutTersedia: 0,
-    tryoutDiikuti: 0,
-    nilaiTerakhir: null,
-    rataRata: null,
-    lastAttemptDate: null,
-  });
+  const [studentStats, setStudentStats] = useState(
+    () =>
+      cached.student?.stats ?? {
+        tryoutTersedia: 0,
+        tryoutDiikuti: 0,
+        nilaiTerakhir: null,
+        rataRata: null,
+        lastAttemptDate: null,
+      }
+  );
 
-  const [studentTryoutsPreview, setStudentTryoutsPreview] = useState([]);
+  const [studentTryoutsPreview, setStudentTryoutsPreview] = useState(
+    () => cached.student?.preview ?? []
+  );
 
   // INFORMASI SISTEM (API, Database, Auth, AI/Ollama)
-  const [systemStatus, setSystemStatus] = useState(null);
-  const [systemLoading, setSystemLoading] = useState(true);
+  const [systemStatus, setSystemStatus] = useState(
+    () => cached.system ?? null
+  );
+  const [systemLoading, setSystemLoading] = useState(() => !cached.system);
   const [systemError, setSystemError] = useState("");
 
 
@@ -165,94 +309,211 @@ function Dashboard() {
       return;
     }
 
-    loadSystemStatus();
+    // Sudah ada status lama -> perbarui diam-diam (tanpa "Memeriksa...").
+    loadSystemStatus({ silent: Boolean(readDashboardCache(user.id).system) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  async function loadSystemStatus() {
+
+  // =====================================================
+  // LOAD — Angka "live" dashboard ADMIN (polling ringan)
+  //
+  // Diambil dari endpoint tersendiri (/api/admin/live-summary),
+  // bukan dari ringkasan utama, dan di-refresh tiap
+  // LIVE_REFRESH_MS. Refresh berkala HANYA jalan saat tab
+  // terlihat; begitu tab dibuka lagi, langsung di-refresh sekali.
+  // Kalau gagal, angka lama dibiarkan (jangan mengganggu
+  // dashboard karena widget kecil ini).
+  // =====================================================
+
+  useEffect(() => {
+    if (user?.role !== "ADMIN") {
+      return undefined;
+    }
+
+    const userId = user.id;
+
+    let cancelled = false;
+
+    async function refreshLiveStats() {
+      try {
+        const data = await getAdminLiveSummary();
+
+        if (!cancelled) {
+          const nextLive = {
+            inProgress: data.in_progress,
+            finishedToday: data.finished_today,
+          };
+
+          setLiveStats({ ...nextLive, failed: false });
+          writeDashboardCache(userId, "live", nextLive);
+        }
+      } catch (err) {
+        console.error("LOAD LIVE SUMMARY ERROR:", err);
+
+        if (!cancelled) {
+          setLiveStats((prev) => ({ ...prev, failed: true }));
+        }
+      }
+    }
+
+    function refreshIfVisible() {
+      if (document.visibilityState === "visible") {
+        refreshLiveStats();
+      }
+    }
+
+    refreshLiveStats();
+
+    const timerId = setInterval(refreshIfVisible, LIVE_REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timerId);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [user?.role, user?.id]);
+
+  // silent = true: sudah ada data lama di layar, jadi tidak menampilkan
+  // "Memeriksa..." dan kegagalan tidak menimpa data lama (cukup dicatat
+  // di console). Tombol "Cek Ulang" memanggilnya TANPA silent karena itu
+  // permintaan eksplisit dari user.
+  async function loadSystemStatus({ silent = false } = {}) {
     try {
-      setSystemLoading(true);
+      if (!silent) {
+        setSystemLoading(true);
+      }
+
       setSystemError("");
 
       const data = await getSystemStatus();
       setSystemStatus(data);
+      writeDashboardCache(user?.id, "system", data);
     } catch (err) {
       console.error("LOAD SYSTEM STATUS ERROR:", err);
-      setSystemError(
-        err.message || "Gagal memuat status sistem"
-      );
+
+      if (!silent) {
+        setSystemError(
+          err.message || "Gagal memuat status sistem"
+        );
+      }
     } finally {
       setSystemLoading(false);
     }
   }
 
+  // Kalau sudah ada data lama untuk role ini (kunjungan sebelumnya),
+  // data itu sudah tampil: TIDAK menampilkan loading, dan kalau
+  // pembaruan gagal, data lama dibiarkan (cukup dicatat di console).
+  // Loading & pesan error hanya untuk pemuatan pertama.
   async function loadDashboardData(currentUser) {
+    const hasCachedData = Boolean(
+      readDashboardCache(currentUser.id)[roleCacheKey(currentUser.role)]
+    );
+
     try {
-      setDashLoading(true);
+      if (!hasCachedData) {
+        setDashLoading(true);
+      }
+
       setDashError("");
 
       if (currentUser.role === "ADMIN") {
-        await loadAdminData();
+        await loadAdminData(currentUser);
       } else if (currentUser.role === "GURU") {
-        await loadTeacherData();
+        await loadTeacherData(currentUser);
       } else if (currentUser.role === "SISWA") {
-        await loadStudentData();
+        await loadStudentData(currentUser);
       }
     } catch (err) {
       console.error("LOAD DASHBOARD DATA ERROR:", err);
-      setDashError(
-        err.message || "Gagal memuat data dashboard"
-      );
+
+      if (!hasCachedData) {
+        setDashError(
+          err.message || "Gagal memuat data dashboard"
+        );
+      }
     } finally {
       setDashLoading(false);
     }
   }
 
-  async function loadAdminData() {
+  async function loadAdminData(currentUser) {
     const data = await getAdminDashboardSummary();
 
-    setAdminStats({
-      totalUsers: data.stats.total_users,
+    const nextStats = {
       totalStudents: data.stats.total_students,
-      totalTeachers: data.stats.total_teachers,
-      totalAdmins: data.stats.total_admins,
-    });
+      totalTryouts: data.stats.total_tryouts,
+      activeTryouts: data.stats.active_tryouts,
+    };
 
-    setAdminActivity({
-      latestUser: data.activity.latest_user,
-      latestTryout: data.activity.latest_tryout,
-      latestQuestion: data.activity.latest_question,
+    const nextQuestionBank = {
+      subjects: data.question_bank.subjects,
+      totalActive: data.question_bank.total_active,
+      unusedCount: data.question_bank.unused_count,
+    };
+
+    const nextAttention = {
+      inactiveTryouts: data.attention.tryouts_with_inactive_questions,
+      withoutExplanation: data.attention.questions_without_explanation,
+      imageStorage: data.attention.image_storage,
+      questionTableSize: data.attention.question_table_size,
+    };
+
+    setAdminStats(nextStats);
+    setQuestionBank(nextQuestionBank);
+    setAttention(nextAttention);
+
+    writeDashboardCache(currentUser.id, "admin", {
+      stats: nextStats,
+      questionBank: nextQuestionBank,
+      attention: nextAttention,
     });
   }
 
-  async function loadTeacherData() {
+  async function loadTeacherData(currentUser) {
     const data = await getTeacherDashboardSummary();
 
-    setTeacherStats({
+    const nextStats = {
       totalSoal: data.stats.total_soal,
       totalTryout: data.stats.total_tryout,
       totalPeserta: data.stats.total_peserta,
       totalHasil: data.stats.total_hasil,
-    });
+    };
 
-    setTeacherActivity({
+    const nextActivity = {
       latestQuestion: data.activity.latest_question,
       latestTryout: data.activity.latest_tryout,
+    };
+
+    setTeacherStats(nextStats);
+    setTeacherActivity(nextActivity);
+
+    writeDashboardCache(currentUser.id, "teacher", {
+      stats: nextStats,
+      activity: nextActivity,
     });
   }
 
-  async function loadStudentData() {
+  async function loadStudentData(currentUser) {
     const data = await getStudentDashboardSummary();
 
-    setStudentStats({
+    const nextStats = {
       tryoutTersedia: data.stats.tryout_tersedia,
       tryoutDiikuti: data.stats.tryout_diikuti,
       nilaiTerakhir: data.stats.nilai_terakhir,
       rataRata: data.stats.rata_rata,
       lastAttemptDate: data.stats.last_attempt_date,
-    });
+    };
 
+    setStudentStats(nextStats);
     setStudentTryoutsPreview(data.preview);
+
+    writeDashboardCache(currentUser.id, "student", {
+      stats: nextStats,
+      preview: data.preview,
+    });
   }
 
 
@@ -341,13 +602,6 @@ function Dashboard() {
               <div className="stat-grid">
 
                 <StatCard
-                  icon={<IconUsers />}
-                  title="Total User"
-                  value={dashLoading ? "…" : adminStats.totalUsers}
-                  description="User terdaftar"
-                />
-
-                <StatCard
                   icon={<IconGraduationCap />}
                   title="Siswa"
                   value={dashLoading ? "…" : adminStats.totalStudents}
@@ -355,17 +609,28 @@ function Dashboard() {
                 />
 
                 <StatCard
-                  icon={<IconUser />}
-                  title="Guru"
-                  value={dashLoading ? "…" : adminStats.totalTeachers}
-                  description="Guru terdaftar"
+                  icon={<IconClock />}
+                  title="Sedang Mengerjakan"
+                  value={liveStats.inProgress ?? (liveStats.failed ? "–" : "…")}
+                  description="Siswa sedang tryout"
                 />
 
                 <StatCard
-                  icon={<IconShield />}
-                  title="Admin"
-                  value={dashLoading ? "…" : adminStats.totalAdmins}
-                  description="Administrator"
+                  icon={<IconCheck />}
+                  title="Selesai Hari Ini"
+                  value={liveStats.finishedToday ?? (liveStats.failed ? "–" : "…")}
+                  description="Pengerjaan tryout selesai"
+                />
+
+                <StatCard
+                  icon={<IconClipboard />}
+                  title="Paket Tryout Aktif"
+                  value={dashLoading ? "…" : adminStats.activeTryouts}
+                  description={
+                    dashLoading
+                      ? "Memuat…"
+                      : `dari ${adminStats.totalTryouts} paket tryout`
+                  }
                 />
 
               </div>
@@ -380,11 +645,11 @@ function Dashboard() {
                     <div>
 
                       <h3>
-                        Aktivitas Terbaru
+                        Komposisi Bank Soal
                       </h3>
 
                       <p>
-                        Aktivitas sistem terbaru
+                        Soal aktif per mata pelajaran dan tingkat kesulitan
                       </p>
 
                     </div>
@@ -392,81 +657,105 @@ function Dashboard() {
                   </div>
 
 
-                  <div className="activity-list">
+                  {dashLoading ? (
 
-                    <div className="activity-item">
-
-                      <div className="activity-icon">
-                        <IconGraduationCap size={18} />
-                      </div>
-
-                      <div className="activity-content">
-
-                        <strong>
-                          User terbaru
-                        </strong>
-
-                        <span>
-                          {adminActivity.latestUser
-                            ? (adminActivity.latestUser.full_name ||
-                               adminActivity.latestUser.username)
-                            : "Belum ada user terdaftar"}
-                        </span>
-
-                      </div>
-
+                    <div className="loading-message">
+                      Memuat komposisi bank soal...
                     </div>
 
+                  ) : questionBank.subjects.length === 0 ? (
 
-                    <div className="activity-item">
-
-                      <div className="activity-icon">
-                        <IconClipboard size={18} />
-                      </div>
-
-                      <div className="activity-content">
-
-                        <strong>
-                          Tryout terbaru
-                        </strong>
-
-                        <span>
-                          {adminActivity.latestTryout
-                            ? adminActivity.latestTryout.title
-                            : "Belum ada tryout dibuat"}
-                        </span>
-
-                      </div>
-
+                    <div className="empty-message">
+                      Belum ada mata pelajaran aktif.
                     </div>
 
+                  ) : (
 
-                    <div className="activity-item">
+                    <>
 
-                      <div className="activity-icon">
-                        <IconNotebook size={18} />
+                      <div className="table-container">
+
+                        <table className="user-table">
+
+                          <thead>
+                            <tr>
+                              <th>Mata Pelajaran</th>
+                              <th className="align-center">Mudah</th>
+                              <th className="align-center">Sedang</th>
+                              <th className="align-center">Sulit</th>
+                              <th className="align-center">Total</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {questionBank.subjects.map((subject) => (
+                              <tr key={subject.subject_id}>
+
+                                <td>
+                                  <strong>{subject.name}</strong>
+                                </td>
+
+                                <td
+                                  className="align-center"
+                                  style={bankCellStyle(subject.easy)}
+                                >
+                                  {subject.easy}
+                                </td>
+
+                                <td
+                                  className="align-center"
+                                  style={bankCellStyle(subject.medium)}
+                                >
+                                  {subject.medium}
+                                </td>
+
+                                <td
+                                  className="align-center"
+                                  style={bankCellStyle(subject.hard)}
+                                >
+                                  {subject.hard}
+                                </td>
+
+                                <td className="align-center">
+                                  <strong>{subject.total}</strong>
+                                </td>
+
+                              </tr>
+                            ))}
+                          </tbody>
+
+                        </table>
+
                       </div>
 
-                      <div className="activity-content">
+                      <div
+                        style={{
+                          padding: "12px 18px",
+                          fontSize: 12,
+                          color: "#6b7280",
+                          borderTop: "1px solid #f3f4f6",
+                          lineHeight: 1.7,
+                        }}
+                      >
 
-                        <strong>
-                          Soal terbaru
-                        </strong>
+                        <div>
+                          Merah = belum ada soal, kuning = kurang dari{" "}
+                          {MIN_QUESTIONS_PER_CELL} soal.
+                        </div>
 
-                        <span>
-                          {adminActivity.latestQuestion
-                            ? truncateText(
-                                adminActivity.latestQuestion.question_text,
-                                60
-                              )
-                            : "Belum ada soal ditambahkan"}
-                        </span>
+                        {questionBank.totalActive > 0 && (
+                          <div>
+                            {questionBank.unusedCount > 0
+                              ? `${questionBank.unusedCount} dari ${questionBank.totalActive} soal aktif belum masuk paket tryout mana pun.`
+                              : "Semua soal aktif sudah dipakai di paket tryout."}
+                          </div>
+                        )}
 
                       </div>
 
-                    </div>
+                    </>
 
-                  </div>
+                  )}
 
                 </section>
 
@@ -478,11 +767,11 @@ function Dashboard() {
                     <div>
 
                       <h3>
-                        Akses Cepat
+                        Perlu Perhatian
                       </h3>
 
                       <p>
-                        Administrasi sistem
+                        Hal yang sebaiknya dicek admin
                       </p>
 
                     </div>
@@ -494,24 +783,56 @@ function Dashboard() {
 
                     <button
                       className="quick-menu-item"
-                      onClick={() => navigate("/users")}
+                      onClick={() => navigate("/tryouts")}
                     >
 
                       <span>
-                        <IconUsers size={20} />
+                        <IconClipboard size={20} />
                       </span>
 
                       <div>
 
                         <strong>
-                          Kelola User
+                          Paket berisi soal nonaktif
                         </strong>
 
                         <small>
-                          Tambah dan kelola pengguna
+                          {dashLoading
+                            ? "Memuat…"
+                            : attention.inactiveTryouts.count === 0
+                              ? "Semua soal di paket aktif masih aktif"
+                              : attention.inactiveTryouts.items
+                                  .map(
+                                    (item) =>
+                                      `${truncateText(item.title, 28)} (${item.inactive_count})`
+                                  )
+                                  .join(", ") +
+                                (attention.inactiveTryouts.count >
+                                attention.inactiveTryouts.items.length
+                                  ? ` +${
+                                      attention.inactiveTryouts.count -
+                                      attention.inactiveTryouts.items.length
+                                    } lainnya`
+                                  : "")}
                         </small>
 
                       </div>
+
+                      <span
+                        style={attentionBadgeStyle(
+                          dashLoading
+                            ? "info"
+                            : attention.inactiveTryouts.count > 0
+                              ? "warn"
+                              : "ok"
+                        )}
+                      >
+                        {dashLoading
+                          ? "…"
+                          : attention.inactiveTryouts.count > 0
+                            ? attention.inactiveTryouts.count
+                            : "Aman"}
+                      </span>
 
                     </button>
 
@@ -528,38 +849,102 @@ function Dashboard() {
                       <div>
 
                         <strong>
-                          Bank Soal
+                          Soal aktif tanpa pembahasan
                         </strong>
 
                         <small>
-                          Kelola bank soal
+                          {dashLoading
+                            ? "Memuat…"
+                            : attention.withoutExplanation === 0
+                              ? "Semua soal aktif sudah berpembahasan"
+                              : "Pembahasan tampil saat siswa meninjau hasil"}
                         </small>
 
                       </div>
+
+                      <span
+                        style={attentionBadgeStyle(
+                          dashLoading
+                            ? "info"
+                            : attention.withoutExplanation > 0
+                              ? "warn"
+                              : "ok"
+                        )}
+                      >
+                        {dashLoading
+                          ? "…"
+                          : attention.withoutExplanation > 0
+                            ? attention.withoutExplanation
+                            : "Aman"}
+                      </span>
 
                     </button>
 
 
                     <button
                       className="quick-menu-item"
-                      onClick={() => navigate("/tryouts")}
+                      onClick={() => navigate("/questions")}
                     >
 
                       <span>
-                        <IconClipboard size={20} />
+                        <IconBarChart size={20} />
                       </span>
 
                       <div>
 
                         <strong>
-                          Paket Tryout
+                          Penyimpanan gambar soal
                         </strong>
 
                         <small>
-                          Kelola paket tryout
+                          {dashLoading
+                            ? "Memuat…"
+                            : `${attention.imageStorage.count} gambar di database`}
                         </small>
 
                       </div>
+
+                      <span style={attentionBadgeStyle("info")}>
+                        {dashLoading
+                          ? "…"
+                          : formatBytes(attention.imageStorage.bytes)}
+                      </span>
+
+                    </button>
+
+
+                    <button
+                      className="quick-menu-item"
+                      onClick={() => navigate("/questions")}
+                    >
+
+                      <span>
+                        <IconCpu size={20} />
+                      </span>
+
+                      <div>
+
+                        <strong>
+                          Ukuran tabel bank soal
+                        </strong>
+
+                        <small>
+                          {dashLoading
+                            ? "Memuat…"
+                            : attention.questionTableSize.bytes === null
+                              ? "Hanya tersedia di database Postgres"
+                              : "Termasuk gambar yang tersimpan di kolom soal"}
+                        </small>
+
+                      </div>
+
+                      <span style={attentionBadgeStyle("info")}>
+                        {dashLoading
+                          ? "…"
+                          : attention.questionTableSize.bytes === null
+                            ? "N/A"
+                            : formatBytes(attention.questionTableSize.bytes)}
+                      </span>
 
                     </button>
 
@@ -1067,7 +1452,7 @@ function Dashboard() {
                   "system-refresh-btn" +
                   (systemLoading ? " spinning" : "")
                 }
-                onClick={loadSystemStatus}
+                onClick={() => loadSystemStatus()}
                 disabled={systemLoading}
                 title="Cek ulang status sistem"
               >

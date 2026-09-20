@@ -230,6 +230,36 @@ class AIQuestionGenerateResponse(BaseModel):
 
 
 # ==========================================
+# PEMBAHASAN DENGAN AI (tombol di form Tambah/Edit Soal)
+#
+# Request berisi ISI FORM saat ini (bukan data dari database), supaya
+# cocok dengan editan yang belum disimpan. Sengaja longgar di sini
+# (option_text boleh kosong) -- validasi dengan pesan yang jelas untuk
+# guru dilakukan di routers/questions.py -> _prepare_explanation_input.
+# Response hanya DRAF: tidak ada yang disimpan.
+# ==========================================
+class AIExplanationOption(BaseModel):
+    option_code: str
+    option_text: str = ""
+    is_correct: bool = False
+
+
+class AIExplanationRequest(BaseModel):
+    question_text: str
+    options: list[AIExplanationOption]
+    # Opsional: nama mapel dipakai sebagai konteks tambahan di prompt.
+    subject_id: int | None = None
+
+
+class AIExplanationResponse(BaseModel):
+    explanation: str
+    # Diisi kalau pembahasan menyebut huruf lain sebagai jawaban benar
+    # (lihat _check_explanation_consistency). None kalau tidak ada yang
+    # janggal.
+    consistency_warning: str | None = None
+
+
+# ==========================================
 # IMPOR SOAL DARI DOKUMEN (PDF/DOCX/TXT)
 #
 # BEDA dari AIQuestionGenerateResponse di atas: fitur ini TIDAK

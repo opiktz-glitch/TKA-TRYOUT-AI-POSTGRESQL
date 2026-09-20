@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -11,6 +11,8 @@ import {
   getSubjects,
   getTryouts,
 } from "../services/api";
+import { useAuth } from "../auth/AuthContext";
+import { readPageCache, writePageCache } from "../services/pageCache";
 
 
 // =====================================================
@@ -41,13 +43,44 @@ function formatDate(value) {
 }
 
 
-function AdminScores() {
-  const [scores, setScores] = useState([]);
-  const [subjectOptions, setSubjectOptions] = useState([]);
-  const [teacherOptions, setTeacherOptions] = useState([]);
-  const [tryoutOptions, setTryoutOptions] = useState([]);
+// =====================================================
+// CACHE — kunci (lihat services/pageCache.js)
+// Rekap nilai di-cache per KOMBINASI FILTER yang dikirim ke server.
+// =====================================================
 
-  const [loading, setLoading] = useState(true);
+const SCORE_OPTIONS_CACHE_KEY = "admin-scores-options";
+
+function scoresCacheKey(subjectId, teacherId, tryoutId) {
+  return `admin-scores:${subjectId}|${teacherId}|${tryoutId}`;
+}
+
+
+function AdminScores() {
+  const { user } = useAuth();
+
+  // Data dari kunjungan sebelumnya di sesi ini. Filter selalu mulai dari
+  // "semua" saat halaman dibuka, jadi yang dipakai di awal adalah cache
+  // untuk kombinasi filter kosong. Kalau ada, langsung tampil (tanpa
+  // "Memuat rekap nilai...") lalu diperbarui diam-diam.
+  const cachedScores = readPageCache(user?.id, scoresCacheKey("", "", ""));
+  const cachedOptions = readPageCache(user?.id, SCORE_OPTIONS_CACHE_KEY);
+
+  // Kombinasi filter yang hasilnya sedang ditunggu. Dipakai untuk
+  // mengabaikan respons yang sudah usang (filter keburu diganti).
+  const latestScoresKeyRef = useRef(null);
+
+  const [scores, setScores] = useState(() => cachedScores ?? []);
+  const [subjectOptions, setSubjectOptions] = useState(
+    () => cachedOptions?.subjects ?? []
+  );
+  const [teacherOptions, setTeacherOptions] = useState(
+    () => cachedOptions?.teachers ?? []
+  );
+  const [tryoutOptions, setTryoutOptions] = useState(
+    () => cachedOptions?.tryouts ?? []
+  );
+
+  const [loading, setLoading] = useState(() => !cachedScores);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
@@ -77,6 +110,12 @@ function AdminScores() {
       setSubjectOptions(subjects);
       setTeacherOptions(teachers);
       setTryoutOptions(tryouts);
+
+      writePageCache(user?.id, SCORE_OPTIONS_CACHE_KEY, {
+        subjects,
+        teachers,
+        tryouts,
+      });
     } catch (err) {
       console.error("LOAD FILTER OPTIONS ERROR:", err);
     }
@@ -84,22 +123,50 @@ function AdminScores() {
 
 
   async function loadScores() {
-    try {
-      setLoading(true);
-      setError("");
+    const cacheKey = scoresCacheKey(
+      selectedSubjectId,
+      selectedTeacherId,
+      selectedTryoutId
+    );
 
+    const cachedData = readPageCache(user?.id, cacheKey);
+
+    latestScoresKeyRef.current = cacheKey;
+
+    if (cachedData) {
+      // Kombinasi filter ini pernah dimuat: tampilkan langsung, lalu
+      // perbarui diam-diam (tanpa loading; kalau gagal, data lama dibiarkan).
+      setScores(cachedData);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    setError("");
+
+    try {
       const data = await getAdminScores({
         subjectId: selectedSubjectId || undefined,
         teacherId: selectedTeacherId || undefined,
         tryoutId: selectedTryoutId || undefined,
       });
 
-      setScores(data);
+      writePageCache(user?.id, cacheKey, data);
+
+      // Abaikan hasil kalau filter sudah berganti selama menunggu.
+      if (latestScoresKeyRef.current === cacheKey) {
+        setScores(data);
+      }
     } catch (err) {
       console.error("LOAD ADMIN SCORES ERROR:", err);
-      setError(err.message || "Gagal memuat rekap nilai");
+
+      if (!cachedData && latestScoresKeyRef.current === cacheKey) {
+        setError(err.message || "Gagal memuat rekap nilai");
+      }
     } finally {
-      setLoading(false);
+      if (latestScoresKeyRef.current === cacheKey) {
+        setLoading(false);
+      }
     }
   }
 

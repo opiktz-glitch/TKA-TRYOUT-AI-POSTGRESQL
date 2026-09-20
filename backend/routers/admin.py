@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, IS_SQLITE
 from dependencies import require_role
 from models import (
     User,
@@ -17,6 +17,7 @@ from models import (
     Result,
     Answer,
     Question,
+    TryoutQuestion,
 )
 
 
@@ -59,9 +60,131 @@ def admin_dashboard(
 # banget cuma untuk menampilkan 4 angka + 3 baris "terbaru".
 #
 # Endpoint ini menggantikannya dengan query database yang murah
-# (COUNT dan "ambil 1 baris terurut"), jadi payload-nya kecil
-# dan konstan berapa pun jumlah datanya.
+# (COUNT dan GROUP BY), jadi payload-nya kecil dan konstan berapa
+# pun jumlah datanya.
+#
+# Isi: statistik untuk kartu dashboard (jumlah siswa, jumlah paket
+# tryout & yang aktif) + "komposisi bank soal" (jumlah soal aktif
+# per mata pelajaran aktif x tingkat kesulitan, plus jumlah soal
+# aktif yang belum dipakai di paket tryout mana pun) untuk widget
+# "Komposisi Bank Soal" di Dashboard.jsx. Blok "activity" (user/
+# tryout/soal terbaru) dan hitungan total user/guru/admin sudah
+# dihapus karena tidak dipakai lagi. Angka "live" (sedang
+# mengerjakan, selesai hari ini) ada di endpoint terpisah di bawah.
+# Blok "attention" berisi data panel "Perlu Perhatian" (paket berisi
+# soal nonaktif, soal tanpa pembahasan, ukuran gambar soal).
 # ============================================================
+
+
+def _compose_question_bank(subjects, grouped_counts):
+    """
+    Menyusun baris tabel "Komposisi Bank Soal" untuk dashboard admin.
+
+    - subjects       : daftar mata pelajaran AKTIF (sudah terurut)
+    - grouped_counts : hasil GROUP BY berupa (subject_id, difficulty,
+                       jumlah) untuk soal AKTIF
+
+    Mapel yang belum punya soal tetap dimunculkan dengan angka 0 --
+    justru itu "celah" yang ingin terlihat admin. "total" dihitung
+    dari SEMUA soal aktif mapel itu (termasuk nilai difficulty di
+    luar EASY/MEDIUM/HARD kalau ada data lama), jadi tidak ada soal
+    yang "hilang" dari hitungan.
+    """
+
+    per_difficulty = {}
+    totals = {}
+
+    for subject_id, difficulty, count in grouped_counts:
+        per_difficulty[(subject_id, difficulty)] = count
+        totals[subject_id] = totals.get(subject_id, 0) + count
+
+    rows = []
+
+    for subject in subjects:
+        rows.append({
+            "subject_id": subject.id,
+            "code": subject.code,
+            "name": subject.name,
+            "easy": per_difficulty.get((subject.id, "EASY"), 0),
+            "medium": per_difficulty.get((subject.id, "MEDIUM"), 0),
+            "hard": per_difficulty.get((subject.id, "HARD"), 0),
+            "total": totals.get(subject.id, 0),
+        })
+
+    return rows
+
+
+# Berapa nama paket yang ditampilkan di baris "Paket berisi soal
+# nonaktif" pada panel Perlu Perhatian (sisanya jadi "+N lainnya").
+ATTENTION_MAX_TRYOUT_NAMES = 3
+
+
+def _compose_attention(
+    tryout_rows,
+    questions_without_explanation,
+    image_count,
+    image_bytes,
+    question_table_bytes,
+):
+    """
+    Menyusun data panel "Perlu Perhatian" di dashboard admin.
+
+    - tryout_rows : (tryout_id, judul, jumlah_soal_nonaktif) untuk
+                    paket AKTIF yang berisi soal nonaktif, sudah
+                    terurut (paling banyak soal nonaktif dulu)
+    - "count" adalah jumlah SEMUA paket bermasalah, sedangkan "items"
+      hanya berisi beberapa paket pertama (ATTENTION_MAX_TRYOUT_NAMES)
+      supaya kartu tidak kepanjangan.
+    - question_table_bytes : ukuran fisik tabel t_question (data +
+      index) di Postgres, None kalau lagi jalan di atas SQLite (dev
+      lokal), lihat get_question_table_bytes().
+    """
+
+    return {
+        "tryouts_with_inactive_questions": {
+            "count": len(tryout_rows),
+            "items": [
+                {
+                    "id": tryout_id,
+                    "title": title,
+                    "inactive_count": inactive_count,
+                }
+                for tryout_id, title, inactive_count
+                in tryout_rows[:ATTENTION_MAX_TRYOUT_NAMES]
+            ],
+        },
+        "questions_without_explanation": questions_without_explanation,
+        "image_storage": {
+            "count": image_count,
+            "bytes": image_bytes,
+        },
+        "question_table_size": {
+            "bytes": question_table_bytes,
+        },
+    }
+
+
+def _get_question_table_bytes(db: Session):
+    """
+    Ukuran fisik tabel t_question (data + index) di database yang
+    sedang jalan, lewat pg_total_relation_size() -- bukan cuma kolom
+    image_data, tapi seluruh tabel bank soal (termasuk gambar WebP
+    yang tersimpan di situ).
+
+    Postgres-only: pg_total_relation_size() tidak ada di SQLite, jadi
+    di dev lokal (IS_SQLITE) fungsi ini dilewati dan mengembalikan
+    None -- frontend menampilkan "Tidak tersedia" untuk kasus ini.
+    """
+
+    if IS_SQLITE:
+        return None
+
+    result = db.execute(
+        text("SELECT pg_total_relation_size('t_question')")
+    ).scalar()
+
+    return int(result) if result is not None else None
+
 
 @router.get("/dashboard-summary")
 def get_admin_dashboard_summary(
@@ -69,71 +192,246 @@ def get_admin_dashboard_summary(
     current_user: User = Depends(require_role("ADMIN")),
 ):
 
-    total_users = db.query(User).count()
     total_students = db.query(Student).count()
-    total_teachers = db.query(Teacher).count()
-    total_admins = (
-        db.query(User)
-        .filter(User.role == "ADMIN")
+    total_tryouts = db.query(Tryout).count()
+    active_tryouts = (
+        db.query(Tryout)
+        .filter(Tryout.is_active == True)
         .count()
     )
 
-    latest_user = (
-        db.query(User)
-        .order_by(User.id.desc())
-        .first()
+    # ------------------------------------------------------------
+    # KOMPOSISI BANK SOAL
+    #
+    # Satu query GROUP BY untuk jumlah soal aktif per (mapel,
+    # tingkat kesulitan), plus satu hitungan soal aktif yang belum
+    # masuk paket tryout mana pun. Semuanya dibatasi ke mata
+    # pelajaran AKTIF supaya angka di tabel dan angka "belum dipakai"
+    # konsisten satu sama lain.
+    # ------------------------------------------------------------
+
+    active_subjects = (
+        db.query(Subject)
+        .filter(Subject.is_active == True)
+        .order_by(Subject.name)
+        .all()
     )
 
-    latest_tryout = (
-        db.query(Tryout)
-        .order_by(Tryout.id.desc())
-        .first()
+    grouped_counts = (
+        db.query(
+            Question.subject_id,
+            Question.difficulty,
+            func.count(Question.id),
+        )
+        .filter(Question.is_active == True)
+        .group_by(Question.subject_id, Question.difficulty)
+        .all()
     )
 
-    latest_question = (
-        db.query(Question)
-        .order_by(Question.id.desc())
-        .first()
+    question_bank_subjects = _compose_question_bank(
+        active_subjects,
+        grouped_counts,
     )
+
+    total_active_questions = sum(
+        row["total"] for row in question_bank_subjects
+    )
+
+    used_in_tryout = (
+        db.query(TryoutQuestion.id)
+        .filter(TryoutQuestion.question_id == Question.id)
+        .exists()
+    )
+
+    unused_questions = (
+        db.query(func.count(Question.id))
+        .join(Subject, Subject.id == Question.subject_id)
+        .filter(
+            Question.is_active == True,
+            Subject.is_active == True,
+            ~used_in_tryout,
+        )
+        .scalar()
+    ) or 0
+
+    # ------------------------------------------------------------
+    # PANEL "PERLU PERHATIAN"
+    #
+    # 1) Paket AKTIF yang berisi soal NONAKTIF. Saat pengerjaan
+    #    dimuat, soal nonaktif dilewati diam-diam (lihat routers/
+    #    student.py), jadi siswa mengerjakan lebih sedikit soal dari
+    #    total_questions tanpa tahu sebabnya.
+    # 2) Soal aktif (di mapel aktif) yang belum punya pembahasan.
+    #    Pembahasan tampil ke siswa saat meninjau hasil.
+    # 3) Ukuran gambar soal. Gambar disimpan di database (kolom
+    #    image_data, sudah WebP), bukan sebagai file, jadi ikut
+    #    memakai kuota penyimpanan database hosting. Diambil lewat
+    #    SUM(LENGTH(...)) di database supaya isi gambarnya tidak
+    #    ikut ditarik ke aplikasi.
+    # ------------------------------------------------------------
+
+    tryouts_with_inactive_rows = (
+        db.query(
+            Tryout.id,
+            Tryout.title,
+            func.count(TryoutQuestion.id),
+        )
+        .join(TryoutQuestion, TryoutQuestion.tryout_id == Tryout.id)
+        .join(Question, Question.id == TryoutQuestion.question_id)
+        .filter(
+            Tryout.is_active == True,
+            Question.is_active == False,
+        )
+        .group_by(Tryout.id, Tryout.title)
+        .order_by(func.count(TryoutQuestion.id).desc(), Tryout.title)
+        .all()
+    )
+
+    questions_without_explanation = (
+        db.query(func.count(Question.id))
+        .join(Subject, Subject.id == Question.subject_id)
+        .filter(
+            Question.is_active == True,
+            Subject.is_active == True,
+            or_(
+                Question.explanation.is_(None),
+                func.trim(Question.explanation) == "",
+            ),
+        )
+        .scalar()
+    ) or 0
+
+    image_count, image_bytes = (
+        db.query(
+            func.count(Question.id),
+            func.coalesce(func.sum(func.length(Question.image_data)), 0),
+        )
+        .filter(Question.image_data.is_not(None))
+        .one()
+    )
+
+    question_table_bytes = _get_question_table_bytes(db)
 
     return {
 
         "stats": {
-            "total_users": total_users,
             "total_students": total_students,
-            "total_teachers": total_teachers,
-            "total_admins": total_admins,
+            "total_tryouts": total_tryouts,
+            "active_tryouts": active_tryouts,
         },
 
-        "activity": {
-
-            "latest_user": (
-                {
-                    "id": latest_user.id,
-                    "full_name": latest_user.full_name,
-                    "username": latest_user.username,
-                }
-                if latest_user else None
-            ),
-
-            "latest_tryout": (
-                {
-                    "id": latest_tryout.id,
-                    "title": latest_tryout.title,
-                }
-                if latest_tryout else None
-            ),
-
-            "latest_question": (
-                {
-                    "id": latest_question.id,
-                    "question_text": latest_question.question_text,
-                }
-                if latest_question else None
-            ),
-
+        "question_bank": {
+            "subjects": question_bank_subjects,
+            "total_active": total_active_questions,
+            "unused_count": unused_questions,
         },
 
+        "attention": _compose_attention(
+            tryouts_with_inactive_rows,
+            questions_without_explanation,
+            image_count or 0,
+            int(image_bytes or 0),
+            question_table_bytes,
+        ),
+
+    }
+
+
+# ============================================================
+# RINGKASAN "LIVE" DASHBOARD (ADMIN)
+#
+# Dua angka untuk kartu dashboard yang di-refresh berkala
+# (polling ~30 detik oleh Dashboard.jsx), makanya dipisah dari
+# /dashboard-summary supaya ringkasan yang lebih berat tidak ikut
+# diambil ulang terus-menerus:
+#
+# - in_progress    : jumlah SISWA yang sedang mengerjakan tryout.
+#                    Hanya attempt IN_PROGRESS yang deadline-nya
+#                    (started_at + duration_minutes, sama seperti
+#                    get_attempt_deadline() di routers/student.py)
+#                    BELUM lewat. Attempt yang ditinggalkan siswa
+#                    (browser ditutup) tetap berstatus IN_PROGRESS
+#                    di database sampai ada request berikutnya, jadi
+#                    tanpa filter deadline angkanya akan membengkak.
+#                    Dihitung di Python (bukan SQL) supaya aman untuk
+#                    SQLite maupun PostgreSQL.
+# - finished_today : jumlah pengerjaan yang selesai sejak pukul
+#                    00.00 WIB hari ini. Server menyimpan waktu UTC
+#                    (naive), sedangkan hari di WIB berganti pukul
+#                    17.00 UTC, jadi batas awal harinya dihitung di
+#                    WIB lalu diubah kembali ke UTC untuk query.
+# ============================================================
+
+WIB_OFFSET = timedelta(hours=7)
+
+
+def _start_of_today_wib_as_utc(now_utc):
+    """
+    Awal hari ini (00.00 WIB) dinyatakan dalam UTC naive, siap
+    dibandingkan dengan kolom DateTime yang disimpan sebagai UTC.
+    """
+
+    now_wib = now_utc + WIB_OFFSET
+
+    start_wib = now_wib.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    return start_wib - WIB_OFFSET
+
+
+def _count_active_students(rows, now_utc):
+    """
+    rows: iterable berisi (student_id, started_at, duration_minutes)
+    untuk attempt berstatus IN_PROGRESS. Mengembalikan jumlah siswa
+    UNIK yang deadline attempt-nya belum lewat.
+    """
+
+    active_student_ids = set()
+
+    for student_id, started_at, duration_minutes in rows:
+        deadline = started_at + timedelta(minutes=duration_minutes or 0)
+
+        if deadline > now_utc:
+            active_student_ids.add(student_id)
+
+    return len(active_student_ids)
+
+
+@router.get("/live-summary")
+def get_admin_live_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+
+    now_utc = datetime.utcnow()
+
+    in_progress_rows = (
+        db.query(
+            Attempt.student_id,
+            Attempt.started_at,
+            Tryout.duration_minutes,
+        )
+        .join(Tryout, Tryout.id == Attempt.tryout_id)
+        .filter(Attempt.status == "IN_PROGRESS")
+        .all()
+    )
+
+    finished_today = (
+        db.query(func.count(Attempt.id))
+        .filter(
+            Attempt.status != "IN_PROGRESS",
+            Attempt.finished_at >= _start_of_today_wib_as_utc(now_utc),
+        )
+        .scalar()
+    ) or 0
+
+    return {
+        "in_progress": _count_active_students(in_progress_rows, now_utc),
+        "finished_today": finished_today,
     }
 
 

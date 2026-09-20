@@ -31,6 +31,7 @@ from routers import teacher
 from routers import system
 from routers import settings
 from routers import notifications
+from routers import image_import
 
 
 # ==========================================
@@ -293,6 +294,12 @@ app.include_router(
 
 app.include_router(
     notifications.router
+)
+
+# Import soal dari gambar (fitur terpisah). Untuk mematikannya, hapus blok ini
+# dan baris "from routers import image_import" di atas.
+app.include_router(
+    image_import.router
 )
 
 

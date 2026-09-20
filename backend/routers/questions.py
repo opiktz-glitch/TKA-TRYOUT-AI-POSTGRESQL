@@ -30,7 +30,9 @@ from schemas import (
     AIDocumentChunk,
     AIDocumentPrepareResponse,
     AIChunkProcessRequest,
-    AIChunkProcessResponse
+    AIChunkProcessResponse,
+    AIExplanationRequest,
+    AIExplanationResponse
 )
 from dependencies import require_role
 
@@ -959,6 +961,269 @@ async def generate_question_ai(
 
 
 # =========================================================
+# PEMBAHASAN DENGAN AI (tombol di form Tambah/Edit Soal)
+#
+# Membuat DRAF pembahasan untuk soal yang sedang diisi/diedit guru.
+# Pola sama dengan generate_question_ai(): endpoint ini HANYA
+# mengembalikan draf -- TIDAK menyimpan apa pun. Draf mengisi kolom
+# Pembahasan di form, guru memeriksanya, lalu menyimpan lewat
+# endpoint biasa (POST/PUT /api/questions).
+#
+# Inputnya diambil dari ISI FORM (bukan dari database) supaya cocok
+# dengan editan yang belum disimpan dan tetap jalan di mode Tambah.
+#
+# Soal BERGAMBAR sengaja tidak didukung (tombol di frontend
+# dinonaktifkan): provider AI yang dipakai adalah model teks yang
+# tidak bisa melihat gambar, jadi pembahasannya bisa meleset.
+#
+# Keluarannya pendek, jadi memakai call_active_provider() tanpa
+# larger_output (Ollama num_predict 600 & timeout 120 detik, Gemini
+# 60 detik) -- jauh lebih cepat daripada generate soal.
+# =========================================================
+
+MAX_EXPLANATION_CHARS = 1000
+
+
+def build_explanation_prompt(
+    subject_name: str | None,
+    question_text: str,
+    options: list[tuple[str, str]],
+    correct_code: str,
+) -> str:
+    options_block = "\n".join(
+        f"{code}. {text}" for code, text in options
+    )
+
+    correct_text = next(
+        text for code, text in options if code == correct_code
+    )
+
+    subject_part = f" mata pelajaran {subject_name}" if subject_name else ""
+
+    return f"""Anda adalah seorang guru{subject_part} untuk siswa kelas 6 SD.
+Berikut sebuah soal pilihan ganda beserta kunci jawabannya yang SUDAH PASTI benar:
+
+Soal: {question_text}
+Pilihan:
+{options_block}
+Jawaban yang benar: {correct_code}. {correct_text}
+
+Tulis pembahasan singkat (2 sampai 4 kalimat) yang menjelaskan MENGAPA jawaban tersebut benar.
+Ketentuan:
+- Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- JANGAN mengubah atau meragukan kunci jawaban di atas, dan JANGAN menyebut huruf pilihan lain sebagai jawaban yang benar.
+- JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
+Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
+{{"explanation": "pembahasan di sini"}}"""
+
+
+def _prepare_explanation_input(question_text, raw_options):
+    """
+    Memvalidasi & merapikan isi form dari frontend. Mengembalikan
+    (teks_soal, [(kode, teks), ...], kode_jawaban_benar), atau
+    melempar HTTPException 400 dengan pesan yang jelas untuk guru.
+    Aturannya sengaja sejalan dengan penyimpanan soal: jawaban
+    benar harus TEPAT SATU.
+    """
+
+    text = (question_text or "").strip()
+
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="Teks soal wajib diisi terlebih dahulu"
+        )
+
+    options = []
+    correct_codes = []
+    seen_codes = set()
+
+    for raw in raw_options:
+        code = (raw.option_code or "").strip().upper()
+        option_text = (raw.option_text or "").strip()
+
+        if code not in ALLOWED_OPTIONS or code in seen_codes or not option_text:
+            continue
+
+        seen_codes.add(code)
+        options.append((code, option_text))
+
+        if raw.is_correct:
+            correct_codes.append(code)
+
+    if len(options) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Isi minimal dua pilihan jawaban terlebih dahulu"
+        )
+
+    if len(correct_codes) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Tandai tepat satu jawaban yang benar terlebih dahulu"
+        )
+
+    return text, options, correct_codes[0]
+
+
+def _clean_explanation_text(text: str) -> str:
+    """
+    Merapikan pembahasan dari AI: buang notasi LaTeX (fungsi yang
+    sama dengan generate soal), sisa markdown, awalan "Pembahasan:",
+    dan batasi panjangnya (dipotong di akhir kalimat kalau bisa).
+    """
+
+    cleaned = _clean_ai_math_notation(text.strip())
+
+    cleaned = cleaned.replace("**", "").replace("`", "")
+
+    cleaned = re.sub(
+        r"^\s*pembahasan\s*:\s*", "", cleaned, flags=re.IGNORECASE
+    )
+
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+    if len(cleaned) > MAX_EXPLANATION_CHARS:
+        cut = cleaned[:MAX_EXPLANATION_CHARS]
+
+        last_sentence_end = max(
+            cut.rfind("."), cut.rfind("!"), cut.rfind("?")
+        )
+
+        if last_sentence_end >= MAX_EXPLANATION_CHARS // 2:
+            cut = cut[: last_sentence_end + 1]
+
+        cleaned = cut.rstrip()
+
+    return cleaned
+
+
+# Kalimat yang menyatakan sebuah HURUF sebagai jawaban benar, mis.
+# "Jawaban yang benar adalah B", "Jawabannya: C", "Pilihan D benar",
+# "A adalah jawaban yang benar". Sengaja sempit supaya jarang salah
+# menuduh: kalimat seperti "Pilihan A salah" atau "bukan jawaban
+# yang benar" TIDAK cocok.
+_EXPLANATION_CLAIM_PATTERNS = [
+    re.compile(
+        r"\bjawaban(?:nya)?(?:\s+yang)?(?:\s+(?:paling\s+)?(?:benar|tepat))?"
+        r"\s*(?:adalah|ialah|yaitu|:)\s*(?:pilihan\s+|opsi\s+)?\(?([A-D])\)?"
+        r"(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:pilihan|opsi)\s+([A-D])\s+(?:adalah\s+)?(?:jawaban\s+)?"
+        r"(?:yang\s+)?(?:benar|tepat)(?![-\w])",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b([A-D])\s+adalah\s+jawaban\s+(?:yang\s+)?(?:benar|tepat)(?![-\w])",
+        re.IGNORECASE,
+    ),
+]
+
+
+def _check_explanation_consistency(
+    explanation: str,
+    correct_code: str,
+) -> str | None:
+    """
+    Pemeriksaan ringan TANPA panggilan AI tambahan: kalau pembahasan
+    menyebut huruf lain sebagai jawaban benar, kembalikan pesan
+    peringatan untuk guru. None kalau tidak ada yang janggal.
+    """
+
+    claimed_codes = set()
+
+    for pattern in _EXPLANATION_CLAIM_PATTERNS:
+        for match in pattern.finditer(explanation):
+            letter = match.group(1)
+
+            # Hanya huruf KAPITAL yang dianggap kode pilihan (menghindari
+            # "jawabannya adalah a..." yang sebenarnya kata biasa).
+            if letter.isupper():
+                claimed_codes.add(letter)
+
+    wrong_codes = sorted(claimed_codes - {correct_code})
+
+    if not wrong_codes:
+        return None
+
+    return (
+        "Pembahasan dari AI menyebut jawaban benar adalah "
+        + ", ".join(wrong_codes)
+        + f", padahal kunci yang ditandai adalah {correct_code}. "
+        "Periksa kembali kunci jawaban dan isi pembahasannya "
+        "sebelum menyimpan."
+    )
+
+
+@router.post(
+    "/ai-explanation",
+    response_model=AIExplanationResponse
+)
+async def generate_explanation_ai(
+    request_data: AIExplanationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("ADMIN", "GURU")
+    )
+):
+
+    question_text, options, correct_code = _prepare_explanation_input(
+        request_data.question_text,
+        request_data.options,
+    )
+
+    # Nama mapel hanya konteks tambahan di prompt; kalau tidak ada /
+    # tidak ketemu, prompt tetap disusun tanpa nama mapel.
+    subject_name = None
+
+    if request_data.subject_id:
+        subject = (
+            db.query(Subject)
+            .filter(Subject.id == request_data.subject_id)
+            .first()
+        )
+
+        if subject:
+            subject_name = subject.name
+
+    prompt = build_explanation_prompt(
+        subject_name,
+        question_text,
+        options,
+        correct_code,
+    )
+
+    ai_result = await ai_providers.call_active_provider(prompt, db)
+
+    raw_explanation = ""
+
+    if isinstance(ai_result, dict):
+        raw_explanation = (
+            ai_result.get("explanation")
+            or ai_result.get("pembahasan")
+            or ""
+        )
+
+    explanation = _clean_explanation_text(str(raw_explanation))
+
+    if not explanation:
+        raise HTTPException(
+            status_code=502,
+            detail="AI tidak menghasilkan pembahasan. Coba lagi."
+        )
+
+    return AIExplanationResponse(
+        explanation=explanation,
+        consistency_warning=_check_explanation_consistency(
+            explanation, correct_code
+        ),
+    )
+
+
+# =========================================================
 # IMPOR SOAL DARI DOKUMEN (PDF/DOCX/TXT)
 #
 # BEDA dari generate_question_ai() di atas: di sini AI TIDAK
@@ -1554,7 +1819,7 @@ def delete_question(
     question_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_role("ADMIN")
+        require_role("ADMIN", "GURU")
     )
 ):
 
@@ -1571,6 +1836,29 @@ def delete_question(
         raise HTTPException(
             status_code=404,
             detail="Soal tidak ditemukan"
+        )
+
+    # -----------------------------------------------------
+    # Hak hapus:
+    #   ADMIN -> boleh menghapus semua soal.
+    #   GURU  -> hanya soal yang DIA BUAT SENDIRI (created_by ==
+    #            id user yang login). Soal tanpa pencatat pembuat
+    #            (created_by NULL, mis. data lama) hanya bisa
+    #            dihapus ADMIN.
+    # Pesannya SENGAJA berbeda dari "Tidak memiliki hak akses"
+    # (role salah) supaya guru tahu penyebab sebenarnya.
+    # Aturan yang sama dipakai frontend untuk menampilkan tombol
+    # hapus (QuestionManagement.jsx -> canDeleteQuestion).
+    # -----------------------------------------------------
+
+    if (
+        current_user.role == "GURU"
+        and question.created_by != current_user.id
+    ):
+
+        raise HTTPException(
+            status_code=403,
+            detail="Anda hanya dapat menghapus soal yang Anda buat sendiri."
         )
 
     # -----------------------------------------------------
