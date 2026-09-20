@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from database import get_db
 from dependencies import require_role
@@ -133,9 +133,25 @@ def get_teacher_scores(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("ADMIN", "GURU")),
 ):
+    # Guru pembuat tryout di-JOIN pakai alias terpisah dari User,
+    # karena User yang sama juga dipakai untuk relasi lain kalau
+    # ada (menghindari SQLAlchemy bingung "User" yang mana yang
+    # dimaksud di JOIN ganda).
+    Creator = aliased(User)
+
     query = (
-        db.query(Attempt)
+        db.query(Attempt, Tryout, Student, Subject, Creator, Result)
         .join(Tryout, Tryout.id == Attempt.tryout_id)
+        # outerjoin (LEFT JOIN), bukan join biasa, untuk
+        # Student/Subject/Creator/Result -- supaya baris attempt-nya
+        # TETAP ikut tampil walau salah satu datanya kebetulan
+        # kosong/terhapus (persis seperti perilaku "if x else None"
+        # di versi sebelumnya, cuma sekarang dalam SATU query lewat
+        # JOIN, bukan query terpisah per baris).
+        .outerjoin(Student, Student.id == Attempt.student_id)
+        .outerjoin(Subject, Subject.id == Tryout.subject_id)
+        .outerjoin(Creator, Creator.id == Tryout.created_by)
+        .outerjoin(Result, Result.attempt_id == Attempt.id)
         .filter(Attempt.status != "IN_PROGRESS")
     )
 
@@ -151,7 +167,7 @@ def get_teacher_scores(
     if teacher_id:
         query = query.filter(Tryout.created_by == teacher_id)
 
-    attempts = (
+    rows = (
         query
         .order_by(Attempt.finished_at.desc())
         .all()
@@ -159,40 +175,7 @@ def get_teacher_scores(
 
     result = []
 
-    for attempt in attempts:
-
-        tryout = (
-            db.query(Tryout)
-            .filter(Tryout.id == attempt.tryout_id)
-            .first()
-        )
-
-        if not tryout:
-            continue
-
-        student = (
-            db.query(Student)
-            .filter(Student.id == attempt.student_id)
-            .first()
-        )
-
-        subject = (
-            db.query(Subject)
-            .filter(Subject.id == tryout.subject_id)
-            .first()
-        )
-
-        creator = (
-            db.query(User)
-            .filter(User.id == tryout.created_by)
-            .first()
-        )
-
-        attempt_result = (
-            db.query(Result)
-            .filter(Result.attempt_id == attempt.id)
-            .first()
-        )
+    for attempt, tryout, student, subject, creator, attempt_result in rows:
 
         result.append({
             "attempt_id": attempt.id,

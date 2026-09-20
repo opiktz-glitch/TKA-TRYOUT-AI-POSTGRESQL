@@ -84,25 +84,18 @@ function ChangePassword() {
           </div>
 
           {/* FORM CARD */}
-          <div className="dashboard-card" style={{ maxWidth: "700px", margin: "0 auto" }}>
+          <div
+            className="dashboard-card"
+            style={{ maxWidth: "700px", margin: "0 auto", padding: "28px 32px" }}
+          >
             {error && (
-              <div className="error-message" style={{ marginBottom: "16px" }}>
+              <div className="form-error-message" style={{ marginBottom: "18px" }}>
                 {error}
               </div>
             )}
 
             {success && (
-              <div
-                className="alert-success"
-                style={{
-                  backgroundColor: "#d4edda",
-                  color: "#155724",
-                  padding: "10px",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  marginBottom: "16px",
-                }}
-              >
+              <div className="success-message" style={{ marginBottom: "18px" }}>
                 {success}
               </div>
             )}
@@ -148,7 +141,16 @@ function ChangePassword() {
                 />
               </div>
 
-              <div style={{ marginTop: "24px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <div
+                style={{
+                  marginTop: "8px",
+                  paddingTop: "20px",
+                  borderTop: "1px solid var(--line)",
+                  display: "flex",
+                  gap: 10,
+                  justifyContent: "flex-end",
+                }}
+              >
                 <button
                   type="button"
                   className="secondary-button"

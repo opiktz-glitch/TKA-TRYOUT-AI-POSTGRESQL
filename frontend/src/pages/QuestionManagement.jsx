@@ -5,6 +5,11 @@ import Header from "../components/Header";
 import { IconEdit, IconTrash, IconCheck, IconBook, IconEye } from "../components/Icons";
 import PanduanSoalModal from "../components/PanduanSoalModal";
 import QuestionImage from "../components/QuestionImage";
+import QuestionPreviewModal from "../components/QuestionPreviewModal";
+import ImportDocumentModal from "../components/ImportDocumentModal";
+import OptionsEditor from "../components/OptionsEditor";
+import useAiStatusGate from "../hooks/useAiStatusGate";
+import { OPTION_CODES, DIFFICULTIES } from "../data/questionConstants";
 import {
   getSubjects,
   getQuestions,
@@ -15,31 +20,9 @@ import {
   deleteQuestionImage,
   generateAIQuestion,
   previewAIPrompt,
-  getAIStatus,
-  prepareDocumentExtraction,
-  processDocumentChunk,
 } from "../services/api";
 
-const OPTION_CODES = ["A", "B", "C", "D"];
-
-const DIFFICULTIES = [
-  {
-    value: "EASY",
-    label: "Mudah",
-  },
-  {
-    value: "MEDIUM",
-    label: "Sedang",
-  },
-  {
-    value: "HARD",
-    label: "Sulit",
-  },
-];
-
-
 function QuestionManagement() {
-
   // ======================================================
   // DATA
   // ======================================================
@@ -57,40 +40,29 @@ function QuestionManagement() {
   const [showModal, setShowModal] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
-  const [editingQuestion, setEditingQuestion] =
-    useState(null);
+  const [editingQuestion, setEditingQuestion] = useState(null);
 
   const [saving, setSaving] = useState(false);
 
-  const [deletingId, setDeletingId] =
-    useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // ======================================================
   // AI GENERATE SOAL
   // ======================================================
 
-  const [showAiModal, setShowAiModal] =
-    useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
 
-  // Cek status provider AI (Ollama/Gemini) SEBELUM modal dibuka.
-  // Kalau tidak ada satupun AI yang online, error langsung
-  // ditampilkan saat tombol "Tambah Soal AI" diklik, tanpa perlu
-  // isi form dulu baru gagal di endpoint generate.
-  const [aiCheckingStatus, setAiCheckingStatus] =
-    useState(false);
+  // Cek status provider AI (Ollama/Gemini) SEBELUM modal dibuka --
+  // lihat hooks/useAiStatusGate.js. Tiap tombol punya gate sendiri
+  // karena state loading & letak pesan errornya terpisah:
+  // - aiGate     : tombol "Tambah Soal AI" di toolbar Bank Soal
+  // - editAiGate : tombol "Edit dengan AI" DI DALAM modal Edit Soal
+  //                (pesannya tampil di modal itu, bukan di toolbar,
+  //                 supaya guru tidak kehilangan perubahan manual
+  //                 yang sudah diketik)
+  const aiGate = useAiStatusGate();
 
-  const [aiUnavailableMessage, setAiUnavailableMessage] =
-    useState("");
-
-  // Tombol "Edit dengan AI" di dalam modal Edit Soal punya alur
-  // status/loading terpisah dari tombol "Tambah Soal AI" di
-  // toolbar, supaya pesan error tidak "salah tempat" (tombol Edit
-  // AI ada di dalam modal, bukan di toolbar Bank Soal).
-  const [editAiChecking, setEditAiChecking] =
-    useState(false);
-
-  const [editAiUnavailableMessage, setEditAiUnavailableMessage] =
-    useState("");
+  const editAiGate = useAiStatusGate();
 
   // true kalau modal AI sedang dibuka untuk MENGGANTIKAN soal yang
   // sedang diedit (bukan membuat soal baru). Dipakai supaya:
@@ -98,30 +70,25 @@ function QuestionManagement() {
   //   berikutnya harus tetap UPDATE, bukan CREATE baru)
   // - kalau modal AI dibatalkan, modal Edit Soal dibuka lagi
   //   dengan data yang sudah ada, bukan hilang begitu saja
-  const [aiReplaceMode, setAiReplaceMode] =
-    useState(false);
+  const [aiReplaceMode, setAiReplaceMode] = useState(false);
 
-  const [aiGenerating, setAiGenerating] =
-    useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const [aiError, setAiError] = useState("");
 
-  const [aiGeneratedNotice, setAiGeneratedNotice] =
-    useState(false);
+  const [aiGeneratedNotice, setAiGeneratedNotice] = useState(false);
 
   // Diisi dari result.consistency_warning saat backend mendeteksi
   // opsi yang ditandai benar kemungkinan tidak sejalan dengan
   // pembahasannya sendiri (lihat routers/questions.py ->
   // _verify_answer_consistency). null kalau tidak ada masalah.
-  const [aiConsistencyWarning, setAiConsistencyWarning] =
-    useState(null);
+  const [aiConsistencyWarning, setAiConsistencyWarning] = useState(null);
 
   // Diisi dari result.image_description saat guru mencentang
   // "Buat soal bergambar" dan AI mengembalikan saran ilustrasi.
   // Cuma teks pengingat untuk guru -- BUKAN gambar sungguhan,
   // guru tetap upload manual lewat input file di bawah.
-  const [aiImageDescription, setAiImageDescription] =
-    useState(null);
+  const [aiImageDescription, setAiImageDescription] = useState(null);
 
   // "form"   -> isi mata pelajaran/kesulitan/materi
   // "prompt" -> tampilkan prompt (bisa diedit) sebelum generate
@@ -129,8 +96,7 @@ function QuestionManagement() {
 
   const [aiPrompt, setAiPrompt] = useState("");
 
-  const [aiPromptLoading, setAiPromptLoading] =
-    useState(false);
+  const [aiPromptLoading, setAiPromptLoading] = useState(false);
 
   const createEmptyAiForm = () => ({
     subject_id: "",
@@ -140,93 +106,41 @@ function QuestionManagement() {
     with_image: false,
   });
 
-  const [aiForm, setAiForm] = useState(
-    createEmptyAiForm()
-  );
+  const [aiForm, setAiForm] = useState(createEmptyAiForm());
 
   // ======================================================
   // IMPOR SOAL DARI DOKUMEN (PDF/DOCX/TXT)
   // ======================================================
 
-  const [showImportModal, setShowImportModal] =
-    useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Pakai pengecekan status AI yang SAMA seperti tombol "Tambah
   // Soal AI" (fitur ini juga memanggil provider AI yang aktif di
   // backend), supaya guru tidak buka modal dulu baru gagal
   // belakangan kalau tidak ada AI yang online.
-  const [importCheckingStatus, setImportCheckingStatus] =
-    useState(false);
-
-  const [importUnavailableMessage, setImportUnavailableMessage] =
-    useState("");
-
-  // "upload" -> pilih mata pelajaran & file
-  // "review" -> daftar soal hasil ekstraksi, bisa diperiksa/
-  //             diedit/dicentang sebelum disimpan
-  const [importStep, setImportStep] = useState("upload");
-
-  const [importSubjectId, setImportSubjectId] = useState("");
-
-  const [importFile, setImportFile] = useState(null);
-
-  const [importLoading, setImportLoading] = useState(false);
-
-  const [importError, setImportError] = useState("");
-
-  const [importSkippedCount, setImportSkippedCount] = useState(0);
-
-  // Setiap item: { key, question_text, explanation, options: [...],
-  // warning, selected, saveStatus: null|"saving"|"saved"|"error",
-  // saveError }. Disimpan terpisah dari `questions` (daftar soal
-  // tersimpan) karena ini masih berupa DRAFT yang belum tentu jadi
-  // soal sungguhan sampai guru menekan "Simpan Soal Terpilih".
-  const [importedQuestions, setImportedQuestions] = useState([]);
-
-  const [importSaving, setImportSaving] = useState(false);
-
-  // "processing" (langkah tengah, baru): loading + progress bar
-  // saat frontend memanggil processDocumentChunk() satu per satu.
-  const [importProgressCurrent, setImportProgressCurrent] = useState(0);
-  const [importProgressTotal, setImportProgressTotal] = useState(0);
-
-  // Dipakai tombol "Batalkan" saat importStep === "processing":
-  // loop di handleExtractSubmit mengecek ref ini SEBELUM memproses
-  // tiap potongan berikutnya. Potongan yang SUDAH selesai diproses
-  // tetap muncul di layar review — cuma potongan yang BELUM
-  // diproses yang dilewati.
-  const importCancelRef = useRef(false);
-
-  const nextImportKeyRef = useRef(0);
-
-  // ======================================================
-  // PREVIEW SOAL (lihat soal + kunci jawaban + pembahasan)
   //
-  // BEDA dari modal Review Soal di TryoutManagement.jsx: di sini
-  // cuma preview SATU soal (bukan satu paket tryout berisi banyak
-  // soal), dan datanya sudah ADA di `questions` (hasil loadQuestions
-  // — QuestionResponse dari backend sudah menyertakan options +
-  // is_correct + explanation), jadi TIDAK perlu panggil API lagi.
-  // Tidak ada tombol cetak/PDF di sini (beda dari TryoutManagement)
-  // karena ini cuma untuk lihat cepat, bukan dokumen yang mau
-  // dicetak.
-  // ======================================================
+  // State isian modal (langkah, file, hasil ekstraksi, dst.) ada di
+  // dalam ImportDocumentModal dan otomatis mulai dari nol karena
+  // komponennya di-mount baru setiap modal dibuka.
+  const importGate = useAiStatusGate();
 
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  // ======================================================
+  // PREVIEW SOAL
+  //
+  // Tampilannya ada di components/QuestionPreviewModal.jsx. Cukup
+  // simpan soal yang sedang dipreview di sini (null = modal tertutup).
+  // Datanya sudah ADA di `questions` (QuestionResponse dari backend
+  // sudah menyertakan options + is_correct + explanation), jadi
+  // TIDAK perlu panggil API lagi.
+  // ======================================================
 
   const [previewQuestion, setPreviewQuestion] = useState(null);
 
-
   function openPreviewModal(question) {
-
     setPreviewQuestion(question);
-    setShowPreviewModal(true);
   }
 
-
   function closePreviewModal() {
-
-    setShowPreviewModal(false);
     setPreviewQuestion(null);
   }
 
@@ -236,14 +150,11 @@ function QuestionManagement() {
 
   const [search, setSearch] = useState("");
 
-  const [subjectFilter, setSubjectFilter] =
-    useState("");
+  const [subjectFilter, setSubjectFilter] = useState("");
 
-  const [difficultyFilter, setDifficultyFilter] =
-    useState("");
+  const [difficultyFilter, setDifficultyFilter] = useState("");
 
-  const [statusFilter, setStatusFilter] =
-    useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // ======================================================
   // PAGINATION (Bank Soal)
@@ -290,6 +201,14 @@ function QuestionManagement() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [removeExistingImage, setRemoveExistingImage] = useState(false);
   const [imageActionError, setImageActionError] = useState("");
+
+  // ID soal yang BARU SAJA dibuat lewat modal ini (mode Tambah).
+  // Dipakai supaya submit berikutnya di modal yang SAMA -- mis. klik
+  // "Simpan" lagi setelah upload gambar gagal, atau klik ganda selagi
+  // modal belum tertutup -- meng-UPDATE soal itu, BUKAN membuat soal
+  // baru lagi (yang akan jadi duplikat). Di-reset tiap modal
+  // dibuka/ditutup.
+  const createdQuestionIdRef = useRef(null);
 
   function handleImageFileChange(event) {
     const file = event.target.files?.[0];
@@ -341,130 +260,82 @@ function QuestionManagement() {
     })),
   });
 
-
-  const [form, setForm] = useState(
-    createEmptyForm()
-  );
-
+  const [form, setForm] = useState(createEmptyForm());
 
   // ======================================================
   // LOAD SUBJECTS
   // ======================================================
 
   const loadSubjects = useCallback(async () => {
-
     try {
-
       const data = await getSubjects();
 
       setSubjects(data);
-
     } catch (err) {
+      console.error("LOAD SUBJECT ERROR:", err);
 
-      console.error(
-        "LOAD SUBJECT ERROR:",
-        err
-      );
-
-      setLoadError(
-        err.message ||
-        "Gagal mengambil mata pelajaran"
-      );
+      setLoadError(err.message || "Gagal mengambil mata pelajaran");
     }
   }, []);
-
 
   // ======================================================
   // LOAD QUESTIONS
   // ======================================================
 
   const loadQuestions = useCallback(async () => {
-
     try {
-
       setLoading(true);
       setLoadError("");
 
       const data = await getQuestions();
 
       setQuestions(data);
-
     } catch (err) {
+      console.error("LOAD QUESTIONS ERROR:", err);
 
-      console.error(
-        "LOAD QUESTIONS ERROR:",
-        err
-      );
-
-      setLoadError(
-        err.message ||
-        "Gagal mengambil bank soal"
-      );
-
+      setLoadError(err.message || "Gagal mengambil bank soal");
     } finally {
-
       setLoading(false);
     }
   }, []);
-
 
   // ======================================================
   // INITIAL LOAD
   // ======================================================
 
   useEffect(() => {
-
     loadSubjects();
 
     loadQuestions();
-
   }, [loadSubjects, loadQuestions]);
-
 
   // ======================================================
   // SUBJECT NAME
   // ======================================================
 
   function getSubjectName(subjectId) {
+    const subject = subjects.find((item) => item.id === subjectId);
 
-    const subject =
-      subjects.find(
-        item => item.id === subjectId
-      );
-
-    return subject
-      ? subject.name
-      : "-";
+    return subject ? subject.name : "-";
   }
-
 
   // ======================================================
   // DIFFICULTY LABEL
   // ======================================================
 
-  function getDifficultyLabel(
-    difficulty
-  ) {
+  function getDifficultyLabel(difficulty) {
+    const item = DIFFICULTIES.find((item) => item.value === difficulty);
 
-    const item =
-      DIFFICULTIES.find(
-        item =>
-          item.value === difficulty
-      );
-
-    return item
-      ? item.label
-      : difficulty;
+    return item ? item.label : difficulty;
   }
-
 
   // ======================================================
   // OPEN ADD MODAL
   // ======================================================
 
   function openAddModal() {
-
     setEditingQuestion(null);
+    createdQuestionIdRef.current = null;
 
     setForm(createEmptyForm());
 
@@ -473,7 +344,7 @@ function QuestionManagement() {
     setAiGeneratedNotice(false);
     setAiConsistencyWarning(null);
     setAiImageDescription(null);
-    setEditAiUnavailableMessage("");
+    editAiGate.reset();
 
     setSelectedImageFile(null);
     setImagePreviewUrl((previousUrl) => {
@@ -488,61 +359,40 @@ function QuestionManagement() {
     setShowModal(true);
   }
 
-
   // ======================================================
   // OPEN EDIT MODAL
   // ======================================================
 
   function openEditModal(question) {
+    const options = OPTION_CODES.map((code) => {
+      const existingOption = question.options?.find((option) => option.option_code === code);
 
-    const options =
-      OPTION_CODES.map(code => {
+      return {
+        option_code: code,
 
-        const existingOption =
-          question.options?.find(
-            option =>
-              option.option_code === code
-          );
+        option_text: existingOption?.option_text || "",
 
-        return {
-          option_code: code,
-
-          option_text:
-            existingOption?.option_text ||
-            "",
-
-          is_correct:
-            existingOption?.is_correct ||
-            false,
-        };
-      });
-
+        is_correct: existingOption?.is_correct || false,
+      };
+    });
 
     setEditingQuestion(question);
+    createdQuestionIdRef.current = null;
 
     setForm({
-      subject_id:
-        String(question.subject_id),
+      subject_id: String(question.subject_id),
 
-      question_text:
-        question.question_text || "",
+      question_text: question.question_text || "",
 
-      question_type:
-        question.question_type ||
-        "MULTIPLE_CHOICE",
+      question_type: question.question_type || "MULTIPLE_CHOICE",
 
-      difficulty:
-        question.difficulty ||
-        "MEDIUM",
+      difficulty: question.difficulty || "MEDIUM",
 
-      explanation:
-        question.explanation || "",
+      explanation: question.explanation || "",
 
-      points:
-        question.points ?? 1,
+      points: question.points ?? 1,
 
-      is_active:
-        question.is_active !== false,
+      is_active: question.is_active !== false,
 
       options,
     });
@@ -552,7 +402,7 @@ function QuestionManagement() {
     setAiGeneratedNotice(false);
     setAiConsistencyWarning(null);
     setAiImageDescription(null);
-    setEditAiUnavailableMessage("");
+    editAiGate.reset();
 
     setSelectedImageFile(null);
     setImagePreviewUrl((previousUrl) => {
@@ -567,13 +417,11 @@ function QuestionManagement() {
     setShowModal(true);
   }
 
-
   // ======================================================
   // CLOSE MODAL
   // ======================================================
 
   function closeModal() {
-
     if (saving) {
       return;
     }
@@ -581,6 +429,7 @@ function QuestionManagement() {
     setShowModal(false);
 
     setEditingQuestion(null);
+    createdQuestionIdRef.current = null;
 
     setForm(createEmptyForm());
 
@@ -589,19 +438,32 @@ function QuestionManagement() {
     setAiGeneratedNotice(false);
     setAiConsistencyWarning(null);
     setAiImageDescription(null);
-    setEditAiUnavailableMessage("");
-  }
+    editAiGate.reset();
 
+    // Bersihkan juga state gambar. Modal bisa dibuka lagi TANPA lewat
+    // openAddModal/openEditModal (yaitu dari hasil "Tambah Soal AI"),
+    // jadi tanpa ini file/preview dari sesi sebelumnya bisa "nyangkut"
+    // dan ikut terupload ke soal yang berbeda.
+    setSelectedImageFile(null);
+    setImagePreviewUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+      return null;
+    });
+    setRemoveExistingImage(false);
+    setImageActionError("");
+  }
 
   // ======================================================
   // OPEN / CLOSE MODAL GENERATE SOAL AI
   // ======================================================
 
   function openAiModal() {
-
     // Mode TAMBAH: pastikan tidak "menempel" ke soal manapun,
     // supaya hasil generate nanti disimpan sebagai soal BARU.
     setEditingQuestion(null);
+    createdQuestionIdRef.current = null;
 
     setAiReplaceMode(false);
 
@@ -615,7 +477,6 @@ function QuestionManagement() {
 
     setShowAiModal(true);
   }
-
 
   // ======================================================
   // TOMBOL "EDIT DENGAN AI" DI DALAM MODAL EDIT SOAL
@@ -632,7 +493,6 @@ function QuestionManagement() {
   // ======================================================
 
   function openAiModalForEdit() {
-
     setAiReplaceMode(true);
 
     setAiForm({
@@ -661,61 +521,7 @@ function QuestionManagement() {
     setShowAiModal(true);
   }
 
-
-  // ======================================================
-  // TOMBOL "TAMBAH SOAL AI" DIKLIK
-  //
-  // Cek dulu ke backend (GET /api/settings/ai-status) apakah
-  // provider AI yang aktif (Ollama atau Gemini) benar-benar
-  // online. Kalau TIDAK ADA satupun AI yang online, langsung
-  // tampilkan error di sini — modal generate tidak dibuka sama
-  // sekali, supaya guru tidak buang waktu isi form dulu baru
-  // gagal belakangan saat submit ke Ollama/Gemini.
-  // ======================================================
-
-  async function handleAiButtonClick() {
-
-    setAiUnavailableMessage("");
-
-    try {
-
-      setAiCheckingStatus(true);
-
-      const status = await getAIStatus();
-
-      if (!status.online) {
-
-        setAiUnavailableMessage(
-          status.reason ||
-          "Tidak ada AI yang online saat ini. Coba lagi nanti atau hubungi admin."
-        );
-
-        return;
-      }
-
-      openAiModal();
-
-    } catch (err) {
-
-      console.error(
-        "CHECK AI STATUS ERROR:",
-        err
-      );
-
-      setAiUnavailableMessage(
-        err.message ||
-        "Gagal memeriksa status AI. Coba lagi nanti."
-      );
-
-    } finally {
-
-      setAiCheckingStatus(false);
-    }
-  }
-
-
   function closeAiModal() {
-
     if (aiGenerating || aiPromptLoading) {
       return;
     }
@@ -732,64 +538,11 @@ function QuestionManagement() {
     // dibatalkan (bukan berhasil generate), buka lagi modal Edit
     // Soal supaya guru tidak kehilangan soal yang sedang diedit.
     if (aiReplaceMode) {
-
       setAiReplaceMode(false);
 
       setShowModal(true);
     }
   }
-
-
-  // ======================================================
-  // TOMBOL "EDIT DENGAN AI" DIKLIK (di dalam modal Edit Soal)
-  //
-  // Sama seperti handleAiButtonClick, cek dulu status provider AI
-  // sebelum modal generate dibuka. Kalau tidak ada AI yang online,
-  // error ditampilkan DI DALAM modal Edit Soal (modal tidak jadi
-  // disembunyikan), supaya guru tidak kehilangan perubahan manual
-  // yang sudah diketik.
-  // ======================================================
-
-  async function handleEditAiButtonClick() {
-
-    setEditAiUnavailableMessage("");
-
-    try {
-
-      setEditAiChecking(true);
-
-      const status = await getAIStatus();
-
-      if (!status.online) {
-
-        setEditAiUnavailableMessage(
-          status.reason ||
-          "Tidak ada AI yang online saat ini. Coba lagi nanti atau hubungi admin."
-        );
-
-        return;
-      }
-
-      openAiModalForEdit();
-
-    } catch (err) {
-
-      console.error(
-        "CHECK AI STATUS (EDIT) ERROR:",
-        err
-      );
-
-      setEditAiUnavailableMessage(
-        err.message ||
-        "Gagal memeriksa status AI. Coba lagi nanti."
-      );
-
-    } finally {
-
-      setEditAiChecking(false);
-    }
-  }
-
 
   // ======================================================
   // LANGKAH 1 -> 2: SUSUN PROMPT UNTUK DIPERIKSA/DIEDIT
@@ -800,65 +553,48 @@ function QuestionManagement() {
   // ======================================================
 
   async function handleShowPrompt(event) {
-
     event.preventDefault();
 
     setAiError("");
 
     if (!aiForm.subject_id) {
-
       setAiError("Mata pelajaran wajib dipilih");
 
       return;
     }
 
     if (!aiForm.materi.trim()) {
-
       setAiError("Materi / lingkup soal wajib diisi");
 
       return;
     }
 
     try {
-
       setAiPromptLoading(true);
 
       const result = await previewAIPrompt({
         subject_id: Number(aiForm.subject_id),
         difficulty: aiForm.difficulty,
         materi: aiForm.materi.trim(),
-        additional_instruction:
-          aiForm.additional_instruction.trim() || null,
+        additional_instruction: aiForm.additional_instruction.trim() || null,
         with_image: aiForm.with_image,
       });
 
       setAiPrompt(result.prompt);
 
       setAiStep("prompt");
-
     } catch (err) {
+      console.error("AI PREVIEW PROMPT ERROR:", err);
 
-      console.error(
-        "AI PREVIEW PROMPT ERROR:",
-        err
-      );
-
-      setAiError(
-        err.message ||
-        "Gagal menyusun prompt"
-      );
-
+      setAiError(err.message || "Gagal menyusun prompt");
     } finally {
-
       setAiPromptLoading(false);
     }
   }
 
-
   // Kembali dari langkah prompt ke form (mis. mau ganti materi
   // atau tingkat kesulitan, bukan cuma teks prompt-nya).
   function handleBackToAiForm() {
-
     if (aiGenerating) {
       return;
     }
@@ -868,21 +604,18 @@ function QuestionManagement() {
     setAiError("");
   }
 
-
   // ======================================================
   // FORM GENERATE AI - CHANGE
   // ======================================================
 
   function handleAiFormChange(event) {
-
     const { name, value, type, checked } = event.target;
 
-    setAiForm(prev => ({
+    setAiForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   }
-
 
   // ======================================================
   // GENERATE SOAL DENGAN AI
@@ -894,42 +627,36 @@ function QuestionManagement() {
   // ======================================================
 
   async function handleAiGenerate(event) {
-
     event.preventDefault();
 
     setAiError("");
 
     if (!aiForm.subject_id) {
-
       setAiError("Mata pelajaran wajib dipilih");
 
       return;
     }
 
     if (!aiForm.materi.trim()) {
-
       setAiError("Materi / lingkup soal wajib diisi");
 
       return;
     }
 
     if (!aiPrompt.trim()) {
-
       setAiError("Prompt tidak boleh kosong");
 
       return;
     }
 
     try {
-
       setAiGenerating(true);
 
       const result = await generateAIQuestion({
         subject_id: Number(aiForm.subject_id),
         difficulty: aiForm.difficulty,
         materi: aiForm.materi.trim(),
-        additional_instruction:
-          aiForm.additional_instruction.trim() || null,
+        additional_instruction: aiForm.additional_instruction.trim() || null,
         with_image: aiForm.with_image,
         prompt: aiPrompt.trim(),
       });
@@ -941,13 +668,12 @@ function QuestionManagement() {
       // UPDATE soal itu. Untuk mode Tambah, editingQuestion sudah
       // di-null-kan lebih dulu di openAiModal().
 
-      setForm(prev => ({
+      setForm((prev) => ({
         subject_id: String(result.subject_id),
 
         question_text: result.question_text,
 
-        question_type:
-          result.question_type || "MULTIPLE_CHOICE",
+        question_type: result.question_type || "MULTIPLE_CHOICE",
 
         difficulty: result.difficulty,
 
@@ -960,11 +686,8 @@ function QuestionManagement() {
 
         is_active: aiReplaceMode ? prev.is_active : true,
 
-        options: OPTION_CODES.map(code => {
-
-          const found = result.options.find(
-            option => option.option_code === code
-          );
+        options: OPTION_CODES.map((code) => {
+          const found = result.options.find((option) => option.option_code === code);
 
           return {
             option_code: code,
@@ -987,510 +710,44 @@ function QuestionManagement() {
       setAiPrompt("");
       setAiReplaceMode(false);
       setShowModal(true);
-
     } catch (err) {
+      console.error("AI GENERATE ERROR:", err);
 
-      console.error(
-        "AI GENERATE ERROR:",
-        err
-      );
-
-      setAiError(
-        err.message ||
-        "Gagal membuat soal dengan AI"
-      );
-
+      setAiError(err.message || "Gagal membuat soal dengan AI");
     } finally {
-
       setAiGenerating(false);
     }
   }
 
+  // Dipanggil ImportDocumentModal setelah ada soal yang berhasil
+  // disimpan: tampilkan pesan sukses & muat ulang daftar Bank Soal.
+  function handleImported(successCount) {
+    setActionSuccess(`${successCount} soal berhasil diimpor dari dokumen.`);
 
-  // ======================================================
-  // TOMBOL "IMPOR DARI DOKUMEN" DIKLIK
-  //
-  // Sama seperti handleAiButtonClick — cek status provider AI dulu
-  // sebelum modal dibuka, karena fitur ini juga memanggil AI di
-  // baliknya (bedanya: untuk MEMBACA ULANG soal dari dokumen, bukan
-  // membuat soal baru dari materi).
-  // ======================================================
-
-  async function handleImportButtonClick() {
-
-    setImportUnavailableMessage("");
-
-    try {
-
-      setImportCheckingStatus(true);
-
-      const status = await getAIStatus();
-
-      if (!status.online) {
-
-        setImportUnavailableMessage(
-          status.reason ||
-          "Tidak ada AI yang online saat ini. Coba lagi nanti atau hubungi admin."
-        );
-
-        return;
-      }
-
-      setImportStep("upload");
-      setImportSubjectId("");
-      setImportFile(null);
-      setImportError("");
-      setImportedQuestions([]);
-      setImportSkippedCount(0);
-      setShowImportModal(true);
-
-    } catch (err) {
-
-      console.error(
-        "CHECK AI STATUS (IMPORT) ERROR:",
-        err
-      );
-
-      setImportUnavailableMessage(
-        err.message ||
-        "Gagal memeriksa status AI. Coba lagi nanti."
-      );
-
-    } finally {
-
-      setImportCheckingStatus(false);
-    }
+    loadQuestions();
   }
-
-
-  function closeImportModal() {
-
-    if (importLoading || importSaving || importStep === "processing") {
-      return;
-    }
-
-    setShowImportModal(false);
-  }
-
-
-  // ======================================================
-  // LANGKAH 1 -> 2 -> 3: UPLOAD (prepare, cepat & tanpa AI) LALU
-  // PROSES TIAP POTONGAN SATU PER SATU LEWAT AI (processDocumentChunk)
-  //
-  // Hasil tiap potongan LANGSUNG ditambahkan ke `importedQuestions`
-  // begitu selesai — bukan menunggu semua potongan kelar dulu.
-  // Jadi kalau potongan ke-8 dari 15 gagal (timeout/AI error), 7
-  // potongan sebelumnya TETAP ada di layar review, bukan ikut
-  // hilang seperti pendekatan lama (1 request besar untuk semua
-  // potongan sekaligus).
-  // ======================================================
-
-  async function handleExtractSubmit(event) {
-
-    event.preventDefault();
-
-    setImportError("");
-
-    if (!importSubjectId) {
-
-      setImportError("Mata pelajaran wajib dipilih");
-
-      return;
-    }
-
-    if (!importFile) {
-
-      setImportError("Pilih file dokumen (.pdf, .docx, atau .txt) terlebih dahulu");
-
-      return;
-    }
-
-    let chunks;
-
-    try {
-
-      setImportLoading(true);
-
-      const prepared = await prepareDocumentExtraction(
-        Number(importSubjectId),
-        importFile
-      );
-
-      chunks = prepared.chunks;
-
-    } catch (err) {
-
-      console.error(
-        "PREPARE DOCUMENT EXTRACTION ERROR:",
-        err
-      );
-
-      setImportError(
-        err.message ||
-        "Gagal membaca dokumen"
-      );
-
-      setImportLoading(false);
-
-      return;
-    }
-
-    setImportLoading(false);
-
-    if (!chunks || chunks.length === 0) {
-
-      setImportError(
-        "Dokumen tidak berisi teks yang bisa diproses."
-      );
-
-      return;
-    }
-
-    importCancelRef.current = false;
-
-    setImportedQuestions([]);
-    setImportSkippedCount(0);
-    setImportProgressCurrent(0);
-    setImportProgressTotal(chunks.length);
-    setImportStep("processing");
-
-    let totalSkipped = 0;
-
-    for (let i = 0; i < chunks.length; i++) {
-
-      if (importCancelRef.current) {
-        break;
-      }
-
-      const chunk = chunks[i];
-
-      try {
-
-        const result = await processDocumentChunk(
-          Number(importSubjectId),
-          chunk.chunk_text,
-          chunk.expected_count
-        );
-
-        const items = result.questions.map(question => ({
-          key: nextImportKeyRef.current++,
-
-          question_text: question.question_text,
-
-          difficulty: question.difficulty || "MEDIUM",
-
-          explanation: question.explanation || "",
-
-          points: question.points ?? 1,
-
-          options: OPTION_CODES.map(code => {
-
-            const found = question.options.find(
-              option => option.option_code === code
-            );
-
-            return {
-              option_code: code,
-              option_text: found?.option_text || "",
-              is_correct: found?.is_correct || false,
-            };
-          }),
-
-          warning: question.warning || null,
-
-          selected: true,
-
-          saveStatus: null,
-          saveError: "",
-        }));
-
-        setImportedQuestions(prev => [...prev, ...items]);
-
-        totalSkipped += result.skipped_count || 0;
-
-        setImportSkippedCount(totalSkipped);
-
-      } catch (err) {
-
-        console.error(
-          "PROCESS DOCUMENT CHUNK ERROR:",
-          err
-        );
-
-        // Kemungkinan besar ini masalah konfigurasi (AI mati di
-        // tengah proses, dsb) yang akan terus terulang di potongan
-        // berikutnya juga — daripada menghabiskan waktu mencoba
-        // semua potongan sisanya dan gagal semua, proses dihentikan
-        // di sini. Potongan yang SUDAH berhasil (sebelum ini) tetap
-        // ada di importedQuestions, tidak ikut dibuang.
-        setImportError(
-          `Berhenti di potongan ke-${i + 1} dari ${chunks.length}: ` +
-          (err.message || "Gagal memproses potongan ini") +
-          " Soal yang sudah berhasil diproses sebelumnya tetap tersimpan di bawah."
-        );
-
-        break;
-      }
-
-      setImportProgressCurrent(i + 1);
-    }
-
-    setImportStep("review");
-  }
-
-
-  function handleCancelImportProcessing() {
-
-    importCancelRef.current = true;
-  }
-
-
-  function handleBackToImportUpload() {
-
-    if (importSaving) {
-      return;
-    }
-
-    setImportStep("upload");
-    setImportError("");
-  }
-
-
-  // ======================================================
-  // EDIT DI LAYAR REVIEW (sebelum disimpan)
-  // ======================================================
-
-  function handleImportToggleSelected(key) {
-
-    setImportedQuestions(prev =>
-      prev.map(item =>
-        item.key === key
-          ? { ...item, selected: !item.selected }
-          : item
-      )
-    );
-  }
-
-
-  function handleImportRemove(key) {
-
-    setImportedQuestions(prev =>
-      prev.filter(item => item.key !== key)
-    );
-  }
-
-
-  function handleImportQuestionTextChange(key, value) {
-
-    setImportedQuestions(prev =>
-      prev.map(item =>
-        item.key === key
-          ? { ...item, question_text: value }
-          : item
-      )
-    );
-  }
-
-
-  function handleImportExplanationChange(key, value) {
-
-    setImportedQuestions(prev =>
-      prev.map(item =>
-        item.key === key
-          ? { ...item, explanation: value }
-          : item
-      )
-    );
-  }
-
-
-  function handleImportOptionTextChange(key, optionIndex, value) {
-
-    setImportedQuestions(prev =>
-      prev.map(item => {
-
-        if (item.key !== key) {
-          return item;
-        }
-
-        const newOptions = [...item.options];
-
-        newOptions[optionIndex] = {
-          ...newOptions[optionIndex],
-          option_text: value,
-        };
-
-        return { ...item, options: newOptions };
-      })
-    );
-  }
-
-
-  function handleImportCorrectAnswer(key, optionIndex) {
-
-    setImportedQuestions(prev =>
-      prev.map(item => {
-
-        if (item.key !== key) {
-          return item;
-        }
-
-        return {
-          ...item,
-          options: item.options.map((option, index) => ({
-            ...option,
-            is_correct: index === optionIndex,
-          })),
-        };
-      })
-    );
-  }
-
-
-  // ======================================================
-  // LANGKAH 2 -> SIMPAN: soal yang dicentang disimpan SATU PER
-  // SATU lewat endpoint POST /api/questions biasa (validasinya
-  // sama persis dengan tambah soal manual). Kalau ada yang
-  // ditolak backend (mis. opsi belum lengkap, jawaban benar belum
-  // ditandai), soal itu TETAP ada di layar dengan pesan error-nya
-  // sendiri supaya guru tinggal perbaiki lalu simpan ulang — tidak
-  // perlu upload dokumen dari awal lagi.
-  // ======================================================
-
-  async function handleSaveSelectedImported() {
-
-    const selectedKeys = importedQuestions
-      .filter(item => item.selected)
-      .map(item => item.key);
-
-    if (selectedKeys.length === 0) {
-
-      setImportError("Pilih minimal satu soal untuk disimpan");
-
-      return;
-    }
-
-    setImportError("");
-    setImportSaving(true);
-
-    // Tandai semua yang dicentang sebagai "saving" dulu supaya UI
-    // langsung memberi umpan balik, baru diproses berurutan
-    // (bukan Promise.all) supaya tidak membanjiri backend/provider
-    // AI (verifikasi konsistensi ikut jalan tiap create? — tidak,
-    // endpoint create biasa tidak memanggil AI, tapi tetap
-    // berurutan lebih aman untuk SQLite).
-    setImportedQuestions(prev =>
-      prev.map(item =>
-        selectedKeys.includes(item.key)
-          ? { ...item, saveStatus: "saving", saveError: "" }
-          : item
-      )
-    );
-
-    let successCount = 0;
-
-    for (const key of selectedKeys) {
-
-      const item = importedQuestions.find(q => q.key === key);
-
-      if (!item) {
-        continue;
-      }
-
-      try {
-
-        await createQuestion({
-          subject_id: Number(importSubjectId),
-          question_text: item.question_text,
-          question_type: "MULTIPLE_CHOICE",
-          difficulty: item.difficulty,
-          explanation: item.explanation || null,
-          points: item.points,
-          is_active: true,
-          options: item.options,
-        });
-
-        successCount += 1;
-
-        setImportedQuestions(prev =>
-          prev.map(q =>
-            q.key === key
-              ? { ...q, saveStatus: "saved", selected: false }
-              : q
-          )
-        );
-
-      } catch (err) {
-
-        console.error(
-          "SAVE IMPORTED QUESTION ERROR:",
-          err
-        );
-
-        setImportedQuestions(prev =>
-          prev.map(q =>
-            q.key === key
-              ? {
-                  ...q,
-                  saveStatus: "error",
-                  saveError: err.message || "Gagal menyimpan soal ini",
-                }
-              : q
-          )
-        );
-      }
-    }
-
-    setImportSaving(false);
-
-    if (successCount > 0) {
-
-      setActionSuccess(
-        `${successCount} soal berhasil diimpor dari dokumen.`
-      );
-
-      loadQuestions();
-    }
-  }
-
 
   // ======================================================
   // FORM CHANGE
   // ======================================================
 
   function handleChange(event) {
+    const { name, value, type, checked } = event.target;
 
-    const {
-      name,
-      value,
-      type,
-      checked,
-    } = event.target;
-
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
 
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
-
 
   // ======================================================
   // OPTION CHANGE
   // ======================================================
 
-  function handleOptionTextChange(
-    index,
-    value
-  ) {
-
-    setForm(prev => {
-
-      const newOptions =
-        [...prev.options];
+  function handleOptionTextChange(index, value) {
+    setForm((prev) => {
+      const newOptions = [...prev.options];
 
       newOptions[index] = {
         ...newOptions[index],
@@ -1504,24 +761,17 @@ function QuestionManagement() {
     });
   }
 
-
   // ======================================================
   // CORRECT ANSWER
   // ======================================================
 
   function handleCorrectAnswer(index) {
+    setForm((prev) => {
+      const newOptions = prev.options.map((option, optionIndex) => ({
+        ...option,
 
-    setForm(prev => {
-
-      const newOptions =
-        prev.options.map(
-          (option, optionIndex) => ({
-            ...option,
-
-            is_correct:
-              optionIndex === index,
-          })
-        );
+        is_correct: optionIndex === index,
+      }));
 
       return {
         ...prev,
@@ -1530,141 +780,103 @@ function QuestionManagement() {
     });
   }
 
-
   // ======================================================
   // VALIDATE FORM
   // ======================================================
 
   function validateForm() {
-
     if (!form.subject_id) {
-
       return "Mata pelajaran wajib dipilih";
     }
 
     if (!form.question_text.trim()) {
-
       return "Pertanyaan wajib diisi";
     }
 
     if (form.question_text.trim().length < 5) {
-
       return "Pertanyaan minimal 5 karakter";
     }
 
-    const points =
-      Number(form.points);
+    const points = Number(form.points);
 
-    if (
-      !Number.isFinite(points) ||
-      points <= 0
-    ) {
-
+    if (!Number.isFinite(points) || points <= 0) {
       return "Bobot soal harus lebih besar dari 0";
     }
 
-    for (
-      let index = 0;
-      index < form.options.length;
-      index++
-    ) {
-
-      const option =
-        form.options[index];
+    for (let index = 0; index < form.options.length; index++) {
+      const option = form.options[index];
 
       if (!option.option_text.trim()) {
-
-        return (
-          `Pilihan ${option.option_code} ` +
-          "wajib diisi"
-        );
+        return `Pilihan ${option.option_code} ` + "wajib diisi";
       }
     }
 
-    const correctOptions =
-      form.options.filter(
-        option => option.is_correct
-      );
+    const correctOptions = form.options.filter((option) => option.is_correct);
 
     if (correctOptions.length !== 1) {
-
-      return (
-        "Harus memilih tepat satu " +
-        "jawaban yang benar"
-      );
+      return "Harus memilih tepat satu " + "jawaban yang benar";
     }
 
     return null;
   }
-
 
   // ======================================================
   // SUBMIT
   // ======================================================
 
   async function handleSubmit(event) {
-
     event.preventDefault();
 
     setFormError("");
     setFormSuccess("");
+    setImageActionError("");
 
-    const validationError =
-      validateForm();
+    const validationError = validateForm();
 
     if (validationError) {
-
       setFormError(validationError);
 
       return;
     }
 
     try {
-
       setSaving(true);
 
       const payload = {
+        subject_id: Number(form.subject_id),
 
-        subject_id:
-          Number(form.subject_id),
+        question_text: form.question_text.trim(),
 
-        question_text:
-          form.question_text.trim(),
+        question_type: form.question_type,
 
-        question_type:
-          form.question_type,
+        difficulty: form.difficulty,
 
-        difficulty:
-          form.difficulty,
+        explanation: form.explanation.trim() || null,
 
-        explanation:
-          form.explanation.trim() ||
-          null,
+        points: Number(form.points),
 
-        points:
-          Number(form.points),
+        is_active: form.is_active,
 
-        is_active:
-          form.is_active,
+        options: form.options.map((option) => ({
+          option_code: option.option_code,
 
-        options:
-          form.options.map(option => ({
-            option_code:
-              option.option_code,
+          option_text: option.option_text.trim(),
 
-            option_text:
-              option.option_text.trim(),
-
-            is_correct:
-              option.is_correct,
-          })),
+          is_correct: option.is_correct,
+        })),
       };
 
+      // Soal dianggap "sudah ada" kalau sedang diedit, ATAU baru saja
+      // dibuat lewat modal ini (lihat createdQuestionIdRef di atas).
+      const existingId = editingQuestion?.id ?? createdQuestionIdRef.current;
 
-      const data = editingQuestion
-        ? await updateQuestion(editingQuestion.id, payload)
+      const data = existingId
+        ? await updateQuestion(existingId, payload)
         : await createQuestion(payload);
 
+      if (!existingId) {
+        createdQuestionIdRef.current = data.id;
+      }
 
       // --------------------------------------------------
       // GAMBAR SOAL — dijalankan SETELAH soal tersimpan (baru ada
@@ -1677,7 +889,6 @@ function QuestionManagement() {
       let imageStepFailed = false;
 
       if (selectedImageFile) {
-
         try {
           await uploadQuestionImage(data.id, selectedImageFile);
         } catch (imageErr) {
@@ -1686,12 +897,10 @@ function QuestionManagement() {
           setImageActionError(
             "Soal berhasil disimpan, tapi gambar gagal diupload: " +
               (imageErr.message || "kesalahan tidak diketahui") +
-              ". Coba upload ulang gambarnya."
+              ". Coba upload ulang gambarnya.",
           );
         }
-
       } else if (removeExistingImage && editingQuestion?.has_image) {
-
         try {
           await deleteQuestionImage(data.id);
         } catch (imageErr) {
@@ -1699,89 +908,73 @@ function QuestionManagement() {
           imageStepFailed = true;
           setImageActionError(
             "Soal berhasil disimpan, tapi gagal menghapus gambar: " +
-              (imageErr.message || "kesalahan tidak diketahui")
+              (imageErr.message || "kesalahan tidak diketahui"),
           );
         }
       }
 
       setFormSuccess(
-        data.message ||
-        (editingQuestion
-          ? "Soal berhasil diperbarui"
-          : "Soal berhasil ditambahkan")
+        data.message || (existingId ? "Soal berhasil diperbarui" : "Soal berhasil ditambahkan"),
       );
 
       await loadQuestions();
 
       // Kalau langkah gambar gagal, modal SENGAJA tidak ditutup
-      // otomatis -- biarkan guru lihat pesan errornya dan bisa
-      // langsung coba upload ulang tanpa harus buka form dari awal
-      // lagi (soal itu sendiri sudah aman tersimpan).
+      // otomatis -- biarkan guru lihat pesan errornya lalu klik
+      // "Simpan" lagi untuk mencoba ulang. File gambar TETAP dipilih
+      // (tidak di-null-kan) supaya preview dan isi form konsisten,
+      // dan karena soalnya sudah tersimpan, klik "Simpan" berikutnya
+      // meng-UPDATE soal itu -- bukan membuat soal baru.
       if (imageStepFailed) {
-        setSelectedImageFile(null);
         return;
       }
 
-      /*
-       * Tunggu sebentar supaya admin sempat melihat
-       * pesan berhasil sebelum modal tertutup.
-       */
-      setTimeout(() => {
-        setShowModal(false);
-        setEditingQuestion(null);
-        setForm(createEmptyForm());
-        setFormSuccess("");
-        setSelectedImageFile(null);
-        setImagePreviewUrl((previousUrl) => {
-          if (previousUrl) {
-            URL.revokeObjectURL(previousUrl);
-          }
-          return null;
-        });
-        setRemoveExistingImage(false);
-        setImageActionError("");
-      }, 900);
+      // Tunda penutupan modal supaya pesan sukses sempat terlihat.
+      //
+      // Ditunggu dengan await (BUKAN setTimeout lepas) supaya `saving`
+      // TETAP true selama jeda ini: tombol Simpan/Batal/×/"Edit dengan
+      // AI" tetap terkunci sampai modal benar-benar tertutup. Kalau
+      // pakai setTimeout lepas, `saving` sudah false lebih dulu, dan
+      // klik "Edit dengan AI" dalam jeda itu bisa kena reset timer
+      // (editingQuestion jadi null) -> hasil AI disimpan sebagai soal
+      // BARU (duplikat), bukan meng-update soal yang sedang diedit.
+      await new Promise((resolve) => setTimeout(resolve, 900));
 
-
+      setShowModal(false);
+      setEditingQuestion(null);
+      createdQuestionIdRef.current = null;
+      setForm(createEmptyForm());
+      setFormSuccess("");
+      setSelectedImageFile(null);
+      setImagePreviewUrl((previousUrl) => {
+        if (previousUrl) {
+          URL.revokeObjectURL(previousUrl);
+        }
+        return null;
+      });
+      setRemoveExistingImage(false);
+      setImageActionError("");
     } catch (err) {
+      console.error("SAVE QUESTION ERROR:", err);
 
-      console.error(
-        "SAVE QUESTION ERROR:",
-        err
-      );
-
-      setFormError(
-        err.message ||
-        "Gagal menyimpan soal"
-      );
-
+      setFormError(err.message || "Gagal menyimpan soal");
     } finally {
-
       setSaving(false);
     }
   }
-
 
   // ======================================================
   // DELETE
   // ======================================================
 
-  async function handleDelete(
-    question
-  ) {
-
-    const confirmed =
-      window.confirm(
-        "Apakah Anda yakin ingin menghapus soal ini?"
-      );
+  async function handleDelete(question) {
+    const confirmed = window.confirm("Apakah Anda yakin ingin menghapus soal ini?");
 
     if (!confirmed) {
       return;
     }
 
-
     try {
-
       setDeletingId(question.id);
 
       setActionError("");
@@ -1789,114 +982,48 @@ function QuestionManagement() {
 
       const data = await deleteQuestionApi(question.id);
 
-
-      setActionSuccess(
-        data.message ||
-        "Soal berhasil dihapus"
-      );
-
+      setActionSuccess(data.message || "Soal berhasil dihapus");
 
       await loadQuestions();
 
       setTimeout(() => {
         setActionSuccess("");
       }, 2500);
-
-
     } catch (err) {
+      console.error("DELETE QUESTION ERROR:", err);
 
-      console.error(
-        "DELETE QUESTION ERROR:",
-        err
-      );
-
-      setActionError(
-        err.message ||
-        "Gagal menghapus soal"
-      );
-
+      setActionError(err.message || "Gagal menghapus soal");
     } finally {
-
       setDeletingId(null);
     }
   }
-
 
   // ======================================================
   // FILTER QUESTIONS
   // ======================================================
 
-  const filteredQuestions =
-    useMemo(() => {
+  const filteredQuestions = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-      const keyword =
-        search.trim().toLowerCase();
+    return questions.filter((question) => {
+      const subjectName = getSubjectName(question.subject_id).toLowerCase();
 
+      const questionText = (question.question_text || "").toLowerCase();
 
-      return questions.filter(
-        question => {
+      const matchesSearch =
+        !keyword || questionText.includes(keyword) || subjectName.includes(keyword);
 
-          const subjectName =
-            getSubjectName(
-              question.subject_id
-            ).toLowerCase();
+      const matchesSubject =
+        !subjectFilter || String(question.subject_id) === String(subjectFilter);
 
+      const matchesDifficulty = !difficultyFilter || question.difficulty === difficultyFilter;
 
-          const questionText =
-            (
-              question.question_text ||
-              ""
-            ).toLowerCase();
+      const matchesStatus =
+        !statusFilter || (statusFilter === "ACTIVE" ? question.is_active : !question.is_active);
 
-
-          const matchesSearch =
-            !keyword ||
-            questionText.includes(keyword) ||
-            subjectName.includes(keyword);
-
-
-          const matchesSubject =
-            !subjectFilter ||
-            String(
-              question.subject_id
-            ) === String(
-              subjectFilter
-            );
-
-
-          const matchesDifficulty =
-            !difficultyFilter ||
-            question.difficulty ===
-              difficultyFilter;
-
-
-          const matchesStatus =
-            !statusFilter ||
-            (
-              statusFilter === "ACTIVE"
-                ? question.is_active
-                : !question.is_active
-            );
-
-
-          return (
-            matchesSearch &&
-            matchesSubject &&
-            matchesDifficulty &&
-            matchesStatus
-          );
-        }
-      );
-
-    }, [
-      questions,
-      subjects,
-      search,
-      subjectFilter,
-      difficultyFilter,
-      statusFilter,
-    ]);
-
+      return matchesSearch && matchesSubject && matchesDifficulty && matchesStatus;
+    });
+  }, [questions, subjects, search, subjectFilter, difficultyFilter, statusFilter]);
 
   // Reset ke halaman 1 setiap kali pencarian/filter berubah, supaya
   // tidak "nyangkut" di halaman 5 misalnya padahal hasil filter
@@ -1905,11 +1032,7 @@ function QuestionManagement() {
     setCurrentPage(1);
   }, [search, subjectFilter, difficultyFilter, statusFilter]);
 
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE)
-  );
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE));
 
   // Kalau halaman aktif jadi lebih besar dari total halaman yang ada
   // (mis. setelah soal terakhir di halaman itu dihapus), mundurkan
@@ -1925,43 +1048,29 @@ function QuestionManagement() {
     return filteredQuestions.slice(start, start + QUESTIONS_PER_PAGE);
   }, [filteredQuestions, currentPage]);
 
-
   // ======================================================
   // RENDER
   // ======================================================
 
   return (
-
     <div className="app-layout">
-
       <Sidebar />
 
-
       <main className="main-content">
-
         <Header />
 
-
         <div className="content">
-
           {/* ============================================
               PAGE HEADER
               ============================================ */}
 
           <div className="page-header">
-
             <div>
+              <h1>Bank Soal</h1>
 
-              <h1>
-                Bank Soal
-              </h1>
+              <p>Kelola soal TKA Tryout</p>
 
-              <p>
-                Kelola soal TKA Tryout
-              </p>
-
-              {aiUnavailableMessage && (
-
+              {aiGate.message && (
                 <div
                   className="form-error-message"
                   style={{
@@ -1969,13 +1078,11 @@ function QuestionManagement() {
                     maxWidth: 520,
                   }}
                 >
-                  {aiUnavailableMessage}
+                  {aiGate.message}
                 </div>
-
               )}
 
-              {importUnavailableMessage && (
-
+              {importGate.message && (
                 <div
                   className="form-error-message"
                   style={{
@@ -1983,237 +1090,126 @@ function QuestionManagement() {
                     maxWidth: 520,
                   }}
                 >
-                  {importUnavailableMessage}
+                  {importGate.message}
                 </div>
-
               )}
-
             </div>
-
 
             <div style={{ display: "flex", gap: "10px" }}>
-
               <button
                 type="button"
                 className="secondary-button"
-                onClick={handleImportButtonClick}
-                disabled={importCheckingStatus}
+                onClick={() => importGate.run(() => setShowImportModal(true))}
+                disabled={importGate.checking}
               >
-                {importCheckingStatus
-                  ? "Mengecek AI..."
-                  : "📄 Impor dari Dokumen"
-                }
+                {importGate.checking ? "Mengecek AI..." : "📄 Impor dari Dokumen"}
               </button>
 
               <button
                 type="button"
                 className="secondary-button"
-                onClick={handleAiButtonClick}
-                disabled={aiCheckingStatus}
+                onClick={() => aiGate.run(openAiModal)}
+                disabled={aiGate.checking}
               >
-                {aiCheckingStatus
-                  ? "Mengecek AI..."
-                  : "✨ Tambah Soal AI"
-                }
+                {aiGate.checking ? "Mengecek AI..." : "✨ Tambah Soal AI"}
               </button>
 
-              <button
-                className="primary-button"
-                onClick={openAddModal}
-              >
+              <button className="primary-button" onClick={openAddModal}>
                 + Tambah Soal
               </button>
-
             </div>
-
-
           </div>
-
 
           {/* ============================================
               FILTER & TABLE CARD
               ============================================ */}
 
           <div className="dashboard-card">
-
             <div className="question-filter">
-
               <div className="filter-group">
-
                 <input
                   type="text"
                   placeholder="Cari pertanyaan..."
                   className="search-input"
                   value={search}
-                  onChange={e =>
-                    setSearch(
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => setSearch(e.target.value)}
                 />
-
               </div>
 
-
               <div className="filter-group">
-
                 <select
                   value={subjectFilter}
-                  onChange={e =>
-                    setSubjectFilter(
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => setSubjectFilter(e.target.value)}
                   className="search-input"
                 >
+                  <option value="">Semua Mata Pelajaran</option>
 
-                  <option value="">
-                    Semua Mata Pelajaran
-                  </option>
-
-                  {subjects.map(
-                    subject => (
-
-                      <option
-                        key={
-                          subject.id
-                        }
-                        value={
-                          subject.id
-                        }
-                      >
-                        {subject.code} -{" "}
-                        {subject.name}
-                      </option>
-
-                    )
-                  )}
-
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.code} - {subject.name}
+                    </option>
+                  ))}
                 </select>
-
               </div>
 
-
               <div className="filter-group">
-
                 <select
-                  value={
-                    difficultyFilter
-                  }
-                  onChange={e =>
-                    setDifficultyFilter(
-                      e.target.value
-                    )
-                  }
+                  value={difficultyFilter}
+                  onChange={(e) => setDifficultyFilter(e.target.value)}
                   className="search-input"
                 >
+                  <option value="">Semua Tingkat Kesulitan</option>
 
-                  <option value="">
-                    Semua Tingkat Kesulitan
-                  </option>
-
-                  {DIFFICULTIES.map(
-                    difficulty => (
-
-                      <option
-                        key={
-                          difficulty.value
-                        }
-                        value={
-                          difficulty.value
-                        }
-                      >
-                        {
-                          difficulty.label
-                        }
-                      </option>
-
-                    )
-                  )}
-
+                  {DIFFICULTIES.map((difficulty) => (
+                    <option key={difficulty.value} value={difficulty.value}>
+                      {difficulty.label}
+                    </option>
+                  ))}
                 </select>
-
               </div>
 
-
               <div className="filter-group">
-
                 <select
                   value={statusFilter}
-                  onChange={e =>
-                    setStatusFilter(
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => setStatusFilter(e.target.value)}
                   className="search-input"
                 >
+                  <option value="">Semua Status</option>
 
-                  <option value="">
-                    Semua Status
-                  </option>
+                  <option value="ACTIVE">Aktif</option>
 
-                  <option value="ACTIVE">
-                    Aktif
-                  </option>
-
-                  <option value="INACTIVE">
-                    Tidak Aktif
-                  </option>
-
+                  <option value="INACTIVE">Tidak Aktif</option>
                 </select>
-
               </div>
-
             </div>
 
-
-            {loading && (
-
-              <div className="loading-message">
-                Memuat bank soal...
-              </div>
-
+            {loading && questions.length === 0 && (
+              <div className="loading-message">Memuat bank soal...</div>
             )}
 
-
-            {loadError && !showModal && (
-
-              <div className="error-message">
-                {loadError}
-              </div>
-
-            )}
-
+            {loadError && !showModal && <div className="error-message">{loadError}</div>}
 
             {actionError && (
-
               <div className="form-error-message" style={{ marginBottom: "15px" }}>
                 {actionError}
               </div>
-
             )}
 
-
             {actionSuccess && (
-
               <div className="success-message" style={{ marginBottom: "15px" }}>
                 <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
                 {actionSuccess}
               </div>
-
             )}
 
-
-            {!loading && (
-
+            {/* Tabel TIDAK disembunyikan saat reload (setelah simpan/hapus/impor)
+                selama sudah ada data -- supaya tidak berkedip & posisi scroll
+                tidak hilang. Spinner cuma muncul saat pemuatan pertama. */}
+            {(!loading || questions.length > 0) && (
               <div className="table-container">
-
                 <table className="user-table question-bank-table">
-
                   <thead>
-
                     <tr>
-
                       <th className="align-center">No</th>
                       <th className="align-center">ID</th>
                       <th className="align-center">Mata Pelajaran</th>
@@ -2222,170 +1218,83 @@ function QuestionManagement() {
                       <th className="align-center">Bobot</th>
                       <th className="align-center">Status</th>
                       <th className="align-center sticky-col">Aksi</th>
-
                     </tr>
-
                   </thead>
 
-
                   <tbody>
+                    {paginatedQuestions.map((question, index) => (
+                      <tr key={question.id}>
+                        <td className="align-center">
+                          {(currentPage - 1) * QUESTIONS_PER_PAGE + index + 1}
+                        </td>
 
-                    {paginatedQuestions.map(
-                      (question, index) => (
+                        <td className="align-center">{question.id}</td>
 
-                        <tr
-                          key={
-                            question.id
-                          }
-                        >
+                        <td className="align-left">
+                          <strong>{getSubjectName(question.subject_id)}</strong>
+                        </td>
 
-                          <td className="align-center">
-                            {(currentPage - 1) * QUESTIONS_PER_PAGE + index + 1}
-                          </td>
+                        <td className="align-left">
+                          <div className="question-preview">{question.question_text}</div>
+                        </td>
 
-                          <td className="align-center">
-                            {question.id}
-                          </td>
+                        <td className="align-center">
+                          <span
+                            className={
+                              `difficulty-badge ` + (question.difficulty || "").toLowerCase()
+                            }
+                          >
+                            {getDifficultyLabel(question.difficulty)}
+                          </span>
+                        </td>
 
+                        <td className="align-center">{question.points}</td>
 
-                          <td className="align-left">
+                        <td className="align-center">
+                          {question.is_active ? (
+                            <span className="status-active">Aktif</span>
+                          ) : (
+                            <span className="status-inactive">Nonaktif</span>
+                          )}
+                        </td>
 
-                            <strong>
-                              {
-                                getSubjectName(
-                                  question.subject_id
-                                )
-                              }
-                            </strong>
-
-                          </td>
-
-
-                          <td className="align-left">
-
-                            <div className="question-preview">
-                              {
-                                question.question_text
-                              }
-                            </div>
-
-                          </td>
-
-
-                          <td className="align-center">
-
-                            <span
-                              className={
-                                `difficulty-badge ` +
-                                question.difficulty
-                                  .toLowerCase()
-                              }
+                        <td className="align-center sticky-col">
+                          <div className="action-buttons">
+                            <button
+                              className="review-button"
+                              title="Preview Soal"
+                              onClick={() => openPreviewModal(question)}
                             >
-                              {
-                                getDifficultyLabel(
-                                  question.difficulty
-                                )
-                              }
-                            </span>
+                              <IconEye size={16} />
+                            </button>
 
-                          </td>
+                            <button className="edit-button" onClick={() => openEditModal(question)}>
+                              <IconEdit size={16} />
+                            </button>
 
-
-                          <td className="align-center">
-                            {question.points}
-                          </td>
-
-
-                          <td className="align-center">
-
-                            {question.is_active ? (
-
-                              <span className="status-active">
-                                Aktif
-                              </span>
-
-                            ) : (
-
-                              <span className="status-inactive">
-                                Nonaktif
-                              </span>
-
-                            )}
-
-                          </td>
-
-
-                          <td className="align-center sticky-col">
-
-                            <div className="action-buttons">
-
-                              <button
-                                className="review-button"
-                                title="Preview Soal"
-                                onClick={() =>
-                                  openPreviewModal(
-                                    question
-                                  )
-                                }
-                              >
-                                <IconEye size={16} />
-                              </button>
-
-
-                              <button
-                                className="edit-button"
-                                onClick={() =>
-                                  openEditModal(
-                                    question
-                                  )
-                                }
-                              >
-                                <IconEdit size={16} />
-                              </button>
-
-
-                              <button
-                                className="delete-button"
-                                onClick={() =>
-                                  handleDelete(
-                                    question
-                                  )
-                                }
-                                disabled={
-                                  deletingId ===
-                                  question.id
-                                }
-                              >
-                                <IconTrash size={16} />
-                              </button>
-
-                            </div>
-
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(question)}
+                              disabled={deletingId === question.id}
+                            >
+                              <IconTrash size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
-
                 </table>
 
-
                 {filteredQuestions.length === 0 && (
-
                   <div className="empty-message">
                     {search || subjectFilter || difficultyFilter || statusFilter
                       ? "Soal tidak ditemukan."
-                      : "Belum ada soal."
-                    }
+                      : "Belum ada soal."}
                   </div>
-
                 )}
 
                 {filteredQuestions.length > 0 && (
-
                   <div
                     style={{
                       display: "flex",
@@ -2411,14 +1320,12 @@ function QuestionManagement() {
                     }}
                   >
                     <span style={{ fontSize: 13, color: "#6b7280" }}>
-                      Menampilkan{" "}
-                      {(currentPage - 1) * QUESTIONS_PER_PAGE + 1}
+                      Menampilkan {(currentPage - 1) * QUESTIONS_PER_PAGE + 1}
                       {"–"}
                       {Math.min(
                         currentPage * QUESTIONS_PER_PAGE,
-                        filteredQuestions.length
-                      )}{" "}
-                      dari {filteredQuestions.length} soal
+                        filteredQuestions.length,
+                      )} dari {filteredQuestions.length} soal
                     </span>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2439,9 +1346,7 @@ function QuestionManagement() {
                         .filter((page) => {
                           if (totalPages <= 7) return true;
                           return (
-                            page === 1 ||
-                            page === totalPages ||
-                            Math.abs(page - currentPage) <= 1
+                            page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
                           );
                         })
                         .reduce((acc, page, idx, arr) => {
@@ -2469,8 +1374,7 @@ function QuestionManagement() {
                                 height: 32,
                                 borderRadius: 6,
                                 border: "1px solid var(--line)",
-                                background:
-                                  item === currentPage ? "var(--accent)" : "white",
+                                background: item === currentPage ? "var(--accent)" : "white",
                                 color: item === currentPage ? "white" : "#374151",
                                 fontWeight: item === currentPage ? 600 : 500,
                                 fontSize: 13,
@@ -2479,107 +1383,69 @@ function QuestionManagement() {
                             >
                               {item}
                             </button>
-                          )
+                          ),
                         )}
 
                       <button
                         type="button"
                         className="secondary-button"
-                        onClick={() =>
-                          setCurrentPage((p) => Math.min(totalPages, p + 1))
-                        }
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
                       >
                         Berikutnya
                       </button>
                     </div>
                   </div>
-
                 )}
-
               </div>
-
             )}
-
           </div>
-
         </div>
-
       </main>
-
 
       {/* ==================================================
           MODAL TAMBAH / EDIT SOAL
           ================================================== */}
 
       {showModal && (
-
         <div className="modal-overlay">
-
           <div className="modal question-modal">
-
             <div className="modal-header">
-
               <div>
-
-                <h2>
-                  {editingQuestion
-                    ? "Edit Soal"
-                    : "Tambah Soal"
-                  }
-                </h2>
+                <h2>{editingQuestion ? "Edit Soal" : "Tambah Soal"}</h2>
 
                 <p>
                   {editingQuestion
                     ? "Perbaharui data soal pilihan ganda"
-                    : "Tambahkan soal pilihan ganda baru"
-                  }
+                    : "Tambahkan soal pilihan ganda baru"}
                 </p>
-
               </div>
 
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeModal}
-                disabled={saving}
-              >
+              <button type="button" className="modal-close" onClick={closeModal} disabled={saving}>
                 ×
               </button>
-
             </div>
 
-
             {editingQuestion && (
-
               <div
                 style={{
                   padding: "0 24px",
                   marginTop: "16px",
                 }}
               >
-
-                {editAiUnavailableMessage && (
-
-                  <div
-                    className="form-error-message"
-                    style={{ marginBottom: "10px" }}
-                  >
-                    {editAiUnavailableMessage}
+                {editAiGate.message && (
+                  <div className="form-error-message" style={{ marginBottom: "10px" }}>
+                    {editAiGate.message}
                   </div>
-
                 )}
 
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={handleEditAiButtonClick}
-                  disabled={editAiChecking || saving}
+                  onClick={() => editAiGate.run(openAiModalForEdit)}
+                  disabled={editAiGate.checking || saving}
                 >
-                  {editAiChecking
-                    ? "Mengecek AI..."
-                    : "✨ Edit dengan AI"
-                  }
+                  {editAiGate.checking ? "Mengecek AI..." : "✨ Edit dengan AI"}
                 </button>
 
                 <p
@@ -2590,174 +1456,89 @@ function QuestionManagement() {
                     marginBottom: "0",
                   }}
                 >
-                  AI akan membuatkan draft soal pengganti untuk soal
-                  ini. Draft akan mengisi form di bawah — Anda tetap
-                  bisa edit manual sebelum menekan "Simpan Perubahan".
+                  AI akan membuatkan draft soal pengganti untuk soal ini. Draft akan mengisi form di
+                  bawah — Anda tetap bisa edit manual sebelum menekan "Simpan Perubahan".
                 </p>
-
               </div>
-
             )}
 
-
-            <form
-              onSubmit={handleSubmit}
-            >
-
+            <form onSubmit={handleSubmit}>
               {aiConsistencyWarning && (
-
-                <div
-                  className="form-error-message"
-                  style={{ marginBottom: "15px" }}
-                >
+                <div className="form-error-message" style={{ marginBottom: "15px" }}>
                   ⚠️ {aiConsistencyWarning}
                 </div>
-
               )}
 
               {aiGeneratedNotice && (
-
-                <div
-                  className="success-message"
-                  style={{ marginBottom: "15px" }}
-                >
-                  ✨ Soal ini dibuat oleh AI. Periksa dan edit
-                  bila perlu sebelum menyimpan — pastikan
-                  jawaban yang ditandai benar sudah tepat.
+                <div className="success-message" style={{ marginBottom: "15px" }}>
+                  ✨ Soal ini dibuat oleh AI. Periksa dan edit bila perlu sebelum menyimpan —
+                  pastikan jawaban yang ditandai benar sudah tepat.
                 </div>
-
               )}
 
               <div className="form-row">
-
                 <div className="form-group">
-
-                  <label>
-                    Mata Pelajaran *
-                  </label>
+                  <label>Mata Pelajaran *</label>
 
                   <select
                     name="subject_id"
-                    value={
-                      form.subject_id
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={form.subject_id}
+                    onChange={handleChange}
                     disabled={saving}
                     required
                   >
-
-                    <option value="">
-                      -- Pilih Mata Pelajaran --
-                    </option>
+                    <option value="">-- Pilih Mata Pelajaran --</option>
 
                     {subjects
-                      .filter(
-                        subject =>
-                          subject.is_active
-                      )
-                      .map(subject => (
-
-                        <option
-                          key={
-                            subject.id
-                          }
-                          value={
-                            subject.id
-                          }
-                        >
-                          {subject.code} -{" "}
-                          {subject.name}
+                      .filter((subject) => subject.is_active)
+                      .map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.code} - {subject.name}
                         </option>
-
                       ))}
-
                   </select>
-
                 </div>
 
-
                 <div className="form-group">
-
-                  <label>
-                    Tingkat Kesulitan *
-                  </label>
+                  <label>Tingkat Kesulitan *</label>
 
                   <select
                     name="difficulty"
-                    value={
-                      form.difficulty
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={form.difficulty}
+                    onChange={handleChange}
                     disabled={saving}
                     required
                   >
-
-                    {DIFFICULTIES.map(
-                      difficulty => (
-
-                        <option
-                          key={
-                            difficulty.value
-                          }
-                          value={
-                            difficulty.value
-                          }
-                        >
-                          {
-                            difficulty.label
-                          }
-                        </option>
-
-                      )
-                    )}
-
+                    {DIFFICULTIES.map((difficulty) => (
+                      <option key={difficulty.value} value={difficulty.value}>
+                        {difficulty.label}
+                      </option>
+                    ))}
                   </select>
-
                 </div>
-
               </div>
 
-
               <div className="form-group">
-
-                <label>
-                  Pertanyaan *
-                </label>
+                <label>Pertanyaan *</label>
 
                 <textarea
                   name="question_text"
-                  value={
-                    form.question_text
-                  }
-                  onChange={
-                    handleChange
-                  }
+                  value={form.question_text}
+                  onChange={handleChange}
                   placeholder="Tuliskan pertanyaan..."
                   rows="4"
                   disabled={saving}
                   required
                 />
-
               </div>
 
-
               <div className="form-group">
-
-                <label>
-                  Gambar Soal (opsional)
-                </label>
+                <label>Gambar Soal (opsional)</label>
 
                 {aiImageDescription && (
-                  <div
-                    className="success-message"
-                    style={{ marginBottom: 10 }}
-                  >
-                    ✨ Saran ilustrasi dari AI (bukan gambar jadi —
-                    siapkan/unggah sendiri gambar yang sesuai):
+                  <div className="success-message" style={{ marginBottom: 10 }}>
+                    ✨ Saran ilustrasi dari AI (bukan gambar jadi — siapkan/unggah sendiri gambar
+                    yang sesuai):
                     <br />
                     <em>{aiImageDescription}</em>
                   </div>
@@ -2771,15 +1552,13 @@ function QuestionManagement() {
                   />
                 )}
 
-                {!imagePreviewUrl &&
-                  !removeExistingImage &&
-                  editingQuestion?.has_image && (
-                    <QuestionImage
-                      questionId={editingQuestion.id}
-                      alt="Gambar soal saat ini"
-                      className="question-image-form-preview"
-                    />
-                  )}
+                {!imagePreviewUrl && !removeExistingImage && editingQuestion?.has_image && (
+                  <QuestionImage
+                    questionId={editingQuestion.id}
+                    alt="Gambar soal saat ini"
+                    className="question-image-form-preview"
+                  />
+                )}
 
                 <input
                   type="file"
@@ -2789,12 +1568,11 @@ function QuestionManagement() {
                 />
 
                 <span className="form-hint">
-                  Format apa saja (JPG/PNG/dll), maksimal 5 MB —
-                  otomatis dikompres & diubah ke WebP saat disimpan.
+                  Format apa saja (JPG/PNG/dll), maksimal 5 MB — otomatis dikompres & diubah ke WebP
+                  saat disimpan.
                 </span>
 
-                {(imagePreviewUrl ||
-                  (editingQuestion?.has_image && !removeExistingImage)) && (
+                {(imagePreviewUrl || (editingQuestion?.has_image && !removeExistingImage)) && (
                   <button
                     type="button"
                     className="btn-link-danger"
@@ -2805,206 +1583,78 @@ function QuestionManagement() {
                   </button>
                 )}
 
-                {imageActionError && (
-                  <div className="form-error-message">
-                    {imageActionError}
-                  </div>
-                )}
-
+                {imageActionError && <div className="form-error-message">{imageActionError}</div>}
               </div>
 
-
-              <div className="options-section">
-
-                <div className="section-title">
-
-                  <strong>
-                    Pilihan Jawaban
-                  </strong>
-
-                  <span>
-                    Pilih satu jawaban benar
-                  </span>
-
-                </div>
-
-
-                {form.options.map(
-                  (option, index) => (
-
-                    <div
-                      className={
-                        `option-input-row ` +
-                        (
-                          option.is_correct
-                            ? "correct"
-                            : ""
-                        )
-                      }
-                      key={
-                        option.option_code
-                      }
-                    >
-
-                      <label
-                        className="correct-radio"
-                      >
-
-                        <input
-                          type="radio"
-                          name="correct_answer"
-                          checked={
-                            option.is_correct
-                          }
-                          onChange={() =>
-                            handleCorrectAnswer(
-                              index
-                            )
-                          }
-                          disabled={saving}
-                        />
-
-                        <span>
-                          {option.option_code}
-                        </span>
-
-                      </label>
-
-
-                      <input
-                        type="text"
-                        value={
-                          option.option_text
-                        }
-                        onChange={e =>
-                          handleOptionTextChange(
-                            index,
-                            e.target.value
-                          )
-                        }
-                        placeholder={
-                          `Pilihan ${option.option_code}`
-                        }
-                        disabled={saving}
-                        required
-                      />
-
-
-                      {option.is_correct && (
-
-                        <span className="correct-label">
-                          Jawaban Benar
-                        </span>
-
-                      )}
-
-                    </div>
-
-                  )
-                )}
-
-              </div>
-
+              <OptionsEditor
+                options={form.options}
+                name="correct_answer"
+                required
+                disabled={saving}
+                onTextChange={handleOptionTextChange}
+                onCorrectChange={handleCorrectAnswer}
+              />
 
               <div className="form-group">
-
-                <label>
-                  Pembahasan
-                </label>
+                <label>Pembahasan</label>
 
                 <textarea
                   name="explanation"
-                  value={
-                    form.explanation
-                  }
-                  onChange={
-                    handleChange
-                  }
+                  value={form.explanation}
+                  onChange={handleChange}
                   placeholder="Tuliskan pembahasan atau penjelasan jawaban..."
                   rows="3"
                   disabled={saving}
                 />
-
               </div>
 
-
               <div className="form-row">
-
                 <div className="form-group">
-
-                  <label>
-                    Bobot Soal *
-                  </label>
+                  <label>Bobot Soal *</label>
 
                   <input
                     type="number"
                     name="points"
-                    value={
-                      form.points
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    value={form.points}
+                    onChange={handleChange}
                     min="0.1"
                     step="0.1"
                     disabled={saving}
                     required
                   />
-
                 </div>
 
-
-                <div className="form-checkbox" style={{ alignSelf: "flex-end", paddingBottom: "8px" }}>
-
+                <div
+                  className="form-checkbox"
+                  style={{ alignSelf: "flex-end", paddingBottom: "8px" }}
+                >
                   <input
                     type="checkbox"
                     name="is_active"
-                    checked={
-                      form.is_active
-                    }
-                    onChange={
-                      handleChange
-                    }
+                    checked={form.is_active}
+                    onChange={handleChange}
                     id="is_active"
                     disabled={saving}
                   />
 
-                  <label htmlFor="is_active">
-                    Soal aktif
-                  </label>
-
+                  <label htmlFor="is_active">Soal aktif</label>
                 </div>
-
               </div>
 
-
               {formError && (
-
-                <div
-                  className="form-error-message"
-                  style={{ marginBottom: "15px" }}
-                >
+                <div className="form-error-message" style={{ marginBottom: "15px" }}>
                   {formError}
                 </div>
-
               )}
 
-
               {formSuccess && (
-
-                <div
-                  className="success-message"
-                  style={{ marginBottom: "15px" }}
-                >
+                <div className="success-message" style={{ marginBottom: "15px" }}>
                   <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
                   {formSuccess}
                 </div>
-
               )}
 
-
               <div className="modal-footer">
-
                 <button
                   type="button"
                   className="guide-button"
@@ -3017,67 +1667,37 @@ function QuestionManagement() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={
-                    closeModal
-                  }
+                  onClick={closeModal}
                   disabled={saving}
                 >
                   Batal
                 </button>
 
-
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={saving}
-                >
-
-                  {saving
-                    ? "Menyimpan..."
-                    : "Simpan Soal"
-                  }
-
+                <button type="submit" className="primary-button" disabled={saving}>
+                  {saving ? "Menyimpan..." : "Simpan Soal"}
                 </button>
-
               </div>
-
             </form>
-
           </div>
-
         </div>
-
       )}
-
 
       {/* ============================================
           MODAL GENERATE SOAL AI (TAMBAH / GANTI SOAL)
           ============================================ */}
 
       {showAiModal && (
-
         <div className="modal-overlay">
-
           <div className="modal">
-
             <div className="modal-header">
-
               <div>
-
-                <h2>
-                  {aiReplaceMode
-                    ? "✨ Ganti Soal dengan AI"
-                    : "✨ Tambah Soal dengan AI"
-                  }
-                </h2>
+                <h2>{aiReplaceMode ? "✨ Ganti Soal dengan AI" : "✨ Tambah Soal dengan AI"}</h2>
 
                 <p>
                   {aiStep === "form"
                     ? "Prompt akan ditampilkan dulu untuk diperiksa sebelum soal benar-benar dibuat oleh AI."
-                    : "Periksa dan edit prompt di bawah ini kalau perlu, lalu tekan \"Generate Soal\"."
-                  }
+                    : 'Periksa dan edit prompt di bawah ini kalau perlu, lalu tekan "Generate Soal".'}
                 </p>
-
               </div>
 
               <button
@@ -3088,21 +1708,13 @@ function QuestionManagement() {
               >
                 ×
               </button>
-
             </div>
 
-
             {aiStep === "form" && (
-
               <form onSubmit={handleShowPrompt}>
-
                 <div className="form-row">
-
                   <div className="form-group">
-
-                    <label>
-                      Mata Pelajaran *
-                    </label>
+                    <label>Mata Pelajaran *</label>
 
                     <select
                       name="subject_id"
@@ -3111,34 +1723,20 @@ function QuestionManagement() {
                       disabled={aiPromptLoading}
                       required
                     >
-
-                      <option value="">
-                        -- Pilih Mata Pelajaran --
-                      </option>
+                      <option value="">-- Pilih Mata Pelajaran --</option>
 
                       {subjects
-                        .filter(subject => subject.is_active)
-                        .map(subject => (
-
-                          <option
-                            key={subject.id}
-                            value={subject.id}
-                          >
+                        .filter((subject) => subject.is_active)
+                        .map((subject) => (
+                          <option key={subject.id} value={subject.id}>
                             {subject.code} - {subject.name}
                           </option>
-
                         ))}
-
                     </select>
-
                   </div>
 
-
                   <div className="form-group">
-
-                    <label>
-                      Tingkat Kesulitan *
-                    </label>
+                    <label>Tingkat Kesulitan *</label>
 
                     <select
                       name="difficulty"
@@ -3147,50 +1745,29 @@ function QuestionManagement() {
                       disabled={aiPromptLoading}
                       required
                     >
-
-                      {DIFFICULTIES.map(difficulty => (
-
-                        <option
-                          key={difficulty.value}
-                          value={difficulty.value}
-                        >
+                      {DIFFICULTIES.map((difficulty) => (
+                        <option key={difficulty.value} value={difficulty.value}>
                           {difficulty.label}
                         </option>
-
                       ))}
-
                     </select>
-
                   </div>
-
                 </div>
 
-
                 <div className="form-group">
-
-                  <label>
-                    Jenis Soal
-                  </label>
+                  <label>Jenis Soal</label>
 
                   <select value="MULTIPLE_CHOICE" disabled>
-                    <option value="MULTIPLE_CHOICE">
-                      Pilihan Ganda
-                    </option>
+                    <option value="MULTIPLE_CHOICE">Pilihan Ganda</option>
                   </select>
 
                   <small style={{ color: "#6b7280" }}>
-                    Jenis soal lain (Benar/Salah, Isian Singkat)
-                    belum didukung sistem ini.
+                    Jenis soal lain (Benar/Salah, Isian Singkat) belum didukung sistem ini.
                   </small>
-
                 </div>
 
-
                 <div className="form-group">
-
-                  <label>
-                    Materi / Lingkup Soal *
-                  </label>
+                  <label>Materi / Lingkup Soal *</label>
 
                   <input
                     type="text"
@@ -3201,12 +1778,9 @@ function QuestionManagement() {
                     disabled={aiPromptLoading}
                     required
                   />
-
                 </div>
 
-
                 <div className="form-group">
-
                   <label
                     style={{
                       display: "flex",
@@ -3226,29 +1800,18 @@ function QuestionManagement() {
                       onChange={handleAiFormChange}
                       disabled={aiPromptLoading}
                     />
-                    <span>
-                      Buat soal bergambar
-                    </span>
+                    <span>Buat soal bergambar</span>
                   </label>
 
-                  <span
-                    className="form-hint"
-                    style={{ display: "block", textAlign: "left" }}
-                  >
-                    AI cuma menyarankan deskripsi gambar yang cocok
-                    (bukan membuat file gambarnya) — gambar
-                    sungguhan tetap perlu kamu siapkan &amp; unggah
-                    sendiri lewat form soal setelah digenerate.
+                  <span className="form-hint" style={{ display: "block", textAlign: "left" }}>
+                    AI cuma menyarankan deskripsi gambar yang cocok (bukan membuat file gambarnya) —
+                    gambar sungguhan tetap perlu kamu siapkan &amp; unggah sendiri lewat form soal
+                    setelah digenerate.
                   </span>
-
                 </div>
 
-
                 <div className="form-group">
-
-                  <label>
-                    Perintah Tambahan (opsional)
-                  </label>
+                  <label>Perintah Tambahan (opsional)</label>
 
                   <textarea
                     name="additional_instruction"
@@ -3258,24 +1821,15 @@ function QuestionManagement() {
                     rows={3}
                     disabled={aiPromptLoading}
                   />
-
                 </div>
 
-
                 {aiError && (
-
-                  <div
-                    className="form-error-message"
-                    style={{ marginBottom: "15px" }}
-                  >
+                  <div className="form-error-message" style={{ marginBottom: "15px" }}>
                     {aiError}
                   </div>
-
                 )}
 
-
                 <div className="modal-footer">
-
                   <button
                     type="button"
                     className="guide-button"
@@ -3294,40 +1848,22 @@ function QuestionManagement() {
                     Batal
                   </button>
 
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={aiPromptLoading}
-                  >
-                    {aiPromptLoading
-                      ? "Menyusun prompt..."
-                      : "Lihat & Edit Prompt"
-                    }
+                  <button type="submit" className="primary-button" disabled={aiPromptLoading}>
+                    {aiPromptLoading ? "Menyusun prompt..." : "Lihat & Edit Prompt"}
                   </button>
-
                 </div>
-
               </form>
-
             )}
 
-
             {aiStep === "prompt" && (
-
               <form onSubmit={handleAiGenerate}>
-
                 <div className="form-group">
-
-                  <label>
-                    Prompt untuk AI
-                  </label>
+                  <label>Prompt untuk AI</label>
 
                   <textarea
                     name="prompt"
                     value={aiPrompt}
-                    onChange={(event) =>
-                      setAiPrompt(event.target.value)
-                    }
+                    onChange={(event) => setAiPrompt(event.target.value)}
                     rows={14}
                     disabled={aiGenerating}
                     style={{
@@ -3338,29 +1874,18 @@ function QuestionManagement() {
                   />
 
                   <small style={{ color: "#6b7280" }}>
-                    Ini teks persis yang akan dikirim ke Ollama.
-                    Boleh diubah bebas — misalnya menambah contoh
-                    soal, mengetatkan format, atau mengganti
-                    bahasa instruksi.
+                    Ini teks persis yang akan dikirim ke AI. Boleh diubah bebas — misalnya menambah
+                    contoh soal, mengetatkan format, atau mengganti bahasa instruksi.
                   </small>
-
                 </div>
 
-
                 {aiError && (
-
-                  <div
-                    className="form-error-message"
-                    style={{ marginBottom: "15px" }}
-                  >
+                  <div className="form-error-message" style={{ marginBottom: "15px" }}>
                     {aiError}
                   </div>
-
                 )}
 
-
                 <div className="modal-footer">
-
                   <button
                     type="button"
                     className="secondary-button"
@@ -3370,655 +1895,36 @@ function QuestionManagement() {
                     ← Kembali
                   </button>
 
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={aiGenerating}
-                  >
-                    {aiGenerating
-                      ? "Membuat soal... (bisa 1-2 menit)"
-                      : "Generate Soal"
-                    }
+                  <button type="submit" className="primary-button" disabled={aiGenerating}>
+                    {aiGenerating ? "Membuat soal... (bisa 1-2 menit)" : "Generate Soal"}
                   </button>
-
                 </div>
-
               </form>
-
             )}
-
           </div>
-
         </div>
-
       )}
 
       {showImportModal && (
-
-        <div className="modal-overlay">
-
-          <div className="modal" style={{ maxWidth: 720 }}>
-
-            <div className="modal-header">
-
-              <div>
-
-                <h2>
-                  📄 Impor Soal dari Dokumen
-                </h2>
-
-                <p>
-                  {importStep === "upload"
-                    ? "Upload dokumen (.pdf, .docx, .txt) yang isinya SUDAH BERISI soal pilihan ganda. AI hanya akan membaca ulang & menstrukturkannya — bukan membuat soal baru."
-                    : "Periksa & lengkapi tiap soal hasil ekstraksi sebelum disimpan. Soal tidak akan tersimpan kalau belum dicentang."
-                  }
-                </p>
-
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeImportModal}
-                disabled={importLoading || importSaving || importStep === "processing"}
-              >
-                ×
-              </button>
-
-            </div>
-
-
-            {importStep === "upload" && (
-
-              <form onSubmit={handleExtractSubmit}>
-
-                <div className="form-group">
-
-                  <label>
-                    Mata Pelajaran *
-                  </label>
-
-                  <select
-                    value={importSubjectId}
-                    onChange={e => setImportSubjectId(e.target.value)}
-                    disabled={importLoading}
-                    required
-                  >
-
-                    <option value="">
-                      -- Pilih Mata Pelajaran --
-                    </option>
-
-                    {subjects
-                      .filter(subject => subject.is_active)
-                      .map(subject => (
-
-                        <option
-                          key={subject.id}
-                          value={subject.id}
-                        >
-                          {subject.code} - {subject.name}
-                        </option>
-
-                      ))}
-
-                  </select>
-
-                </div>
-
-
-                <div className="form-group">
-
-                  <label>
-                    File Dokumen *
-                  </label>
-
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    onChange={e =>
-                      setImportFile(e.target.files?.[0] || null)
-                    }
-                    disabled={importLoading}
-                    required
-                  />
-
-                  <small style={{ color: "#6b7280" }}>
-                    Format didukung: PDF, Word (.docx), atau teks
-                    biasa (.txt). Maksimal 15 MB.
-                  </small>
-
-                </div>
-
-
-                {importError && (
-
-                  <div
-                    className="form-error-message"
-                    style={{ marginBottom: "15px" }}
-                  >
-                    {importError}
-                  </div>
-
-                )}
-
-
-                <div className="modal-footer">
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={closeImportModal}
-                    disabled={importLoading}
-                  >
-                    Batal
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={importLoading}
-                  >
-                    {importLoading
-                      ? "Membaca dokumen... (bisa sampai belasan menit untuk dokumen panjang, terutama kalau pakai Ollama lokal)"
-                      : "Ekstrak Soal"
-                    }
-                  </button>
-
-                </div>
-
-              </form>
-
-            )}
-
-
-            {importStep === "processing" && (
-
-              <div>
-
-                <div
-                  style={{
-                    marginBottom: "12px",
-                    fontWeight: 600,
-                  }}
-                >
-                  Memproses potongan {Math.min(importProgressCurrent + 1, importProgressTotal)} dari {importProgressTotal}...
-                </div>
-
-                <div
-                  style={{
-                    width: "100%",
-                    height: "10px",
-                    borderRadius: "6px",
-                    background: "#e5e7eb",
-                    overflow: "hidden",
-                    marginBottom: "10px",
-                  }}
-                >
-
-                  <div
-                    style={{
-                      width: `${importProgressTotal > 0
-                        ? (importProgressCurrent / importProgressTotal) * 100
-                        : 0}%`,
-                      height: "100%",
-                      background: "#2563eb",
-                      transition: "width 0.3s ease",
-                    }}
-                  />
-
-                </div>
-
-                <p style={{ color: "#6b7280", marginBottom: "20px" }}>
-                  {importedQuestions.length} soal ditemukan sejauh ini
-                  {importSkippedCount > 0 &&
-                    ` (${importSkippedCount} bagian tidak dikenali sebagai soal)`
-                  }. Jangan tutup jendela ini — soal yang sudah
-                  ditemukan tetap aman meski ada potongan berikutnya
-                  yang gagal.
-                </p>
-
-                <div className="modal-footer">
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleCancelImportProcessing}
-                  >
-                    Batalkan &amp; Lihat Hasil Sejauh Ini
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-            {importStep === "review" && (
-
-              <div>
-
-                {importSkippedCount > 0 && (
-
-                  <div
-                    className="form-error-message"
-                    style={{ marginBottom: "15px" }}
-                  >
-                    {importSkippedCount} bagian dokumen tidak
-                    berhasil dikenali sebagai soal pilihan ganda
-                    dan tidak ikut muncul di bawah ini. Tambahkan
-                    manual kalau ada soal yang terlewat.
-                  </div>
-
-                )}
-
-                {importError && (
-
-                  <div
-                    className="form-error-message"
-                    style={{ marginBottom: "15px" }}
-                  >
-                    {importError}
-                  </div>
-
-                )}
-
-                <div
-                  style={{
-                    maxHeight: "55vh",
-                    overflowY: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "14px",
-                  }}
-                >
-
-                  {importedQuestions.map((item, itemIndex) => (
-
-                    <div
-                      key={item.key}
-                      style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
-                        padding: "14px",
-                        opacity: item.saveStatus === "saved" ? 0.6 : 1,
-                      }}
-                    >
-
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          gap: "10px",
-                          marginBottom: "8px",
-                        }}
-                      >
-
-                        <label
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            fontWeight: 600,
-                          }}
-                        >
-
-                          <input
-                            type="checkbox"
-                            checked={item.selected}
-                            onChange={() =>
-                              handleImportToggleSelected(item.key)
-                            }
-                            disabled={importSaving}
-                          />
-
-                          Soal #{itemIndex + 1}
-
-                          {item.saveStatus === "saved" && (
-                            <span style={{ color: "#16a34a", fontWeight: 400 }}>
-                              — Tersimpan
-                            </span>
-                          )}
-
-                        </label>
-
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          style={{ padding: "4px 10px" }}
-                          onClick={() => handleImportRemove(item.key)}
-                          disabled={importSaving}
-                        >
-                          Hapus
-                        </button>
-
-                      </div>
-
-
-                      {item.warning && (
-
-                        <div
-                          className="form-error-message"
-                          style={{ marginBottom: "10px" }}
-                        >
-                          ⚠️ {item.warning}
-                        </div>
-
-                      )}
-
-                      {item.saveStatus === "error" && (
-
-                        <div
-                          className="form-error-message"
-                          style={{ marginBottom: "10px" }}
-                        >
-                          {item.saveError}
-                        </div>
-
-                      )}
-
-
-                      <div className="form-group">
-
-                        <label>
-                          Pertanyaan
-                        </label>
-
-                        <textarea
-                          value={item.question_text}
-                          onChange={e =>
-                            handleImportQuestionTextChange(
-                              item.key, e.target.value
-                            )
-                          }
-                          rows={3}
-                          disabled={importSaving}
-                        />
-
-                      </div>
-
-
-                      <div className="options-section">
-
-                        <div className="section-title">
-                          <strong>Pilihan Jawaban</strong>
-                          <span>Pilih satu jawaban benar</span>
-                        </div>
-
-                        {item.options.map((option, optionIndex) => (
-
-                          <div
-                            className={
-                              `option-input-row ` +
-                              (option.is_correct ? "correct" : "")
-                            }
-                            key={option.option_code}
-                          >
-
-                            <label className="correct-radio">
-
-                              <input
-                                type="radio"
-                                name={`import-correct-${item.key}`}
-                                checked={option.is_correct}
-                                onChange={() =>
-                                  handleImportCorrectAnswer(
-                                    item.key, optionIndex
-                                  )
-                                }
-                                disabled={importSaving}
-                              />
-
-                              <span>{option.option_code}</span>
-
-                            </label>
-
-                            <input
-                              type="text"
-                              value={option.option_text}
-                              onChange={e =>
-                                handleImportOptionTextChange(
-                                  item.key, optionIndex, e.target.value
-                                )
-                              }
-                              placeholder={`Pilihan ${option.option_code}`}
-                              disabled={importSaving}
-                            />
-
-                            {option.is_correct && (
-                              <span className="correct-label">
-                                Jawaban Benar
-                              </span>
-                            )}
-
-                          </div>
-
-                        ))}
-
-                      </div>
-
-
-                      <div className="form-group">
-
-                        <label>
-                          Pembahasan (opsional)
-                        </label>
-
-                        <textarea
-                          value={item.explanation}
-                          onChange={e =>
-                            handleImportExplanationChange(
-                              item.key, e.target.value
-                            )
-                          }
-                          rows={2}
-                          disabled={importSaving}
-                        />
-
-                      </div>
-
-                    </div>
-
-                  ))}
-
-                  {importedQuestions.length === 0 && (
-
-                    <p style={{ color: "#6b7280" }}>
-                      Semua soal hasil ekstraksi sudah dihapus dari
-                      daftar ini. Kembali ke langkah upload kalau
-                      mau coba dokumen lain.
-                    </p>
-
-                  )}
-
-                </div>
-
-
-                <div className="modal-footer">
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleBackToImportUpload}
-                    disabled={importSaving}
-                  >
-                    ← Dokumen Lain
-                  </button>
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={closeImportModal}
-                    disabled={importSaving}
-                  >
-                    Tutup
-                  </button>
-
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={handleSaveSelectedImported}
-                    disabled={
-                      importSaving ||
-                      importedQuestions.filter(q => q.selected).length === 0
-                    }
-                  >
-                    {importSaving
-                      ? "Menyimpan..."
-                      : `Simpan ${
-                          importedQuestions.filter(q => q.selected).length
-                        } Soal Terpilih`
-                    }
-                  </button>
-
-                </div>
-
-              </div>
-
-            )}
-
-          </div>
-
-        </div>
-
+        <ImportDocumentModal
+          subjects={subjects}
+          onClose={() => setShowImportModal(false)}
+          onImported={handleImported}
+        />
       )}
 
-      {showPreviewModal && previewQuestion && (
-
-        <div className="modal-overlay review-modal-overlay">
-
-          <div
-            className="modal review-modal"
-            style={{ width: "700px", maxWidth: "96vw" }}
-          >
-
-            <div className="modal-header">
-
-              <div>
-                <h2>Preview Soal</h2>
-                <p>
-                  Tampilan soal beserta kunci jawaban dan pembahasan.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closePreviewModal}
-              >
-                ×
-              </button>
-
-            </div>
-
-            <div className="review-print-page">
-
-              <div className="review-print-header">
-                <h3>
-                  {getSubjectName(previewQuestion.subject_id)}
-                </h3>
-                <div className="review-print-meta">
-                  <span>
-                    Tingkat: {getDifficultyLabel(previewQuestion.difficulty)}
-                  </span>
-                  <span>
-                    Bobot: {previewQuestion.points}
-                  </span>
-                  <span>
-                    Status: {previewQuestion.is_active ? "Aktif" : "Nonaktif"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="review-print-questions">
-
-                <div className="review-print-question">
-
-                  {previewQuestion.has_image && (
-                    <QuestionImage
-                      questionId={previewQuestion.id}
-                      alt="Gambar soal"
-                      className="review-print-image"
-                    />
-                  )}
-
-                  <div className="review-print-question-text">
-                    <span>{previewQuestion.question_text}</span>
-                  </div>
-
-                  <div className="review-print-options">
-                    {previewQuestion.options.map(option => (
-
-                      <div
-                        key={option.option_code}
-                        className={
-                          `review-print-option ` +
-                          (option.is_correct ? "is-correct" : "")
-                        }
-                      >
-                        <span className="review-print-option-code">
-                          {option.option_code}.
-                        </span>
-                        <span>{option.option_text}</span>
-                      </div>
-
-                    ))}
-                  </div>
-
-                  {(() => {
-
-                    const correctOption = previewQuestion.options.find(
-                      option => option.is_correct
-                    );
-
-                    return (
-                      <div
-                        className="review-answer-correct"
-                        style={{ marginTop: 10 }}
-                      >
-                        Jawaban:{" "}
-                        <strong>
-                          {correctOption
-                            ? `${correctOption.option_code}. ${correctOption.option_text}`
-                            : "Belum ditandai"
-                          }
-                        </strong>
-                      </div>
-                    );
-
-                  })()}
-
-                  {previewQuestion.explanation && (
-
-                    <div className="review-answer-explanation">
-                      <em>Pembahasan:</em> {previewQuestion.explanation}
-                    </div>
-
-                  )}
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
+      {previewQuestion && (
+        <QuestionPreviewModal
+          question={previewQuestion}
+          subjectName={getSubjectName(previewQuestion.subject_id)}
+          difficultyLabel={getDifficultyLabel(previewQuestion.difficulty)}
+          onClose={closePreviewModal}
+        />
       )}
 
-      {showGuideModal && (
-        <PanduanSoalModal onClose={() => setShowGuideModal(false)} />
-      )}
-
+      {showGuideModal && <PanduanSoalModal onClose={() => setShowGuideModal(false)} />}
     </div>
-
   );
-
 }
-
 
 export default QuestionManagement;
