@@ -1,0 +1,258 @@
+/* =====================================================
+   NILAI (ADMIN & GURU) — toolbar, tabel, dan pagination
+   Di-import oleh components/ScoreTable.jsx (dipakai
+   pages/AdminScores.jsx dan pages/TeacherScores.jsx)
+   ===================================================== */
+
+/* overflow TIDAK di-hidden (beda dengan .dashboard-card).
+   Sudut membulat diatur manual di anak pertama & pager. */
+.score-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.score-card > :first-child {
+  border-radius: 10px 10px 0 0;
+}
+
+/* Pager di halaman Nilai ikut ter-scroll bersama tabel (di ujung
+   bawah kartu), TIDAK menempel/melayang di bawah layar.
+   Sebelumnya bar ini sticky (lihat Pagination.css): saat konten
+   lebih tinggi dari layar, bar menutupi baris tabel, dan baris di
+   bawahnya tetap terlihat mengintip di strip padding bawah .content.
+   Halaman lain yang memakai Pagination (Bank Soal, Paket Tryout)
+   tidak terpengaruh. */
+.score-card .pg-bar {
+  position: static;
+  box-shadow: none;
+}
+
+
+/* ---------- Toolbar: cari + dropdown filter ---------- */
+
+.score-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.score-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: white;
+  color: #9ca3af;
+}
+
+.score-search:focus-within {
+  border-color: var(--accent);
+}
+
+.score-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #111827;
+}
+
+.score-select {
+  width: 130px;
+  max-width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  outline: none;
+  background: white;
+  color: #374151;
+  font-size: 13px;
+}
+
+.score-select.is-wide {
+  width: 180px;
+}
+
+.score-select:focus,
+.score-select.is-active {
+  border-color: var(--accent);
+}
+
+
+/* ---------- Bar jumlah hasil + Reset filter ---------- */
+
+.score-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.score-reset {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-hover);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.score-reset:hover {
+  text-decoration: underline;
+}
+
+
+/* ---------- Tabel ---------- */
+
+/* min-width: di layar sempit tabel di-scroll ke samping (lewat
+   .table-container), bukan kolomnya digencet sampai isinya terpotong. */
+.score-table {
+  width: 100%;
+  min-width: 840px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.score-table th {
+  padding: 9px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.score-table th.is-left {
+  text-align: left;
+}
+
+.score-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.score-table th:first-child,
+.score-table td:first-child {
+  padding-left: 14px;
+}
+
+.score-table th:last-child,
+.score-table td:last-child {
+  padding-right: 14px;
+}
+
+.score-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.score-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.score-table td.is-center {
+  text-align: center;
+}
+
+.score-table td.is-nowrap {
+  white-space: nowrap;
+}
+
+.score-primary.is-strong {
+  font-weight: 500;
+}
+
+.score-secondary {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Teks panjang dipotong "…" (isi lengkap ada di atribut title) */
+.score-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-value {
+  font-weight: 500;
+}
+
+.score-max {
+  color: #6b7280;
+}
+
+.score-counts {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.score-count {
+  display: inline-block;
+  min-width: 26px;
+  padding: 2px 0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.score-count.is-right {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.score-count.is-wrong {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.score-count.is-blank {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.score-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.score-badge.is-pass {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.score-badge.is-fail {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.score-badge.is-none {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+

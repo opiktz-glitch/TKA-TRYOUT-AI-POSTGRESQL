@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconTarget, IconClock } from "../components/Icons";
 
 import { getOngoingAttempts } from "../services/api";
@@ -89,108 +87,100 @@ function StudentMyTryouts() {
   }
 
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <>
+      {/* HEADER */}
 
-      <main className="main-content">
-        <Header />
+      <div className="page-header">
+        <div>
+          <h1>Tryout Saya</h1>
+          <p>Tryout yang sedang kamu kerjakan dan belum dikumpulkan</p>
+        </div>
+      </div>
 
-        <div className="content">
-          {/* HEADER */}
+      <div className="dashboard-card">
+        {loading && (
+          <div className="loading-message">Memuat tryout kamu...</div>
+        )}
 
-          <div className="page-header">
-            <div>
-              <h1>Tryout Saya</h1>
-              <p>Tryout yang sedang kamu kerjakan dan belum dikumpulkan</p>
-            </div>
-          </div>
+        {error && <div className="error-message">{error}</div>}
 
-          <div className="dashboard-card">
-            {loading && (
-              <div className="loading-message">Memuat tryout kamu...</div>
-            )}
+        {!loading && !error && (
+          <div className="table-container">
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th>Judul Tryout</th>
+                  <th>Mata Pelajaran</th>
+                  <th>Progres</th>
+                  <th>Sisa Waktu</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
 
-            {error && <div className="error-message">{error}</div>}
+              <tbody>
+                {attempts.map((item) => {
+                  const isCritical =
+                    item.remaining_seconds <= 300 && !item.time_expired;
 
-            {!loading && !error && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th>Judul Tryout</th>
-                      <th>Mata Pelajaran</th>
-                      <th>Progres</th>
-                      <th>Sisa Waktu</th>
-                      <th>Aksi</th>
+                  return (
+                    <tr key={item.attempt_id}>
+                      <td>
+                        <strong>{item.title}</strong>
+                      </td>
+
+                      <td>{item.subject_name || "-"}</td>
+
+                      <td>
+                        {item.answered_count} / {item.total_questions} soal
+                      </td>
+
+                      <td>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontWeight: 600,
+                            color: item.time_expired
+                              ? "#dc2626"
+                              : isCritical
+                              ? "#dc2626"
+                              : "inherit",
+                          }}
+                        >
+                          <IconClock size={14} />
+                          {item.time_expired
+                            ? "Waktu habis"
+                            : formatRemaining(item.remaining_seconds)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          className="primary-button"
+                          onClick={() => handleContinue(item)}
+                        >
+                          <IconTarget size={15} />
+                          {item.time_expired ? "Lihat Hasil" : "Lanjutkan"}
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
+                  );
+                })}
+              </tbody>
+            </table>
 
-                  <tbody>
-                    {attempts.map((item) => {
-                      const isCritical =
-                        item.remaining_seconds <= 300 && !item.time_expired;
-
-                      return (
-                        <tr key={item.attempt_id}>
-                          <td>
-                            <strong>{item.title}</strong>
-                          </td>
-
-                          <td>{item.subject_name || "-"}</td>
-
-                          <td>
-                            {item.answered_count} / {item.total_questions} soal
-                          </td>
-
-                          <td>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                fontWeight: 600,
-                                color: item.time_expired
-                                  ? "#dc2626"
-                                  : isCritical
-                                  ? "#dc2626"
-                                  : "inherit",
-                              }}
-                            >
-                              <IconClock size={14} />
-                              {item.time_expired
-                                ? "Waktu habis"
-                                : formatRemaining(item.remaining_seconds)}
-                            </span>
-                          </td>
-
-                          <td>
-                            <button
-                              className="primary-button"
-                              onClick={() => handleContinue(item)}
-                            >
-                              <IconTarget size={15} />
-                              {item.time_expired ? "Lihat Hasil" : "Lanjutkan"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {attempts.length === 0 && (
-                  <div className="empty-message">
-                    Tidak ada tryout yang sedang kamu kerjakan saat ini.
-                    Yuk mulai dari menu{" "}
-                    <strong>Daftar Tryout</strong>.
-                  </div>
-                )}
+            {attempts.length === 0 && (
+              <div className="empty-message">
+                Tidak ada tryout yang sedang kamu kerjakan saat ini.
+                Yuk mulai dari menu{" "}
+                <strong>Daftar Tryout</strong>.
               </div>
             )}
           </div>
-        </div>
-      </main>
-    </div>
+        )}
+      </div>
+    </>
   );
 }
 

@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconEdit, IconTrash, IconCheck } from "../components/Icons";
 import {
   getSubjects,
@@ -266,215 +264,201 @@ function SubjectManagement() {
 
   return (
 
-    <div className="app-layout">
+    <>
+      {/* HEADER */}
 
-      <Sidebar />
+      <div className="page-header">
 
-      <main className="main-content">
+        <div>
 
-        <Header />
+          <h1>Mata Pelajaran</h1>
 
-        <div className="content">
-
-          {/* HEADER */}
-
-          <div className="page-header">
-
-            <div>
-
-              <h1>Mata Pelajaran</h1>
-
-              <p>
-                Kelola master mata pelajaran TKA Tryout
-              </p>
-
-            </div>
-
-            <button
-              className="primary-button"
-              onClick={openModal}
-            >
-              + Tambah Mata Pelajaran
-            </button>
-
-          </div>
-
-
-          {/* TABLE */}
-
-          <div className="dashboard-card">
-
-            <div className="user-toolbar">
-
-              <input
-                type="text"
-                placeholder="Cari kode / nama / deskripsi..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-
-            </div>
-
-
-            {loading && (
-
-              <div className="loading-message">
-                Memuat data mata pelajaran...
-              </div>
-
-            )}
-
-
-            {loadError && !showModal && (
-
-              <div className="error-message">
-                {loadError}
-              </div>
-
-            )}
-
-
-            {actionError && (
-
-              <div className="form-error-message" style={{ marginBottom: "15px" }}>
-                {actionError}
-              </div>
-
-            )}
-
-
-            {actionSuccess && (
-
-              <div className="success-message" style={{ marginBottom: "15px" }}>
-                <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-                {actionSuccess}
-              </div>
-
-            )}
-
-
-            {!loading && (
-
-              <div className="table-container">
-
-                <table className="user-table">
-
-                  <thead>
-
-                    <tr>
-
-                      <th className="align-center">No</th>
-                      <th className="align-center">ID</th>
-                      <th className="align-center">Kode</th>
-                      <th className="align-center">Nama</th>
-                      <th className="align-center">Deskripsi</th>
-                      <th className="align-center">Status</th>
-                      <th className="align-center">Aksi</th>
-
-                    </tr>
-
-                  </thead>
-
-
-                  <tbody>
-
-                    {filteredSubjects.map((item, index) => (
-
-                      <tr key={item.id}>
-
-                        <td className="align-center">
-                          {index + 1}
-                        </td>
-
-                        <td>
-                          {item.id}
-                        </td>
-
-                        <td>
-                          <strong>
-                            {item.code}
-                          </strong>
-                        </td>
-
-                        <td className="align-left">
-                          {item.name}
-                        </td>
-
-                        <td className="align-left">
-                          {item.description || "-"}
-                        </td>
-
-                        <td>
-
-                          {item.is_active ? (
-
-                            <span className="status-active">
-                              Aktif
-                            </span>
-
-                          ) : (
-
-                            <span className="status-inactive">
-                              Nonaktif
-                            </span>
-
-                          )}
-
-                        </td>
-
-                        <td>
-
-                          <div className="action-buttons">
-
-                            <button
-                              className="edit-button"
-                              onClick={() => openEditModal(item)}
-                            >
-                              <IconEdit size={16} />
-                            </button>
-
-                            <button
-                              className="delete-button"
-                              onClick={() => handleDelete(item)}
-                            >
-                              <IconTrash size={16} />
-                            </button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    ))}
-
-                  </tbody>
-
-                </table>
-
-
-                {filteredSubjects.length === 0 && (
-
-                  <div className="empty-message">
-                    {search
-                      ? "Mata pelajaran tidak ditemukan."
-                      : "Belum ada mata pelajaran."
-                    }
-                  </div>
-
-                )}
-
-              </div>
-
-            )}
-
-          </div>
+          <p>
+            Kelola master mata pelajaran TKA Tryout
+          </p>
 
         </div>
 
-      </main>
+        <button
+          className="primary-button"
+          onClick={openModal}
+        >
+          + Tambah Mata Pelajaran
+        </button>
 
+      </div>
+
+
+      {/* TABLE */}
+
+      <div className="dashboard-card">
+
+        <div className="user-toolbar">
+
+          <input
+            type="text"
+            placeholder="Cari kode / nama / deskripsi..."
+            className="search-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+        </div>
+
+
+        {loading && (
+
+          <div className="loading-message">
+            Memuat data mata pelajaran...
+          </div>
+
+        )}
+
+
+        {loadError && !showModal && (
+
+          <div className="error-message">
+            {loadError}
+          </div>
+
+        )}
+
+
+        {actionError && (
+
+          <div className="form-error-message" style={{ marginBottom: "15px" }}>
+            {actionError}
+          </div>
+
+        )}
+
+
+        {actionSuccess && (
+
+          <div className="success-message" style={{ marginBottom: "15px" }}>
+            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            {actionSuccess}
+          </div>
+
+        )}
+
+
+        {!loading && (
+
+          <div className="table-container">
+
+            <table className="user-table">
+
+              <thead>
+
+                <tr>
+
+                  <th className="align-center">No</th>
+                  <th className="align-center">ID</th>
+                  <th className="align-center">Kode</th>
+                  <th className="align-center">Nama</th>
+                  <th className="align-center">Deskripsi</th>
+                  <th className="align-center">Status</th>
+                  <th className="align-center">Aksi</th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {filteredSubjects.map((item, index) => (
+
+                  <tr key={item.id}>
+
+                    <td className="align-center">
+                      {index + 1}
+                    </td>
+
+                    <td>
+                      {item.id}
+                    </td>
+
+                    <td>
+                      <strong>
+                        {item.code}
+                      </strong>
+                    </td>
+
+                    <td className="align-left">
+                      {item.name}
+                    </td>
+
+                    <td className="align-left">
+                      {item.description || "-"}
+                    </td>
+
+                    <td>
+
+                      {item.is_active ? (
+
+                        <span className="status-active">
+                          Aktif
+                        </span>
+
+                      ) : (
+
+                        <span className="status-inactive">
+                          Nonaktif
+                        </span>
+
+                      )}
+
+                    </td>
+
+                    <td>
+
+                      <div className="action-buttons">
+
+                        <button
+                          className="edit-button"
+                          onClick={() => openEditModal(item)}
+                        >
+                          <IconEdit size={16} />
+                        </button>
+
+                        <button
+                          className="delete-button"
+                          onClick={() => handleDelete(item)}
+                        >
+                          <IconTrash size={16} />
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+
+            {filteredSubjects.length === 0 && (
+
+              <div className="empty-message">
+                {search
+                  ? "Mata pelajaran tidak ditemukan."
+                  : "Belum ada mata pelajaran."
+                }
+              </div>
+
+            )}
+
+          </div>
+
+        )}
+
+      </div>
 
       {/* MODAL TAMBAH / EDIT MATA PELAJARAN */}
 
@@ -665,9 +649,7 @@ function SubjectManagement() {
         </div>
 
       )}
-
-    </div>
-
+    </>
   );
 
 }

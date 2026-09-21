@@ -1,0 +1,193 @@
+/* =====================================================
+   PENGATURAN — layout selebar halaman, kartu berdampingan
+   Di-import oleh pages/AdminSettings.jsx dan
+   components/settings/ProfileTab.jsx & NetworkTab.jsx
+   ===================================================== */
+
+/* ---------- Tab (menempel di atas saat halaman di-scroll) ---------- */
+
+.settings-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  overflow-x: auto;
+}
+
+.settings-tab {
+  padding: 10px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  color: #374151;
+}
+
+.settings-tab.is-active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+
+/* ---------- Grid kartu: otomatis 1-3 kolom sesuai lebar layar ---------- */
+
+.settings-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+}
+
+/* Tab Profil: kartu akun sempit di kiri, form di kanan */
+.settings-grid.is-profile {
+  grid-template-columns: minmax(260px, 340px) 1fr;
+}
+
+.settings-span-all {
+  grid-column: 1 / -1;
+}
+
+/* Kolom di DALAM satu kartu (mis. Rotasi | Isi Manual, Daftar | Import) */
+.settings-cols {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+}
+
+.settings-cols.is-wide-left {
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+}
+
+.settings-block {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+@media (max-width: 900px) {
+  .settings-grid.is-profile,
+  .settings-cols.is-wide-left {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ---------- Isi kartu (lebih rapat dari default supaya tidak panjang) ---------- */
+
+.settings-card {
+  padding: 20px;
+
+  /* Root memakai line-height 145% (=26px) yang ikut diwariskan ke semua
+     turunan; di sini dibuat relatif supaya teks kecil tidak melar. */
+  line-height: 1.45;
+}
+
+.settings-card small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-card code {
+  font-size: 12px;
+}
+
+.settings-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 17px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.settings-card .settings-desc {
+  margin: 0 0 14px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-card .form-group {
+  margin-bottom: 14px;
+}
+
+.settings-card .form-group label {
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.settings-card .form-group input:not([type="checkbox"]):not([type="radio"]) {
+  padding: 9px 12px;
+  font-size: 14px;
+}
+
+.settings-card .primary-button,
+.settings-card .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.settings-card .error-message {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fef2f2;
+  font-size: 13px;
+  text-align: left;
+}
+
+.settings-full {
+  width: 100%;
+}
+
+/* Kartu akun (tab Profil) */
+.settings-account {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.settings-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+}
+
+/* Pilihan provider AI: berdampingan kalau muat */
+.settings-fields {
+  display: grid;
+  column-gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-options {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}

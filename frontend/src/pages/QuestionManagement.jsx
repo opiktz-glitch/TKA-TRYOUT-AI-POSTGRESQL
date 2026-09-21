@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import Pagination from "../components/Pagination";
 import { IconEdit, IconTrash, IconCheck, IconBook, IconEye } from "../components/Icons";
 import PanduanSoalModal from "../components/PanduanSoalModal";
 import QuestionImage from "../components/QuestionImage";
@@ -1351,109 +1352,14 @@ function QuestionManagement() {
                   </div>
                 )}
 
-                {filteredQuestions.length > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: 12,
-                      padding: "14px 4px",
-                      // Tetap terlihat di bagian bawah walau daftar soal
-                      // di tabel di atasnya panjang & di-scroll — sama
-                      // seperti pola .modal-footer (lihat App.css),
-                      // supaya tidak perlu scroll ke paling bawah dulu
-                      // baru tombol halaman muncul. "bottom: 0" lengket
-                      // ke tepi bawah AREA SCROLL-nya (elemen ".content"
-                      // di App.css, bukan seluruh window), karena itu
-                      // nearest scrolling ancestor dari tabel ini.
-                      position: "sticky",
-                      bottom: 0,
-                      background: "white",
-                      borderTop: "1px solid var(--line)",
-                      boxShadow: "0 -2px 6px rgba(0, 0, 0, 0.04)",
-                      zIndex: 2,
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: "#6b7280" }}>
-                      Menampilkan {(currentPage - 1) * QUESTIONS_PER_PAGE + 1}
-                      {"–"}
-                      {Math.min(
-                        currentPage * QUESTIONS_PER_PAGE,
-                        filteredQuestions.length,
-                      )} dari {filteredQuestions.length} soal
-                    </span>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        Sebelumnya
-                      </button>
-
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        // Kalau halamannya banyak, cukup tampilkan halaman
-                        // pertama, terakhir, dan beberapa di sekitar halaman
-                        // aktif — sisanya diringkas jadi "…" supaya baris
-                        // nomor halaman tidak melebar tak terbatas.
-                        .filter((page) => {
-                          if (totalPages <= 7) return true;
-                          return (
-                            page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
-                          );
-                        })
-                        .reduce((acc, page, idx, arr) => {
-                          if (idx > 0 && page - arr[idx - 1] > 1) {
-                            acc.push("ellipsis-" + page);
-                          }
-                          acc.push(page);
-                          return acc;
-                        }, [])
-                        .map((item) =>
-                          typeof item === "string" ? (
-                            <span
-                              key={item}
-                              style={{ padding: "0 4px", color: "#9ca3af", fontSize: 13 }}
-                            >
-                              …
-                            </span>
-                          ) : (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => setCurrentPage(item)}
-                              style={{
-                                minWidth: 32,
-                                height: 32,
-                                borderRadius: 6,
-                                border: "1px solid var(--line)",
-                                background: item === currentPage ? "var(--accent)" : "white",
-                                color: item === currentPage ? "white" : "#374151",
-                                fontWeight: item === currentPage ? 600 : 500,
-                                fontSize: 13,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {item}
-                            </button>
-                          ),
-                        )}
-
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        Berikutnya
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredQuestions.length}
+                  pageSize={QUESTIONS_PER_PAGE}
+                  itemLabel="soal"
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </div>

@@ -3,6 +3,7 @@ import {
   PANDUAN_SOAL_SUMBER,
   PANDUAN_SOAL_SECTIONS,
 } from "../data/panduanSoal";
+import "./PanduanSoalModal.css";
 
 // =====================================================
 // MODAL PANDUAN / KISI-KISI PENULISAN SOAL

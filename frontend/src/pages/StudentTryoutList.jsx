@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 
 import {
   getSubjects,
@@ -261,340 +259,314 @@ function StudentTryoutList() {
   // =====================================================
 
   return (
-    <div className="app-layout">
-
+    <>
       {/* =================================================
-          SIDEBAR
+          PAGE HEADER
       ================================================= */}
 
-      <Sidebar />
+      <div className="page-header">
+        <div>
+          <h1>Daftar Tryout</h1>
+
+          <p>
+            Pilih paket tryout yang ingin Anda kerjakan.
+          </p>
+        </div>
+      </div>
 
       {/* =================================================
-          MAIN CONTENT
+          TABLE CARD & FILTER
       ================================================= */}
 
-      <main className="main-content">
+      <div className="dashboard-card">
 
         {/* =================================================
-            HEADER
+            FILTER
         ================================================= */}
 
-        <Header />
+        <div className="question-filter">
 
-        <div className="content">
+          {/* SEARCH */}
 
-          {/* =================================================
-              PAGE HEADER
-          ================================================= */}
-
-          <div className="page-header">
-            <div>
-              <h1>Daftar Tryout</h1>
-
-              <p>
-                Pilih paket tryout yang ingin Anda kerjakan.
-              </p>
-            </div>
+          <div className="filter-group">
+            <input
+              type="text"
+              placeholder="Cari judul tryout..."
+              className="search-input"
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
           </div>
 
-          {/* =================================================
-              TABLE CARD & FILTER
-          ================================================= */}
+          {/* SUBJECT */}
 
-          <div className="dashboard-card">
+          <div className="filter-group">
+            <select
+              value={subjectFilter}
+              onChange={(e) =>
+                setSubjectFilter(
+                  e.target.value
+                )
+              }
+              className="search-input"
+            >
+              <option value="">
+                Semua Mata Pelajaran
+              </option>
 
-            {/* =================================================
-                FILTER
-            ================================================= */}
-
-            <div className="question-filter">
-
-              {/* SEARCH */}
-
-              <div className="filter-group">
-                <input
-                  type="text"
-                  placeholder="Cari judul tryout..."
-                  className="search-input"
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                />
-              </div>
-
-              {/* SUBJECT */}
-
-              <div className="filter-group">
-                <select
-                  value={subjectFilter}
-                  onChange={(e) =>
-                    setSubjectFilter(
-                      e.target.value
-                    )
-                  }
-                  className="search-input"
-                >
-                  <option value="">
-                    Semua Mata Pelajaran
+              {subjects
+                .filter(
+                  (subject) =>
+                    subject.is_active
+                )
+                .map((subject) => (
+                  <option
+                    key={subject.id}
+                    value={subject.id}
+                  >
+                    {subject.name}
                   </option>
+                ))}
+            </select>
+          </div>
 
-                  {subjects
-                    .filter(
-                      (subject) =>
-                        subject.is_active
-                    )
-                    .map((subject) => (
-                      <option
-                        key={subject.id}
-                        value={subject.id}
-                      >
-                        {subject.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+          {/* DIFFICULTY */}
 
-              {/* DIFFICULTY */}
+          <div className="filter-group">
+            <select
+              value={difficultyFilter}
+              onChange={(e) =>
+                setDifficultyFilter(
+                  e.target.value
+                )
+              }
+              className="search-input"
+            >
+              <option value="">
+                Semua Tingkat Kesulitan
+              </option>
 
-              <div className="filter-group">
-                <select
-                  value={difficultyFilter}
-                  onChange={(e) =>
-                    setDifficultyFilter(
-                      e.target.value
-                    )
-                  }
-                  className="search-input"
-                >
-                  <option value="">
-                    Semua Tingkat Kesulitan
+              {DIFFICULTIES.map(
+                (item) => (
+                  <option
+                    key={item.value}
+                    value={item.value}
+                  >
+                    {item.label}
                   </option>
-
-                  {DIFFICULTIES.map(
-                    (item) => (
-                      <option
-                        key={item.value}
-                        value={item.value}
-                      >
-                        {item.label}
-                      </option>
-                    )
-                  )}
-                </select>
-              </div>
-
-            </div>
-
-            {/* =================================================
-                LOADING
-            ================================================= */}
-
-            {loading && (
-              <div className="loading-message">
-                Memuat daftar tryout...
-              </div>
-            )}
-
-            {/* =================================================
-                ERROR
-            ================================================= */}
-
-            {error && (
-              <div className="error-message">
-                {error}
-              </div>
-            )}
-
-            {/* =================================================
-                TABLE
-            ================================================= */}
-
-            {!loading && !error && (
-              <div className="table-container">
-
-                <table className="user-table">
-
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Judul Tryout</th>
-                      <th>Mata Pelajaran</th>
-                      <th>Kelas</th>
-                      <th>Soal</th>
-                      <th>Durasi</th>
-                      <th>Difficulty</th>
-                      <th>Status</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-
-                    {filteredTryouts.map(
-                      (tryout) => (
-                        <tr
-                          key={tryout.id}
-                        >
-
-                          {/* ID */}
-
-                          <td>
-                            {tryout.id}
-                          </td>
-
-                          {/* JUDUL */}
-
-                          <td>
-                            <strong>
-                              {tryout.title}
-                            </strong>
-
-                            {tryout.description && (
-                              <div
-                                style={{
-                                  marginTop:
-                                    "4px",
-                                  fontSize:
-                                    "12px",
-                                  color:
-                                    "#777",
-                                }}
-                              >
-                                {
-                                  tryout.description
-                                }
-                              </div>
-                            )}
-                          </td>
-
-                          {/* SUBJECT */}
-
-                          <td>
-                            {getSubjectName(
-                              tryout.subject_id
-                            )}
-                          </td>
-
-                          {/* GRADE */}
-
-                          <td>
-                            {tryout.grade ||
-                              "-"}
-                          </td>
-
-                          {/* QUESTIONS */}
-
-                          <td>
-                            {tryout.total_questions ??
-                              0}
-                          </td>
-
-                          {/* DURATION */}
-
-                          <td>
-                            {tryout.duration_minutes ??
-                              0}{" "}
-                            menit
-                          </td>
-
-                          {/* DIFFICULTY */}
-
-                          <td>
-                            <span
-                              className={`difficulty-badge ${(
-                                tryout.difficulty ||
-                                ""
-                              ).toLowerCase()}`}
-                            >
-                              {getDifficultyLabel(
-                                tryout.difficulty
-                              )}
-                            </span>
-                          </td>
-
-                          {/* STATUS */}
-
-                          <td>
-                            {tryout.is_active ? (
-                              <span className="status-active">
-                                Tersedia
-                              </span>
-                            ) : (
-                              <span className="status-inactive">
-                                Tidak tersedia
-                              </span>
-                            )}
-                          </td>
-
-                          {/* ACTION */}
-
-                          <td>
-
-                            <button
-                              className="primary-button"
-                              onClick={() =>
-                                handleStartTryout(
-                                  tryout
-                                )
-                              }
-                              disabled={
-                                !tryout.is_active ||
-                                startingId ===
-                                  tryout.id
-                              }
-                              title="Mulai Tryout"
-                            >
-
-                              {startingId ===
-                              tryout.id ? (
-                                "Menyiapkan..."
-                              ) : (
-                                <>
-                                  <IconClipboard
-                                    size={15}
-                                  />
-                                  Mulai
-                                </>
-                              )}
-
-                            </button>
-
-                          </td>
-
-                        </tr>
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-
-                {/* =================================================
-                    EMPTY
-                ================================================= */}
-
-                {filteredTryouts.length ===
-                  0 && (
-                  <div className="empty-message">
-                    {search ||
-                    subjectFilter ||
-                    difficultyFilter
-                      ? "Tryout tidak ditemukan."
-                      : "Belum ada tryout yang tersedia."}
-                  </div>
-                )}
-
-              </div>
-            )}
-
+                )
+              )}
+            </select>
           </div>
 
         </div>
 
-      </main>
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
-    </div>
+        {loading && (
+          <div className="loading-message">
+            Memuat daftar tryout...
+          </div>
+        )}
+
+        {/* =================================================
+            ERROR
+        ================================================= */}
+
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+
+        {/* =================================================
+            TABLE
+        ================================================= */}
+
+        {!loading && !error && (
+          <div className="table-container">
+
+            <table className="user-table">
+
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Judul Tryout</th>
+                  <th>Mata Pelajaran</th>
+                  <th>Kelas</th>
+                  <th>Soal</th>
+                  <th>Durasi</th>
+                  <th>Difficulty</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                {filteredTryouts.map(
+                  (tryout) => (
+                    <tr
+                      key={tryout.id}
+                    >
+
+                      {/* ID */}
+
+                      <td>
+                        {tryout.id}
+                      </td>
+
+                      {/* JUDUL */}
+
+                      <td>
+                        <strong>
+                          {tryout.title}
+                        </strong>
+
+                        {tryout.description && (
+                          <div
+                            style={{
+                              marginTop:
+                                "4px",
+                              fontSize:
+                                "12px",
+                              color:
+                                "#777",
+                            }}
+                          >
+                            {
+                              tryout.description
+                            }
+                          </div>
+                        )}
+                      </td>
+
+                      {/* SUBJECT */}
+
+                      <td>
+                        {getSubjectName(
+                          tryout.subject_id
+                        )}
+                      </td>
+
+                      {/* GRADE */}
+
+                      <td>
+                        {tryout.grade ||
+                          "-"}
+                      </td>
+
+                      {/* QUESTIONS */}
+
+                      <td>
+                        {tryout.total_questions ??
+                          0}
+                      </td>
+
+                      {/* DURATION */}
+
+                      <td>
+                        {tryout.duration_minutes ??
+                          0}{" "}
+                        menit
+                      </td>
+
+                      {/* DIFFICULTY */}
+
+                      <td>
+                        <span
+                          className={`difficulty-badge ${(
+                            tryout.difficulty ||
+                            ""
+                          ).toLowerCase()}`}
+                        >
+                          {getDifficultyLabel(
+                            tryout.difficulty
+                          )}
+                        </span>
+                      </td>
+
+                      {/* STATUS */}
+
+                      <td>
+                        {tryout.is_active ? (
+                          <span className="status-active">
+                            Tersedia
+                          </span>
+                        ) : (
+                          <span className="status-inactive">
+                            Tidak tersedia
+                          </span>
+                        )}
+                      </td>
+
+                      {/* ACTION */}
+
+                      <td>
+
+                        <button
+                          className="primary-button"
+                          onClick={() =>
+                            handleStartTryout(
+                              tryout
+                            )
+                          }
+                          disabled={
+                            !tryout.is_active ||
+                            startingId ===
+                              tryout.id
+                          }
+                          title="Mulai Tryout"
+                        >
+
+                          {startingId ===
+                          tryout.id ? (
+                            "Menyiapkan..."
+                          ) : (
+                            <>
+                              <IconClipboard
+                                size={15}
+                              />
+                              Mulai
+                            </>
+                          )}
+
+                        </button>
+
+                      </td>
+
+                    </tr>
+                  )
+                )}
+
+              </tbody>
+
+            </table>
+
+            {/* =================================================
+                EMPTY
+            ================================================= */}
+
+            {filteredTryouts.length ===
+              0 && (
+              <div className="empty-message">
+                {search ||
+                subjectFilter ||
+                difficultyFilter
+                  ? "Tryout tidak ditemukan."
+                  : "Belum ada tryout yang tersedia."}
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
+    </>
   );
 }
 

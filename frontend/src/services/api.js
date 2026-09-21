@@ -308,6 +308,11 @@ export async function getQuestions() {
   return apiFetch("/api/questions");
 }
 
+// Detail satu soal (teks lengkap + opsi jawaban).
+export async function getQuestion(questionId) {
+  return apiFetch(`/api/questions/${questionId}`);
+}
+
 export async function createQuestion(questionData) {
   return apiFetch("/api/questions", {
     method: "POST",
@@ -609,14 +614,66 @@ export async function getTryoutReview(tryoutId) {
   return apiFetch(`/api/tryouts/${tryoutId}/review`);
 }
 
-export async function getAvailableQuestions(subjectId, difficulty = "") {
-  let url = `/api/tryouts/available/questions?subject_id=${subjectId}`;
+// Bank soal untuk form Tambah/Edit Tryout — dipaginasi & dicari di server.
+//
+// options:
+//   difficulty : "" | "EASY" | "MEDIUM" | "HARD"
+//   scope      : "all" (semua soal) | "mine" (hanya soal buatan sendiri)
+//   search     : teks yang dicari di isi soal, atau ID soal ("1048" / "#1048")
+//   page, pageSize
+//
+// Response: { items, total, page, page_size, total_pages, difficulty_counts }
+// Item TIDAK membawa opsi jawaban — ambil lewat getQuestion(id) kalau perlu.
+export async function getAvailableQuestions(subjectId, options = {}) {
+  const {
+    difficulty = "",
+    scope = "all",
+    search = "",
+    page = 1,
+    pageSize = 25,
+  } = options;
+
+  const params = new URLSearchParams({
+    subject_id: String(subjectId),
+    scope,
+    page: String(page),
+    page_size: String(pageSize),
+  });
 
   if (difficulty) {
-    url += `&difficulty=${difficulty}`;
+    params.set("difficulty", difficulty);
   }
 
-  return apiFetch(url);
+  if (search && search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  return apiFetch(`/api/tryouts/available/questions?${params.toString()}`);
+}
+
+// Ambil soal acak dari bank soal per tingkat kesulitan.
+// Soal yang ID-nya ada di excludeIds tidak ikut diambil.
+export async function getRandomAvailableQuestions({
+  subjectId,
+  scope = "all",
+  search = "",
+  excludeIds = [],
+  easy = 0,
+  medium = 0,
+  hard = 0,
+}) {
+  return apiFetch("/api/tryouts/available/questions/random", {
+    method: "POST",
+    body: {
+      subject_id: Number(subjectId),
+      scope,
+      search: search && search.trim() ? search.trim() : null,
+      exclude_ids: excludeIds,
+      easy,
+      medium,
+      hard,
+    },
+  });
 }
 
 export async function createTryout(tryoutData) {

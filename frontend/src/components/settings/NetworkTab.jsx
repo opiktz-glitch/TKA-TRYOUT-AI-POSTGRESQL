@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./settings.css";
 
 import { IconWifi, IconCheck } from "../Icons";
 
@@ -25,19 +26,20 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
     }
   }
 
+  // Alamat untuk dibagikan + langkah-langkah hanya relevan di mode
+  // bukan "development".
+  const showShare = Boolean(networkInfo) && networkInfo.mode !== "development";
+
   return (
-    <div
-      className="dashboard-card"
-      style={{ maxWidth: "700px", margin: "0 auto", padding: "24px" }}
-    >
+    <div className="dashboard-card settings-card">
       {(!networkInfo || networkInfo.mode !== "development") && (
         <>
-          <h2 style={{ marginTop: 0, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+          <h2>
             <IconWifi size={18} />
             Akses dari Laptop Lain
           </h2>
 
-          <p style={{ marginTop: 0, marginBottom: 22, color: "#6b7280", fontSize: 13 }}>
+          <p className="settings-desc">
             Bagikan alamat di bawah ini ke laptop/HP lain yang
             terhubung ke <strong>WiFi yang sama</strong> dengan
             laptop ini, supaya mereka bisa membuka aplikasi tanpa
@@ -47,7 +49,7 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
       )}
 
       {networkError && (
-        <div className="error-message" style={{ marginBottom: 18 }}>
+        <div className="error-message" style={{ marginBottom: 14 }}>
           {networkError}
         </div>
       )}
@@ -55,60 +57,63 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
       {networkLoading ? (
         <p style={{ color: "#6b7280", fontSize: 13 }}>Mendeteksi alamat jaringan...</p>
       ) : (
-        <>
-          {/* STATUS SERVER */}
+        <div className="settings-cols">
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              border: "1px solid var(--line)",
-              borderRadius: 8,
-              padding: "12px 14px",
-              marginBottom: 22,
-            }}
-          >
-            <strong style={{ fontSize: 13, marginBottom: 4 }}>
-              {networkInfo
-                ? networkInfo.mode === "development"
-                  ? "Server lokal / development"
-                  : "Server sedang berjalan"
-                : "Server tidak terdeteksi"}
-            </strong>
+          {/* KOLOM KIRI: status server + alamat untuk dibagikan */}
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  backgroundColor: networkInfo ? "#16a34a" : "#dc2626",
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 13, color: "#6b7280" }}>
+          <div>
+            {/* STATUS SERVER */}
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                border: "1px solid var(--line)",
+                borderRadius: 8,
+                padding: "12px 14px",
+                marginBottom: 16,
+              }}
+            >
+              <strong style={{ fontSize: 13, marginBottom: 4 }}>
                 {networkInfo
-                  ? `Laptop ini: ${networkInfo.hostname} · Backend port ${networkInfo.backend_port} · Frontend port ${networkInfo.frontend_port}`
-                  : "Muat ulang halaman ini setelah backend & frontend dijalankan."}
-              </span>
+                  ? networkInfo.mode === "development"
+                    ? "Server lokal / development"
+                    : "Server sedang berjalan"
+                  : "Server tidak terdeteksi"}
+              </strong>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    backgroundColor: networkInfo ? "#16a34a" : "#dc2626",
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: 13, color: "#6b7280" }}>
+                  {networkInfo
+                    ? `Laptop ini: ${networkInfo.hostname} · Backend port ${networkInfo.backend_port} · Frontend port ${networkInfo.frontend_port}`
+                    : "Muat ulang halaman ini setelah backend & frontend dijalankan."}
+                </span>
+              </div>
+
+              {networkInfo && networkInfo.addresses.length > 0 && (
+                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                  {networkInfo.addresses
+                    .map((addr) => `${addr.interface} — ${addr.ip}`)
+                    .join(" · ")}
+                </div>
+              )}
             </div>
 
-            {networkInfo && networkInfo.addresses.length > 0 && (
-              <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                {networkInfo.addresses
-                  .map((addr) => `${addr.interface} — ${addr.ip}`)
-                  .join(" · ")}
-              </div>
-            )}
-          </div>
+            {/* DAFTAR ALAMAT IP */}
 
-          {networkInfo && networkInfo.mode !== "development" && (
-            <>
-              {/* DAFTAR ALAMAT IP */}
-
-              {networkInfo.addresses.length > 0 ? (
-                <div style={{ marginBottom: 26 }}>
+            {showShare &&
+              (networkInfo.addresses.length > 0 ? (
+                <div>
                   <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 10 }}>
                     Alamat untuk Dibagikan
                   </label>
@@ -156,51 +161,53 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
                   ))}
                 </div>
               ) : (
-                <div className="error-message" style={{ marginBottom: 22 }}>
+                <div className="error-message">
                   Tidak ada IP jaringan lokal yang terdeteksi. Pastikan
                   laptop ini sudah terhubung ke WiFi (bukan cuma
                   Ethernet/hotspot pribadi), lalu muat ulang tab ini.
                 </div>
-              )}
+              ))}
+          </div>
 
-              {/* LANGKAH-LANGKAH */}
+          {/* KOLOM KANAN: langkah-langkah */}
 
-              <div>
-                <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 10 }}>
-                  Cara Mengakses dari Laptop Lain
-                </label>
+          {showShare && (
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 10 }}>
+                Cara Mengakses dari Laptop Lain
+              </label>
 
-                <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#374151", lineHeight: 1.9, textAlign: "left" }}>
-                  <li>Pastikan laptop lain terhubung ke <strong>WiFi yang sama</strong> dengan laptop ini.</li>
-                  <li>Jalankan project ini dengan <code>python run_server.py</code> (BUKAN <code>run.py</code> biasa) — cuma <code>run_server.py</code> yang membuka akses ke WiFi.</li>
-                  <li>Pastikan backend & frontend masih berjalan di laptop ini (jangan ditutup terminalnya).</li>
-                  <li>Buka browser di laptop lain, lalu ketik/tempel salah satu alamat di atas.</li>
-                  <li>Login seperti biasa — data (soal, tryout, nilai) sama persis karena mengakses server yang sama.</li>
-                </ol>
+              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#374151", lineHeight: 1.7, textAlign: "left" }}>
+                <li>Pastikan laptop lain terhubung ke <strong>WiFi yang sama</strong> dengan laptop ini.</li>
+                <li>Jalankan project ini dengan <code>python run_server.py</code> (BUKAN <code>run.py</code> biasa) — cuma <code>run_server.py</code> yang membuka akses ke WiFi.</li>
+                <li>Pastikan backend & frontend masih berjalan di laptop ini (jangan ditutup terminalnya).</li>
+                <li>Buka browser di laptop lain, lalu ketik/tempel salah satu alamat dari daftar "Alamat untuk Dibagikan".</li>
+                <li>Login seperti biasa — data (soal, tryout, nilai) sama persis karena mengakses server yang sama.</li>
+              </ol>
 
-                <div
-                  style={{
-                    backgroundColor: "#fff3cd",
-                    color: "#856404",
-                    padding: "10px 12px",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    marginTop: "18px",
-                  }}
-                >
-                  ⚠️ Kalau laptop lain tetap tidak bisa connect, kemungkinan
-                  besar <strong>Windows Firewall</strong> di laptop ini
-                  memblokir port {networkInfo?.backend_port ?? 8000} &{" "}
-                  {networkInfo?.frontend_port ?? 5173}. Izinkan akses saat
-                  muncul pop-up "Windows Defender Firewall" ketika server
-                  pertama kali dijalankan, atau tambahkan izin manual lewat
-                  Control Panel &gt; Windows Defender Firewall &gt; Allow an
-                  app.
-                </div>
+              <div
+                style={{
+                  backgroundColor: "#fff3cd",
+                  color: "#856404",
+                  padding: "10px 12px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  marginTop: "14px",
+                }}
+              >
+                ⚠️ Kalau laptop lain tetap tidak bisa connect, kemungkinan
+                besar <strong>Windows Firewall</strong> di laptop ini
+                memblokir port {networkInfo?.backend_port ?? 8000} &{" "}
+                {networkInfo?.frontend_port ?? 5173}. Izinkan akses saat
+                muncul pop-up "Windows Defender Firewall" ketika server
+                pertama kali dijalankan, atau tambahkan izin manual lewat
+                Control Panel &gt; Windows Defender Firewall &gt; Allow an
+                app.
               </div>
-            </>
+            </div>
           )}
-        </>
+
+        </div>
       )}
     </div>
   );

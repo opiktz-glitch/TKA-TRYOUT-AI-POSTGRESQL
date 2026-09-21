@@ -1,42 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import StatCard from "../components/StatCard";
-import { IconBarChart, IconCheck, IconTarget, IconUsers } from "../components/Icons";
+import ScoreTable from "../components/ScoreTable";
+import {
+  IconBarChart,
+  IconCheck,
+  IconSearch,
+  IconTarget,
+  IconUsers,
+} from "../components/Icons";
 
 import { getTeacherScores, getTryouts } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { readPageCache, writePageCache } from "../services/pageCache";
-
-
-// =====================================================
-// HELPER — format tanggal "8 Sep 2026, 14:30"
-// =====================================================
-
-function formatDate(value) {
-  if (!value) {
-    return "-";
-  }
-
-  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(value);
-  const isoString = hasTimezone ? value : `${value}Z`;
-
-  const date = new Date(isoString);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 
 // =====================================================
@@ -76,6 +53,10 @@ function TeacherScores() {
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [selectedTryoutId, setSelectedTryoutId] = useState("");
+
+  // Filter status hanya di sisi browser (tidak dikirim ke server),
+  // jadi tidak ikut kunci cache.
+  const [selectedStatus, setSelectedStatus] = useState("");
 
 
   const loadTryoutOptions = useCallback(async () => {
@@ -147,14 +128,32 @@ function TeacherScores() {
 
 
   const filteredScores = scores.filter((item) => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
 
-    return (
+    const matchesSearch =
+      !keyword ||
       item.student_name?.toLowerCase().includes(keyword) ||
       item.student_code?.toLowerCase().includes(keyword) ||
-      item.tryout_title?.toLowerCase().includes(keyword)
-    );
+      item.tryout_title?.toLowerCase().includes(keyword);
+
+    const matchesStatus =
+      !selectedStatus ||
+      (selectedStatus === "PASSED" && item.passed === true) ||
+      (selectedStatus === "FAILED" && item.passed === false);
+
+    return matchesSearch && matchesStatus;
   });
+
+
+  const hasActiveFilter = Boolean(
+    search.trim() || selectedTryoutId || selectedStatus
+  );
+
+  function resetFilters() {
+    setSearch("");
+    setSelectedTryoutId("");
+    setSelectedStatus("");
+  }
 
 
   const summary = useMemo(() => {
@@ -193,177 +192,116 @@ function TeacherScores() {
 
 
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <>
+      {/* HEADER */}
 
-      <main className="main-content">
-        <Header />
+      <div className="page-header">
+        <div>
+          <h1>Nilai</h1>
+          <p>Rekap skor siswa dari tryout yang kamu buat</p>
+        </div>
+      </div>
 
-        <div className="content">
+      {/* RINGKASAN */}
 
-          {/* HEADER */}
+      <div className="stat-grid">
+        <StatCard
+          icon={<IconUsers />}
+          title="Total Peserta"
+          value={summary.totalAttempts}
+          description="Attempt selesai"
+        />
 
-          <div className="page-header">
-            <div>
-              <h1>Nilai</h1>
-              <p>Rekap skor siswa dari tryout yang kamu buat</p>
-            </div>
-          </div>
+        <StatCard
+          icon={<IconTarget />}
+          title="Rata-rata Skor"
+          value={summary.averageScore}
+          description="Dari semua peserta"
+        />
 
-          {/* RINGKASAN */}
+        <StatCard
+          icon={<IconCheck />}
+          title="Tingkat Lulus"
+          value={`${summary.passRate}%`}
+          description="Dari peserta yang selesai"
+        />
 
-          <div className="stat-grid">
-            <StatCard
-              icon={<IconUsers />}
-              title="Total Peserta"
-              value={summary.totalAttempts}
-              description="Attempt selesai"
+        <StatCard
+          icon={<IconBarChart />}
+          title="Paket Tryout"
+          value={summary.totalTryouts}
+          description="Sudah ada peserta"
+        />
+      </div>
+
+      {/* TABLE */}
+
+      <div className="score-card">
+
+        <div className="score-toolbar">
+          <label className="score-search">
+            <IconSearch size={16} />
+            <input
+              type="text"
+              placeholder="Cari siswa, NIS, tryout"
+              aria-label="Cari nilai"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
+          </label>
 
-            <StatCard
-              icon={<IconTarget />}
-              title="Rata-rata Skor"
-              value={summary.averageScore}
-              description="Dari semua peserta"
-            />
+          <select
+            className={`score-select is-wide${selectedTryoutId ? " is-active" : ""}`}
+            aria-label="Filter tryout"
+            value={selectedTryoutId}
+            onChange={(e) => setSelectedTryoutId(e.target.value)}
+          >
+            <option value="">Semua Tryout</option>
 
-            <StatCard
-              icon={<IconCheck />}
-              title="Tingkat Lulus"
-              value={`${summary.passRate}%`}
-              description="Dari peserta yang selesai"
-            />
+            {tryoutOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
 
-            <StatCard
-              icon={<IconBarChart />}
-              title="Paket Tryout"
-              value={summary.totalTryouts}
-              description="Sudah ada peserta"
-            />
-          </div>
-
-          {/* TABLE */}
-
-          <div className="dashboard-card">
-
-            <div className="user-toolbar" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <input
-                type="text"
-                placeholder="Cari nama siswa / NIS / judul tryout..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-
-              <select
-                value={selectedTryoutId}
-                onChange={(e) => setSelectedTryoutId(e.target.value)}
-                style={{
-                  padding: "10px 13px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 7,
-                  outline: "none",
-                  fontSize: 13,
-                }}
-              >
-                <option value="">Semua Tryout</option>
-
-                {tryoutOptions.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {loading && (
-              <div className="loading-message">Memuat rekap nilai...</div>
-            )}
-
-            {error && <div className="error-message">{error}</div>}
-
-            {!loading && !error && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th>NIS</th>
-                      <th>Nama Siswa</th>
-                      <th>Tryout</th>
-                      <th>Mapel</th>
-                      <th>Skor</th>
-                      <th>Benar / Salah / Kosong</th>
-                      <th>Status</th>
-                      <th>Selesai</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredScores.map((item) => (
-                      <tr key={item.attempt_id}>
-                        <td>{item.student_code || "-"}</td>
-                        <td><strong>{item.student_name || "-"}</strong></td>
-                        <td>{item.tryout_title}</td>
-                        <td>{item.subject_name || "-"}</td>
-
-                        <td>
-                          <strong>
-                            {item.score !== null && item.score !== undefined
-                              ? Math.round(item.score * 100) / 100
-                              : "-"}
-                          </strong>
-                          {item.max_score ? ` / ${item.max_score}` : ""}
-                        </td>
-
-                        <td>
-                          <span style={{ color: "var(--success, #3F7D58)" }}>
-                            {item.correct_count ?? 0}
-                          </span>
-                          {" / "}
-                          <span style={{ color: "#dc2626" }}>
-                            {item.wrong_count ?? 0}
-                          </span>
-                          {" / "}
-                          <span style={{ color: "#9ca3af" }}>
-                            {item.unanswered_count ?? 0}
-                          </span>
-                        </td>
-
-                        <td>
-                          {item.passed === true && (
-                            <span className="status-active">Lulus</span>
-                          )}
-
-                          {item.passed === false && (
-                            <span className="status-inactive">Tidak Lulus</span>
-                          )}
-
-                          {item.passed === null && (
-                            <span className="status-inactive">-</span>
-                          )}
-                        </td>
-
-                        <td>{formatDate(item.finished_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredScores.length === 0 && (
-                  <div className="empty-message">
-                    {search || selectedTryoutId
-                      ? "Tidak ada hasil yang cocok."
-                      : "Belum ada siswa yang menyelesaikan tryout kamu."}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
+          <select
+            className={`score-select${selectedStatus ? " is-active" : ""}`}
+            aria-label="Filter status kelulusan"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="">Semua Status</option>
+            <option value="PASSED">Lulus</option>
+            <option value="FAILED">Tidak lulus</option>
+          </select>
         </div>
 
-      </main>
-    </div>
+        {loading && (
+          <div className="loading-message">Memuat rekap nilai...</div>
+        )}
+
+        {error && <div className="error-message">{error}</div>}
+
+        {!loading && !error && (
+          <ScoreTable
+            rows={filteredScores}
+            resetKey={[
+              search.trim(),
+              selectedTryoutId,
+              selectedStatus,
+            ].join("|")}
+            hasActiveFilter={hasActiveFilter}
+            onReset={resetFilters}
+            emptyMessage={
+              hasActiveFilter
+                ? "Tidak ada hasil yang cocok."
+                : "Belum ada siswa yang menyelesaikan tryout kamu."
+            }
+          />
+        )}
+      </div>
+    </>
   );
 }
 

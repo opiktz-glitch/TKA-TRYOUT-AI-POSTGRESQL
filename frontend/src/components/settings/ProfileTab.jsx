@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./settings.css";
 
 import { IconUser, IconKey } from "../Icons";
 import { updateMyAccountProfile } from "../../services/api";
@@ -54,108 +55,82 @@ function ProfileTab() {
   }
 
   return (
-    <>
+    <div className="settings-grid is-profile">
+
       {/* KARTU AKUN (read-only) + tombol ubah password */}
 
-      <div
-        className="dashboard-card"
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto 20px",
-          padding: "24px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: "50%",
-              background: "var(--accent)",
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
+      <div className="dashboard-card settings-card">
+        <div className="settings-account">
+          <div className="settings-avatar">
             <IconUser size={24} />
           </div>
 
-          <div style={{ flex: 1, minWidth: 140 }}>
+          <div style={{ minWidth: 0 }}>
             <strong style={{ fontSize: 16 }}>{user?.full_name}</strong>
             <div style={{ fontSize: 13, color: "#6b7280" }}>
               @{user?.username} &middot; {user?.role}
             </div>
           </div>
-
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => navigate("/change-password")}
-          >
-            <IconKey size={15} />
-            Ubah Password
-          </button>
         </div>
+
+        <button
+          type="button"
+          className="secondary-button settings-full"
+          onClick={() => navigate("/change-password")}
+        >
+          <IconKey size={15} />
+          Ubah Password
+        </button>
       </div>
 
       {/* FORM EDIT PROFIL */}
 
-      <div
-        className="dashboard-card"
-        style={{ maxWidth: "700px", margin: "0 auto", padding: "24px" }}
-      >
+      <div className="dashboard-card settings-card">
 
-        <h2 style={{ marginTop: 0, marginBottom: 6 }}>Edit Profil</h2>
-        <p style={{ marginTop: 0, marginBottom: 22, color: "#6b7280", fontSize: 13 }}>
+        <h2>Edit Profil</h2>
+        <p className="settings-desc">
           Username dan role tidak bisa diubah di sini.
         </p>
 
         {error && (
-          <div className="form-error-message" style={{ marginBottom: 18 }}>
+          <div className="form-error-message" style={{ marginBottom: 14 }}>
             {error}
           </div>
         )}
 
         {success && (
-          <div className="success-message" style={{ marginBottom: 18 }}>
+          <div className="success-message" style={{ marginBottom: 14 }}>
             {success}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
 
-          <div className="form-group">
-            <label>Nama Lengkap</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Masukkan nama lengkap"
-              required
-            />
-          </div>
+          <div className="settings-fields">
+            <div className="form-group">
+              <label>Nama Lengkap</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Masukkan nama lengkap"
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label>Username</label>
-            <input
-              type="text"
-              value={user?.username || ""}
-              disabled
-            />
+            <div className="form-group">
+              <label>Username</label>
+              <input
+                type="text"
+                value={user?.username || ""}
+                disabled
+              />
+            </div>
           </div>
 
           <div
             style={{
-              marginTop: "24px",
+              marginTop: "8px",
               display: "flex",
               gap: 10,
               justifyContent: "flex-end",
@@ -181,7 +156,7 @@ function ProfileTab() {
 
         </form>
       </div>
-    </>
+    </div>
   );
 }
 

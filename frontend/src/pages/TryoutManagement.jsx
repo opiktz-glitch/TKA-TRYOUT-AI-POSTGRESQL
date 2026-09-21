@@ -2,14 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import Pagination from "../components/Pagination";
 import QuestionImage from "../components/QuestionImage";
+import TryoutQuestionPicker from "../components/TryoutQuestionPicker";
+import "../components/TryoutWizard.css";
+import { useAuth } from "../auth/AuthContext";
 import { IconEdit, IconTrash, IconCheck, IconEye } from "../components/Icons";
 import {
   getSubjects,
   getTryouts,
   getTryout,
   getTryoutReview,
-  getAvailableQuestions,
   createTryout,
   updateTryout,
   deleteTryout as deleteTryoutApi,
@@ -32,27 +35,39 @@ const DIFFICULTIES = [
 
 const GRADES = ["4", "5", "6"];
 
+// Langkah pada form Tambah/Edit Paket Tryout
+const WIZARD_STEPS = [
+  { n: 1, label: "Informasi paket" },
+  { n: 2, label: "Pilih soal" },
+  { n: 3, label: "Tinjau" },
+];
+
 function TryoutManagement() {
+  const { user } = useAuth();
+
+  // Cakupan awal bank soal di form tryout: guru langsung melihat soal
+  // buatannya sendiri (bisa diganti ke "Semua soal" di form), admin
+  // langsung melihat semuanya.
+  const defaultBankScope = user?.role === "GURU" ? "mine" : "all";
+
   // =====================================================
   // DATA
   // =====================================================
 
   const [tryouts, setTryouts] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [availableQuestions, setAvailableQuestions] = useState([]);
-  const [bankSoalDifficultyFilter, setBankSoalDifficultyFilter] =
-    useState("");
 
   // =====================================================
   // UI STATE
   // =====================================================
 
   const [loading, setLoading] = useState(true);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingTryout, setEditingTryout] = useState(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [bulkPoints, setBulkPoints] = useState("1");
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewData, setReviewData] = useState(null);
@@ -152,31 +167,6 @@ function TryoutManagement() {
   }, [loadSubjects, loadTryouts]);
 
   // =====================================================
-  // LOAD AVAILABLE QUESTIONS
-  // =====================================================
-
-  async function loadAvailableQuestions(subjectId) {
-    if (!subjectId) {
-      setAvailableQuestions([]);
-      return;
-    }
-
-    try {
-      setLoadingQuestions(true);
-
-      const data = await getAvailableQuestions(subjectId);
-
-      setAvailableQuestions(data);
-    } catch (err) {
-      console.error("LOAD QUESTIONS ERROR:", err);
-      setFormError(err.message || "Gagal mengambil bank soal");
-      setAvailableQuestions([]);
-    } finally {
-      setLoadingQuestions(false);
-    }
-  }
-
-  // =====================================================
   // GET SUBJECT NAME
   // =====================================================
 
@@ -207,30 +197,36 @@ function TryoutManagement() {
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-
     if (name === "subject_id") {
+      if (
+        form.subject_id &&
+        String(form.subject_id) !== String(value) &&
+        form.questions.length > 0
+      ) {
+        const confirmed = window.confirm(
+          `Mengganti mata pelajaran akan mengosongkan ${form.questions.length} soal yang sudah dipilih. Lanjutkan?`
+        );
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      // Soal hanya boleh berasal dari mata pelajaran yang sama
+      // dengan paket, jadi pilihan soal dikosongkan saat mapel diganti.
       setForm((prev) => ({
         ...prev,
         subject_id: value,
         questions: [],
       }));
 
-      setAvailableQuestions([]);
-      setBankSoalDifficultyFilter("");
-
-      if (value) {
-        // Bank soal ditampilkan untuk SEMUA tingkat kesulitan
-        // sekaligus (EASY/MEDIUM/HARD) selama mata pelajarannya
-        // sama — tidak lagi difilter per tingkat kesulitan.
-        loadAvailableQuestions(value);
-      }
-
       return;
     }
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   }
 
   // =====================================================
@@ -240,8 +236,8 @@ function TryoutManagement() {
   function openModal() {
     setEditingTryout(null);
     setForm(createEmptyForm());
-    setAvailableQuestions([]);
-    setBankSoalDifficultyFilter("");
+    setWizardStep(1);
+    setBulkPoints("1");
     setFormError("");
     setFormSuccess("");
     setShowModal(true);
@@ -257,7 +253,6 @@ function TryoutManagement() {
       setFormError("");
       setFormSuccess("");
       setEditingTryout(tryout);
-      setBankSoalDifficultyFilter("");
 
       const detail = await getTryout(tryout.id);
 
@@ -270,16 +265,23 @@ function TryoutManagement() {
         max_score: detail.max_score || 100,
         difficulty: detail.difficulty || "",
         is_active: detail.is_active !== false,
+        // Selain id/nomor/bobot, backend juga mengirim snapshot soal
+        // (teks, tingkat kesulitan, dst.) supaya daftar "Terpilih"
+        // bisa tampil tanpa harus memuat seluruh bank soal.
         questions: (detail.questions || []).map((item) => ({
           question_id: Number(item.question_id),
           question_number: Number(item.question_number),
           points: Number(item.points || 1),
+          question_text: item.question_text || "",
+          difficulty: item.difficulty || "",
+          has_image: Boolean(item.has_image),
+          is_active: item.is_active !== false,
         })),
       });
 
+      setWizardStep(1);
+      setBulkPoints("1");
       setShowModal(true);
-
-      await loadAvailableQuestions(detail.subject_id);
     } catch (err) {
       console.error("OPEN EDIT TRYOUT ERROR:", err);
       setEditingTryout(null);
@@ -299,7 +301,7 @@ function TryoutManagement() {
     setShowModal(false);
     setEditingTryout(null);
     setForm(createEmptyForm());
-    setAvailableQuestions([]);
+    setWizardStep(1);
     setFormError("");
     setFormSuccess("");
   }
@@ -347,168 +349,11 @@ function TryoutManagement() {
   }
 
   // =====================================================
-  // TOGGLE QUESTION
-  // =====================================================
-
-  function toggleQuestion(question) {
-    const questionId = Number(question.id);
-
-    const exists = form.questions.some(
-      (item) => Number(item.question_id) === questionId
-    );
-
-    if (exists) {
-      setForm((prev) => {
-        const remaining = prev.questions.filter(
-          (item) => Number(item.question_id) !== questionId
-        );
-
-        return {
-          ...prev,
-          questions: remaining.map((item, index) => ({
-            ...item,
-            question_number: index + 1,
-          })),
-        };
-      });
-
-      return;
-    }
-
-    setForm((prev) => {
-      const nextNumber = prev.questions.length + 1;
-
-      return {
-        ...prev,
-        questions: [
-          ...prev.questions,
-          {
-            question_id: questionId,
-            question_number: nextNumber,
-            points: 1,
-          },
-        ],
-      };
-    });
-  }
-
-  // =====================================================
-  // CHECK QUESTION SELECTED
-  // =====================================================
-
-  function isQuestionSelected(questionId) {
-    return form.questions.some(
-      (item) => Number(item.question_id) === Number(questionId)
-    );
-  }
-
-  // =====================================================
-  // CHANGE QUESTION POINT
-  // =====================================================
-
-  function handleQuestionPointsChange(questionId, value) {
-    setForm((prev) => ({
-      ...prev,
-      questions: prev.questions.map((item) => {
-        if (Number(item.question_id) !== Number(questionId)) {
-          return item;
-        }
-
-        return {
-          ...item,
-          points: value,
-        };
-      }),
-    }));
-  }
-
-  // =====================================================
-  // MOVE QUESTION UP
-  // =====================================================
-
-  function moveQuestionUp(questionId) {
-    setForm((prev) => {
-      const index = prev.questions.findIndex(
-        (item) => Number(item.question_id) === Number(questionId)
-      );
-
-      if (index <= 0) {
-        return prev;
-      }
-
-      const newQuestions = [...prev.questions];
-
-      [newQuestions[index - 1], newQuestions[index]] = [
-        newQuestions[index],
-        newQuestions[index - 1],
-      ];
-
-      return {
-        ...prev,
-        questions: newQuestions.map((item, itemIndex) => ({
-          ...item,
-          question_number: itemIndex + 1,
-        })),
-      };
-    });
-  }
-
-  // =====================================================
-  // MOVE QUESTION DOWN
-  // =====================================================
-
-  function moveQuestionDown(questionId) {
-    setForm((prev) => {
-      const index = prev.questions.findIndex(
-        (item) => Number(item.question_id) === Number(questionId)
-      );
-
-      if (index === -1 || index >= prev.questions.length - 1) {
-        return prev;
-      }
-
-      const newQuestions = [...prev.questions];
-
-      [newQuestions[index], newQuestions[index + 1]] = [
-        newQuestions[index + 1],
-        newQuestions[index],
-      ];
-
-      return {
-        ...prev,
-        questions: newQuestions.map((item, itemIndex) => ({
-          ...item,
-          question_number: itemIndex + 1,
-        })),
-      };
-    });
-  }
-
-  // =====================================================
-  // REMOVE SELECTED QUESTION
-  // =====================================================
-
-  function removeQuestion(questionId) {
-    setForm((prev) => {
-      const remaining = prev.questions.filter(
-        (item) => Number(item.question_id) !== Number(questionId)
-      );
-
-      return {
-        ...prev,
-        questions: remaining.map((item, index) => ({
-          ...item,
-          question_number: index + 1,
-        })),
-      };
-    });
-  }
-
-  // =====================================================
   // VALIDATE FORM
   // =====================================================
 
-  function validateForm() {
+  // Langkah 1 — informasi paket
+  function validateInfo() {
     if (!form.title.trim()) {
       return "Judul tryout wajib diisi";
     }
@@ -529,6 +374,11 @@ function TryoutManagement() {
       return "Nilai maksimal harus lebih dari 0";
     }
 
+    return null;
+  }
+
+  // Langkah 2 — soal terpilih
+  function validateQuestions() {
     if (form.questions.length === 0) {
       return "Minimal pilih satu soal untuk tryout";
     }
@@ -540,9 +390,73 @@ function TryoutManagement() {
       if (!Number.isFinite(points) || points <= 0) {
         return `Point soal nomor ${index + 1} harus lebih dari 0`;
       }
+
+      if (question.is_active === false) {
+        return `Soal nomor ${index + 1} (#${question.question_id}) sudah nonaktif. Hapus dari daftar terpilih.`;
+      }
     }
 
     return null;
+  }
+
+  function validateForm() {
+    return validateInfo() || validateQuestions();
+  }
+
+  // =====================================================
+  // PINDAH LANGKAH
+  // =====================================================
+
+  // Pindah ke langkah tertentu; langkah sebelumnya harus valid dulu.
+  function goToStep(target) {
+    if (saving) {
+      return;
+    }
+
+    setFormError("");
+    setFormSuccess("");
+
+    if (target > 1) {
+      const infoError = validateInfo();
+
+      if (infoError) {
+        setFormError(infoError);
+        setWizardStep(1);
+        return;
+      }
+    }
+
+    if (target > 2) {
+      const questionsError = validateQuestions();
+
+      if (questionsError) {
+        setFormError(questionsError);
+        setWizardStep(2);
+        return;
+      }
+    }
+
+    setWizardStep(target);
+  }
+
+  // Menyamakan bobot semua soal terpilih (langkah "Tinjau").
+  function applyBulkPoints() {
+    const value = Number(bulkPoints);
+
+    if (!Number.isFinite(value) || value <= 0) {
+      setFormError("Bobot per soal harus lebih dari 0");
+      return;
+    }
+
+    setFormError("");
+
+    setForm((prev) => ({
+      ...prev,
+      questions: prev.questions.map((item) => ({
+        ...item,
+        points: value,
+      })),
+    }));
   }
 
   // =====================================================
@@ -551,6 +465,11 @@ function TryoutManagement() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    // Form ini bertahap: kirim hanya dari langkah terakhir (Tinjau).
+    if (wizardStep !== 3) {
+      return;
+    }
 
     setFormError("");
     setFormSuccess("");
@@ -602,7 +521,7 @@ function TryoutManagement() {
         setShowModal(false);
         setEditingTryout(null);
         setForm(createEmptyForm());
-        setAvailableQuestions([]);
+        setWizardStep(1);
         setFormSuccess("");
       }, 900);
     } catch (err) {
@@ -718,24 +637,30 @@ function TryoutManagement() {
   }, [filteredTryouts, currentPage]);
 
   // =====================================================
-  // BANK SOAL — FILTER TINGKAT KESULITAN (di dalam modal)
-  //
-  // availableQuestions sendiri SUDAH berisi semua tingkat
-  // kesulitan (tidak difilter saat fetch dari backend). Filter
-  // di bawah ini murni tampilan di sisi frontend supaya guru
-  // bisa mempersempit daftar kalau paket soalnya banyak, tanpa
-  // membatasi soal mana yang boleh benar-benar dipilih.
+  // RINGKASAN SOAL TERPILIH (untuk footer & langkah "Tinjau")
   // =====================================================
 
-  const filteredAvailableQuestions = useMemo(() => {
-    if (!bankSoalDifficultyFilter) {
-      return availableQuestions;
-    }
+  const totalPoints = useMemo(
+    () =>
+      Math.round(
+        form.questions.reduce(
+          (total, item) => total + Number(item.points || 0),
+          0
+        ) * 100
+      ) / 100,
+    [form.questions]
+  );
 
-    return availableQuestions.filter(
-      (question) => question.difficulty === bankSoalDifficultyFilter
-    );
-  }, [availableQuestions, bankSoalDifficultyFilter]);
+  const difficultyBreakdown = useMemo(
+    () =>
+      DIFFICULTIES.map((item) => ({
+        ...item,
+        count: form.questions.filter(
+          (question) => question.difficulty === item.value
+        ).length,
+      })),
+    [form.questions]
+  );
 
   // =====================================================
   // RENDER
@@ -943,113 +868,14 @@ function TryoutManagement() {
                   </div>
                 )}
 
-                {filteredTryouts.length > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: 12,
-                      padding: "14px 4px",
-                      // Sama seperti Bank Soal (QuestionManagement.jsx) —
-                      // lihat komentar lengkap di sana. Nempel di bawah
-                      // area scroll (.content) supaya tidak perlu scroll
-                      // ke paling bawah tabel dulu baru tombol halaman
-                      // muncul.
-                      position: "sticky",
-                      bottom: 0,
-                      background: "white",
-                      borderTop: "1px solid var(--line)",
-                      boxShadow: "0 -2px 6px rgba(0, 0, 0, 0.04)",
-                      zIndex: 2,
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: "#6b7280" }}>
-                      Menampilkan{" "}
-                      {(currentPage - 1) * TRYOUTS_PER_PAGE + 1}
-                      {"–"}
-                      {Math.min(
-                        currentPage * TRYOUTS_PER_PAGE,
-                        filteredTryouts.length
-                      )}{" "}
-                      dari {filteredTryouts.length} tryout
-                    </span>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        Sebelumnya
-                      </button>
-
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        // Kalau halamannya banyak, cukup tampilkan halaman
-                        // pertama, terakhir, dan beberapa di sekitar halaman
-                        // aktif — sisanya diringkas jadi "…" supaya baris
-                        // nomor halaman tidak melebar tak terbatas.
-                        .filter((page) => {
-                          if (totalPages <= 7) return true;
-                          return (
-                            page === 1 ||
-                            page === totalPages ||
-                            Math.abs(page - currentPage) <= 1
-                          );
-                        })
-                        .reduce((acc, page, idx, arr) => {
-                          if (idx > 0 && page - arr[idx - 1] > 1) {
-                            acc.push("ellipsis-" + page);
-                          }
-                          acc.push(page);
-                          return acc;
-                        }, [])
-                        .map((item) =>
-                          typeof item === "string" ? (
-                            <span
-                              key={item}
-                              style={{ padding: "0 4px", color: "#9ca3af", fontSize: 13 }}
-                            >
-                              …
-                            </span>
-                          ) : (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => setCurrentPage(item)}
-                              style={{
-                                minWidth: 32,
-                                height: 32,
-                                borderRadius: 6,
-                                border: "1px solid var(--line)",
-                                background:
-                                  item === currentPage ? "var(--accent)" : "white",
-                                color: item === currentPage ? "white" : "#374151",
-                                fontWeight: item === currentPage ? 600 : 500,
-                                fontSize: 13,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {item}
-                            </button>
-                          )
-                        )}
-
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() =>
-                          setCurrentPage((p) => Math.min(totalPages, p + 1))
-                        }
-                        disabled={currentPage === totalPages}
-                      >
-                        Berikutnya
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredTryouts.length}
+                  pageSize={TRYOUTS_PER_PAGE}
+                  itemLabel="tryout"
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </div>
@@ -1057,17 +883,16 @@ function TryoutManagement() {
       </main>
 
       {/* =====================================================
-          MODAL TAMBAH / EDIT TRYOUT
+          MODAL TAMBAH / EDIT TRYOUT (bertahap: Informasi -> Pilih soal -> Tinjau)
       ===================================================== */}
 
       {showModal && (
         <div className="modal-overlay">
           <div
-            className="modal question-modal"
-            style={{ width: "900px", maxWidth: "95vw" }}
+            className={`modal tryout-wizard${wizardStep === 2 ? " is-wide" : ""}`}
           >
-            <div className="modal-header">
-              <div>
+            <div className="tw-header">
+              <div className="tw-header-title">
                 <h2>
                   {editingTryout ? "Edit Paket Tryout" : "Tambah Paket Tryout"}
                 </h2>
@@ -1075,6 +900,26 @@ function TryoutManagement() {
                   Tentukan informasi dan soal yang digunakan dalam paket tryout.
                 </p>
               </div>
+
+              <ol className="tw-steps">
+              {WIZARD_STEPS.map((step) => (
+                <li key={step.n}>
+                  <button
+                    type="button"
+                    className={`tw-step${
+                      wizardStep === step.n ? " is-active" : ""
+                    }${wizardStep > step.n ? " is-done" : ""}`}
+                    onClick={() => goToStep(step.n)}
+                    disabled={saving}
+                  >
+                    <span className="tw-step-num">
+                      {wizardStep > step.n ? <IconCheck size={12} /> : step.n}
+                    </span>
+                    <span className="tw-step-label">{step.label}</span>
+                  </button>
+                </li>
+              ))}
+              </ol>
 
               <button
                 type="button"
@@ -1086,492 +931,302 @@ function TryoutManagement() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Judul Tryout *</label>
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="Contoh: TKA Matematika Kelas 12 - Tryout 1"
-                  value={form.title}
-                  onChange={handleChange}
-                  disabled={saving}
-                  required
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="tw-form">
+              <div className={`tw-body${wizardStep === 2 ? " is-picker" : ""}`}>
+                {/* =================================================
+                    LANGKAH 1 — INFORMASI PAKET
+                ================================================= */}
 
-              <div className="form-group">
-                <label>Deskripsi</label>
-                <textarea
-                  name="description"
-                  rows="3"
-                  placeholder="Deskripsi paket tryout..."
-                  value={form.description}
-                  onChange={handleChange}
-                  disabled={saving}
-                />
-              </div>
+                {wizardStep === 1 && (
+                  <>
+                    <div className="form-group">
+                      <label>Judul Tryout *</label>
+                      <input
+                        type="text"
+                        name="title"
+                        placeholder="Contoh: TKA Matematika Kelas 12 - Tryout 1"
+                        value={form.title}
+                        onChange={handleChange}
+                        disabled={saving}
+                        required
+                      />
+                    </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Mata Pelajaran *</label>
-                  <select
-                    name="subject_id"
-                    value={form.subject_id}
-                    onChange={handleChange}
-                    disabled={saving}
-                    required
-                  >
-                    <option value="">-- Pilih Mata Pelajaran --</option>
-                    {subjects
-                      .filter((subject) => subject.is_active)
-                      .map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.code} - {subject.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                    <div className="form-group">
+                      <label>Deskripsi</label>
+                      <textarea
+                        name="description"
+                        rows="3"
+                        placeholder="Deskripsi paket tryout..."
+                        value={form.description}
+                        onChange={handleChange}
+                        disabled={saving}
+                      />
+                    </div>
 
-                <div className="form-group">
-                  <label>Kelas</label>
-                  <select
-                    name="grade"
-                    value={form.grade}
-                    onChange={handleChange}
-                    disabled={saving}
-                  >
-                    <option value="">Pilih Kelas</option>
-                    {GRADES.map((grade) => (
-                      <option key={grade} value={grade}>
-                        Kelas {grade}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Mata Pelajaran *</label>
+                        <select
+                          name="subject_id"
+                          value={form.subject_id}
+                          onChange={handleChange}
+                          disabled={saving}
+                          required
+                        >
+                          <option value="">-- Pilih Mata Pelajaran --</option>
+                          {subjects
+                            .filter((subject) => subject.is_active)
+                            .map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.code} - {subject.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Durasi (menit) *</label>
-                  <input
-                    type="number"
-                    name="duration_minutes"
-                    min="1"
-                    value={form.duration_minutes}
-                    onChange={handleChange}
-                    disabled={saving}
-                    required
-                  />
-                </div>
+                      <div className="form-group">
+                        <label>Kelas</label>
+                        <select
+                          name="grade"
+                          value={form.grade}
+                          onChange={handleChange}
+                          disabled={saving}
+                        >
+                          <option value="">Pilih Kelas</option>
+                          {GRADES.map((grade) => (
+                            <option key={grade} value={grade}>
+                              Kelas {grade}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                <div className="form-group">
-                  <label>Nilai Maksimal *</label>
-                  <input
-                    type="number"
-                    name="max_score"
-                    min="1"
-                    step="0.01"
-                    value={form.max_score}
-                    onChange={handleChange}
-                    disabled={saving}
-                    required
-                  />
-                </div>
-              </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Durasi (menit) *</label>
+                        <input
+                          type="number"
+                          name="duration_minutes"
+                          min="1"
+                          value={form.duration_minutes}
+                          onChange={handleChange}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
 
-              <div className="form-group">
-                <label>Keterangan</label>
-                <input
-                  type="text"
-                  name="difficulty"
-                  value={form.difficulty}
-                  onChange={handleChange}
-                  disabled={saving}
-                  maxLength={150}
-                  placeholder="Contoh: Kelas Unggulan, Paket A (opsional)"
-                />
-                <small style={{ color: "#777" }}>
-                  Catatan bebas untuk paket tryout ini — tidak
-                  membatasi soal mana yang boleh dipilih di bawah.
-                </small>
-              </div>
+                      <div className="form-group">
+                        <label>Nilai Maksimal *</label>
+                        <input
+                          type="number"
+                          name="max_score"
+                          min="1"
+                          step="0.01"
+                          value={form.max_score}
+                          onChange={handleChange}
+                          disabled={saving}
+                          required
+                        />
+                      </div>
+                    </div>
 
-              <div className="form-checkbox">
-                <input
-                  type="checkbox"
-                  id="tryout-active"
-                  name="is_active"
-                  checked={form.is_active}
-                  onChange={handleChange}
-                  disabled={saving}
-                />
-                <label htmlFor="tryout-active">Paket tryout aktif</label>
-              </div>
+                    <div className="form-group">
+                      <label>Keterangan</label>
+                      <input
+                        type="text"
+                        name="difficulty"
+                        value={form.difficulty}
+                        onChange={handleChange}
+                        disabled={saving}
+                        maxLength={150}
+                        placeholder="Contoh: Kelas Unggulan, Paket A (opsional)"
+                      />
+                      <small style={{ color: "#777" }}>
+                        Catatan bebas untuk paket tryout ini — tidak
+                        membatasi soal mana yang boleh dipilih di langkah
+                        berikutnya.
+                      </small>
+                    </div>
 
-              {/* =================================================
-                  BANK SOAL
-              ================================================= */}
+                    <div className="form-checkbox">
+                      <input
+                        type="checkbox"
+                        id="tryout-active"
+                        name="is_active"
+                        checked={form.is_active}
+                        onChange={handleChange}
+                        disabled={saving}
+                      />
+                      <label htmlFor="tryout-active">Paket tryout aktif</label>
+                    </div>
+                  </>
+                )}
 
-              <div className="options-section">
-                <div className="section-title">
-                  <strong>Bank Soal</strong>
-                  <span>Pilih soal yang akan dimasukkan ke dalam paket tryout. Semua tingkat kesulitan (mudah/sedang/sulit) boleh dicampur, yang penting mata pelajarannya sama.</span>
-                </div>
+                {/* =================================================
+                    LANGKAH 2 — PILIH SOAL
+                    Tetap ter-mount (hanya disembunyikan) selama
+                    subject_id tidak berubah, supaya pencarian, filter,
+                    dan halaman bank soal tidak hilang saat pindah langkah.
+                ================================================= */}
 
                 {form.subject_id && (
-                  <div className="form-group" style={{ marginBottom: "12px" }}>
-                    <label>Filter Tingkat Kesulitan</label>
-                    <select
-                      value={bankSoalDifficultyFilter}
-                      onChange={(e) =>
-                        setBankSoalDifficultyFilter(e.target.value)
-                      }
+                  <div
+                    className={`tw-picker-slot${
+                      wizardStep === 2 ? "" : " is-hidden"
+                    }`}
+                  >
+                    <TryoutQuestionPicker
+                      key={form.subject_id}
+                      subjectId={form.subject_id}
+                      active={wizardStep === 2}
                       disabled={saving}
-                    >
-                      <option value="">Semua Tingkat Kesulitan</option>
-                      {DIFFICULTIES.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
+                      defaultScope={defaultBankScope}
+                      selected={form.questions}
+                      onChange={(questions) =>
+                        setForm((prev) => ({ ...prev, questions }))
+                      }
+                    />
                   </div>
                 )}
 
-                {!form.subject_id && (
-                  <div
-                    style={{
-                      padding: "20px",
-                      border: "1px solid #e1e4e8",
-                      borderRadius: "7px",
-                      textAlign: "center",
-                      color: "#777",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Pilih mata pelajaran terlebih dahulu.
-                  </div>
-                )}
+                {/* =================================================
+                    LANGKAH 3 — TINJAU
+                ================================================= */}
 
-                {form.subject_id && loadingQuestions && (
-                  <div className="loading-message" style={{ padding: "20px" }}>
-                    Memuat bank soal...
-                  </div>
-                )}
-
-                {form.subject_id &&
-                  !loadingQuestions &&
-                  filteredAvailableQuestions.length === 0 && (
-                    <div
-                      style={{
-                        padding: "20px",
-                        border: "1px solid #e1e4e8",
-                        borderRadius: "7px",
-                        textAlign: "center",
-                        color: "#777",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {availableQuestions.length === 0
-                        ? "Tidak ada soal aktif untuk mata pelajaran tersebut."
-                        : "Tidak ada soal dengan tingkat kesulitan tersebut."}
+                {wizardStep === 3 && (
+                  <div className="tw-review">
+                    <div className="tw-stats">
+                      <div className="tw-stat">
+                        <span>Total soal</span>
+                        <strong>{form.questions.length}</strong>
+                      </div>
+                      <div className="tw-stat">
+                        <span>Total bobot</span>
+                        <strong>{totalPoints}</strong>
+                      </div>
+                      <div className="tw-stat">
+                        <span>Nilai maksimal</span>
+                        <strong>{form.max_score}</strong>
+                      </div>
+                      <div className="tw-stat">
+                        <span>Durasi</span>
+                        <strong>{form.duration_minutes} menit</strong>
+                      </div>
                     </div>
-                  )}
 
-                {form.subject_id &&
-                  !loadingQuestions &&
-                  filteredAvailableQuestions.length > 0 && (
-                    <div
-                      style={{
-                        maxHeight: "330px",
-                        overflowY: "auto",
-                        border: "1px solid #e1e4e8",
-                        borderRadius: "7px",
-                      }}
-                    >
-                      {filteredAvailableQuestions.map((question, index) => {
-                        const selected = isQuestionSelected(question.id);
-                        const selectedItem = form.questions.find(
-                          (item) =>
-                            Number(item.question_id) === Number(question.id)
-                        );
+                    <dl className="tw-summary">
+                      <div>
+                        <dt>Judul</dt>
+                        <dd>{form.title}</dd>
+                      </div>
+                      <div>
+                        <dt>Mata pelajaran</dt>
+                        <dd>{getSubjectName(form.subject_id)}</dd>
+                      </div>
+                      <div>
+                        <dt>Kelas</dt>
+                        <dd>{form.grade ? `Kelas ${form.grade}` : "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Keterangan</dt>
+                        <dd>{form.difficulty || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Status</dt>
+                        <dd>{form.is_active ? "Aktif" : "Nonaktif"}</dd>
+                      </div>
+                      <div>
+                        <dt>Komposisi soal</dt>
+                        <dd>
+                          {difficultyBreakdown
+                            .map((item) => `${item.label} ${item.count}`)
+                            .join(" · ")}
+                        </dd>
+                      </div>
+                    </dl>
 
-                        return (
-                          <div
-                            key={question.id}
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "35px 1fr 80px",
-                              gap: "10px",
-                              alignItems: "start",
-                              padding: "12px",
-                              borderBottom: "1px solid #f0f0f0",
-                              background: selected ? "#f8fafc" : "white",
-                            }}
-                          >
-                            <div>
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={() => toggleQuestion(question)}
-                                disabled={saving}
-                              />
-                            </div>
-
-                            <div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: "8px",
-                                  alignItems: "center",
-                                  marginBottom: "5px",
-                                }}
-                              >
-                                <strong>Soal {index + 1}</strong>
-                                <span
-                                  className={`difficulty-badge ${(
-                                    question.difficulty || ""
-                                  ).toLowerCase()}`}
-                                >
-                                  {getDifficultyLabel(question.difficulty)}
-                                </span>
-                              </div>
-
-                              <div
-                                style={{
-                                  fontSize: "13px",
-                                  lineHeight: "1.5",
-                                  color: "#444",
-                                }}
-                              >
-                                {question.question_text}
-                              </div>
-                            </div>
-
-                            <div>
-                              {selected && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "4px",
-                                  }}
-                                >
-                                  <label
-                                    style={{
-                                      fontSize: "11px",
-                                      color: "#777",
-                                    }}
-                                  >
-                                    Point
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0.01"
-                                    step="0.01"
-                                    value={selectedItem?.points || 1}
-                                    onChange={(e) =>
-                                      handleQuestionPointsChange(
-                                        question.id,
-                                        e.target.value
-                                      )
-                                    }
-                                    disabled={saving}
-                                    style={{
-                                      width: "100%",
-                                      boxSizing: "border-box",
-                                      padding: "7px",
-                                      border: "1px solid #d5d9df",
-                                      borderRadius: "6px",
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="tw-bulk">
+                      <label htmlFor="tw-bulk-points">
+                        Samakan bobot semua soal
+                      </label>
+                      <input
+                        id="tw-bulk-points"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={bulkPoints}
+                        onChange={(e) => setBulkPoints(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            applyBulkPoints();
+                          }
+                        }}
+                        disabled={saving}
+                      />
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={applyBulkPoints}
+                        disabled={saving}
+                      >
+                        Terapkan
+                      </button>
                     </div>
-                  )}
-              </div>
 
-              {/* =================================================
-                  SOAL TERPILIH
-              ================================================= */}
+                    <div className="tw-review-list">
+                      {form.questions.map((item) => (
+                        <div key={item.question_id} className="tw-review-row">
+                          <strong>{item.question_number}</strong>
 
-              <div className="options-section">
-                <div className="section-title">
-                  <strong>Soal Terpilih</strong>
-                  <span>{form.questions.length} soal dipilih</span>
-                </div>
-
-                {form.questions.length === 0 && (
-                  <div
-                    style={{
-                      padding: "20px",
-                      border: "1px solid #e1e4e8",
-                      borderRadius: "7px",
-                      textAlign: "center",
-                      color: "#777",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Belum ada soal yang dipilih.
-                  </div>
-                )}
-
-                {form.questions.length > 0 && (
-                  <div
-                    style={{
-                      border: "1px solid #e1e4e8",
-                      borderRadius: "7px",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {form.questions.map((selectedQuestion, index) => {
-                      const question = availableQuestions.find(
-                        (item) =>
-                          Number(item.id) ===
-                          Number(selectedQuestion.question_id)
-                      );
-
-                      return (
-                        <div
-                          key={selectedQuestion.question_id}
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "45px 1fr auto",
-                            gap: "10px",
-                            alignItems: "center",
-                            padding: "10px 12px",
-                            borderBottom:
-                              index < form.questions.length - 1
-                                ? "1px solid #f0f0f0"
-                                : "none",
-                          }}
-                        >
-                          <strong>{selectedQuestion.question_number}</strong>
-
-                          <div
-                            style={{
-                              fontSize: "13px",
-                              lineHeight: "1.45",
-                            }}
-                          >
-                            {question?.question_text ||
-                              `Soal ID ${selectedQuestion.question_id}`}
-
-                            <div
-                              style={{
-                                marginTop: "3px",
-                                fontSize: "11px",
-                                color: "#777",
-                              }}
-                            >
-                              Point: {selectedQuestion.points}
-                            </div>
+                          <div className="tw-review-text">
+                            <span className="tw-review-id">
+                              #{item.question_id}
+                            </span>
+                            {item.question_text ||
+                              `Soal ID ${item.question_id}`}
                           </div>
 
-                          <div style={{ display: "flex", gap: "4px" }}>
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              style={{ padding: "6px 9px" }}
-                              onClick={() =>
-                                moveQuestionUp(selectedQuestion.question_id)
-                              }
-                              disabled={saving || index === 0}
-                              title="Naik"
+                          {item.difficulty && (
+                            <span
+                              className={`difficulty-badge tqp-badge ${item.difficulty.toLowerCase()}`}
                             >
-                              ↑
-                            </button>
+                              {getDifficultyLabel(item.difficulty)}
+                            </span>
+                          )}
 
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              style={{ padding: "6px 9px" }}
-                              onClick={() =>
-                                moveQuestionDown(selectedQuestion.question_id)
-                              }
-                              disabled={
-                                saving || index === form.questions.length - 1
-                              }
-                              title="Turun"
-                            >
-                              ↓
-                            </button>
-
-                            <button
-                              type="button"
-                              className="delete-button"
-                              onClick={() =>
-                                removeQuestion(selectedQuestion.question_id)
-                              }
-                              disabled={saving}
-                              title="Hapus soal"
-                            >
-                              <IconTrash size={15} />
-                            </button>
-                          </div>
+                          <span className="tw-review-points">
+                            Bobot {item.points}
+                          </span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* =================================================
-                  TOTAL POINT
-              ================================================= */}
+              {(formError || formSuccess) && (
+                <div className="tw-messages">
+                  {formError && (
+                    <div
+                      className="form-error-message"
+                      style={{ textAlign: "left" }}
+                    >
+                      {formError}
+                    </div>
+                  )}
 
-              <div
-                style={{
-                  padding: "12px 15px",
-                  marginBottom: "18px",
-                  border: "1px solid #e1e4e8",
-                  borderRadius: "7px",
-                  background: "#f9fafb",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "13px",
-                }}
-              >
-                <span>
-                  Total soal:
-                  <strong style={{ marginLeft: "5px" }}>
-                    {form.questions.length}
-                  </strong>
-                </span>
-
-                <span>
-                  Total bobot:
-                  <strong style={{ marginLeft: "5px" }}>
-                    {form.questions.reduce(
-                      (total, item) => total + Number(item.points || 0),
-                      0
-                    )}
-                  </strong>
-                </span>
-              </div>
-
-              {formError && (
-                <div
-                  className="form-error-message"
-                  style={{ marginBottom: "15px", textAlign: "left" }}
-                >
-                  {formError}
-                </div>
-              )}
-
-              {formSuccess && (
-                <div
-                  className="success-message"
-                  style={{ marginBottom: "15px" }}
-                >
-                  <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-                  {formSuccess}
+                  {formSuccess && (
+                    <div className="success-message">
+                      <IconCheck
+                        size={14}
+                        style={{ verticalAlign: "-2px", marginRight: "4px" }}
+                      />
+                      {formSuccess}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1579,27 +1234,86 @@ function TryoutManagement() {
                   FOOTER
               ================================================= */}
 
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={closeModal}
-                  disabled={saving}
-                >
-                  Batal
-                </button>
+              <div className="tw-footer">
+                <div className="tw-footer-summary">
+                  {wizardStep > 1 && (
+                    <>
+                      <strong>{form.questions.length}</strong> soal · total
+                      bobot <strong>{totalPoints}</strong>
+                    </>
+                  )}
+                </div>
 
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={saving}
-                >
-                  {saving
-                    ? "Menyimpan..."
-                    : editingTryout
-                    ? "Simpan Perubahan"
-                    : "Simpan Tryout"}
-                </button>
+                <div className="tw-footer-actions">
+                  {wizardStep === 1 && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={closeModal}
+                        disabled={saving}
+                      >
+                        Batal
+                      </button>
+
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => goToStep(2)}
+                        disabled={saving}
+                      >
+                        Lanjut: pilih soal
+                      </button>
+                    </>
+                  )}
+
+                  {wizardStep === 2 && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => goToStep(1)}
+                        disabled={saving}
+                      >
+                        Kembali
+                      </button>
+
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => goToStep(3)}
+                        disabled={saving}
+                      >
+                        Lanjut: tinjau
+                      </button>
+                    </>
+                  )}
+
+                  {wizardStep === 3 && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => goToStep(2)}
+                        disabled={saving}
+                      >
+                        Kembali
+                      </button>
+
+                      <button
+                        type="submit"
+                        className="primary-button"
+                        disabled={saving}
+                      >
+                        {saving
+                          ? "Menyimpan..."
+                          : editingTryout
+                          ? "Simpan Perubahan"
+                          : "Simpan Tryout"}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </form>
           </div>

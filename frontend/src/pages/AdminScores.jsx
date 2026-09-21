@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import StatCard from "../components/StatCard";
-import { IconBarChart, IconCheck, IconTarget, IconUsers } from "../components/Icons";
+import ScoreTable from "../components/ScoreTable";
+import {
+  IconBarChart,
+  IconCheck,
+  IconSearch,
+  IconTarget,
+  IconUsers,
+} from "../components/Icons";
 
 import {
   getAdminScores,
@@ -13,34 +18,6 @@ import {
 } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { readPageCache, writePageCache } from "../services/pageCache";
-
-
-// =====================================================
-// HELPER — format tanggal "8 Sep 2026, 14:30"
-// =====================================================
-
-function formatDate(value) {
-  if (!value) {
-    return "-";
-  }
-
-  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(value);
-  const isoString = hasTimezone ? value : `${value}Z`;
-
-  const date = new Date(isoString);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 
 // =====================================================
@@ -87,6 +64,10 @@ function AdminScores() {
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedTryoutId, setSelectedTryoutId] = useState("");
+
+  // Filter status hanya di sisi browser (tidak dikirim ke server),
+  // jadi tidak ikut kunci cache.
+  const [selectedStatus, setSelectedStatus] = useState("");
 
 
   useEffect(() => {
@@ -172,15 +153,39 @@ function AdminScores() {
 
 
   const filteredScores = scores.filter((item) => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
 
-    return (
+    const matchesSearch =
+      !keyword ||
       item.student_name?.toLowerCase().includes(keyword) ||
       item.student_code?.toLowerCase().includes(keyword) ||
       item.tryout_title?.toLowerCase().includes(keyword) ||
-      item.teacher_name?.toLowerCase().includes(keyword)
-    );
+      item.teacher_name?.toLowerCase().includes(keyword);
+
+    const matchesStatus =
+      !selectedStatus ||
+      (selectedStatus === "PASSED" && item.passed === true) ||
+      (selectedStatus === "FAILED" && item.passed === false);
+
+    return matchesSearch && matchesStatus;
   });
+
+
+  const hasActiveFilter = Boolean(
+    search.trim() ||
+      selectedSubjectId ||
+      selectedTeacherId ||
+      selectedTryoutId ||
+      selectedStatus
+  );
+
+  function resetFilters() {
+    setSearch("");
+    setSelectedSubjectId("");
+    setSelectedTeacherId("");
+    setSelectedTryoutId("");
+    setSelectedStatus("");
+  }
 
 
   const summary = useMemo(() => {
@@ -219,201 +224,149 @@ function AdminScores() {
 
 
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <>
+      {/* HEADER */}
 
-      <main className="main-content">
-        <Header />
+      <div className="page-header">
+        <div>
+          <h1>Nilai</h1>
+          <p>Rekap skor siswa dari seluruh tryout di sistem</p>
+        </div>
+      </div>
 
-        <div className="content">
+      {/* RINGKASAN */}
 
-          {/* HEADER */}
+      <div className="stat-grid">
+        <StatCard
+          icon={<IconUsers />}
+          title="Total Peserta"
+          value={summary.totalAttempts}
+          description="Attempt selesai"
+        />
 
-          <div className="page-header">
-            <div>
-              <h1>Nilai</h1>
-              <p>Rekap skor siswa dari seluruh tryout di sistem</p>
-            </div>
-          </div>
+        <StatCard
+          icon={<IconTarget />}
+          title="Rata-rata Skor"
+          value={summary.averageScore}
+          description="Dari semua peserta"
+        />
 
-          {/* RINGKASAN */}
+        <StatCard
+          icon={<IconCheck />}
+          title="Tingkat Lulus"
+          value={`${summary.passRate}%`}
+          description="Dari peserta yang selesai"
+        />
 
-          <div className="stat-grid">
-            <StatCard
-              icon={<IconUsers />}
-              title="Total Peserta"
-              value={summary.totalAttempts}
-              description="Attempt selesai"
+        <StatCard
+          icon={<IconBarChart />}
+          title="Paket Tryout"
+          value={summary.totalTryouts}
+          description="Sudah ada peserta"
+        />
+      </div>
+
+      {/* TABLE */}
+
+      <div className="score-card">
+
+        <div className="score-toolbar">
+          <label className="score-search">
+            <IconSearch size={16} />
+            <input
+              type="text"
+              placeholder="Cari siswa, NIS, tryout, guru"
+              aria-label="Cari nilai"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
+          </label>
 
-            <StatCard
-              icon={<IconTarget />}
-              title="Rata-rata Skor"
-              value={summary.averageScore}
-              description="Dari semua peserta"
-            />
+          <select
+            className={`score-select${selectedSubjectId ? " is-active" : ""}`}
+            aria-label="Filter mata pelajaran"
+            value={selectedSubjectId}
+            onChange={(e) => setSelectedSubjectId(e.target.value)}
+          >
+            <option value="">Semua Mapel</option>
 
-            <StatCard
-              icon={<IconCheck />}
-              title="Tingkat Lulus"
-              value={`${summary.passRate}%`}
-              description="Dari peserta yang selesai"
-            />
+            {subjectOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
 
-            <StatCard
-              icon={<IconBarChart />}
-              title="Paket Tryout"
-              value={summary.totalTryouts}
-              description="Sudah ada peserta"
-            />
-          </div>
+          <select
+            className={`score-select${selectedTeacherId ? " is-active" : ""}`}
+            aria-label="Filter guru pembuat"
+            value={selectedTeacherId}
+            onChange={(e) => setSelectedTeacherId(e.target.value)}
+          >
+            <option value="">Semua Guru</option>
 
-          {/* TABLE */}
+            {teacherOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.full_name}
+              </option>
+            ))}
+          </select>
 
-          <div className="dashboard-card">
+          <select
+            className={`score-select is-wide${selectedTryoutId ? " is-active" : ""}`}
+            aria-label="Filter tryout"
+            value={selectedTryoutId}
+            onChange={(e) => setSelectedTryoutId(e.target.value)}
+          >
+            <option value="">Semua Tryout</option>
 
-            <div className="user-toolbar" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <input
-                type="text"
-                placeholder="Cari nama siswa / NIS / tryout / guru..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            {tryoutOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
 
-              <select
-                className="report-select"
-                value={selectedSubjectId}
-                onChange={(e) => setSelectedSubjectId(e.target.value)}
-              >
-                <option value="">Semua Mata Pelajaran</option>
-
-                {subjectOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="report-select"
-                value={selectedTeacherId}
-                onChange={(e) => setSelectedTeacherId(e.target.value)}
-              >
-                <option value="">Semua Guru Pembuat</option>
-
-                {teacherOptions.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.full_name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="report-select"
-                value={selectedTryoutId}
-                onChange={(e) => setSelectedTryoutId(e.target.value)}
-              >
-                <option value="">Semua Tryout</option>
-
-                {tryoutOptions.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {loading && (
-              <div className="loading-message">Memuat rekap nilai...</div>
-            )}
-
-            {error && <div className="error-message">{error}</div>}
-
-            {!loading && !error && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th>NIS</th>
-                      <th>Nama Siswa</th>
-                      <th>Tryout</th>
-                      <th>Mapel</th>
-                      <th>Guru Pembuat</th>
-                      <th>Skor</th>
-                      <th>Benar / Salah / Kosong</th>
-                      <th>Status</th>
-                      <th>Selesai</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredScores.map((item) => (
-                      <tr key={item.attempt_id}>
-                        <td>{item.student_code || "-"}</td>
-                        <td><strong>{item.student_name || "-"}</strong></td>
-                        <td>{item.tryout_title}</td>
-                        <td>{item.subject_name || "-"}</td>
-                        <td>{item.teacher_name || "-"}</td>
-
-                        <td>
-                          <strong>
-                            {item.score !== null && item.score !== undefined
-                              ? Math.round(item.score * 100) / 100
-                              : "-"}
-                          </strong>
-                          {item.max_score ? ` / ${item.max_score}` : ""}
-                        </td>
-
-                        <td>
-                          <span style={{ color: "var(--success, #3F7D58)" }}>
-                            {item.correct_count ?? 0}
-                          </span>
-                          {" / "}
-                          <span style={{ color: "#dc2626" }}>
-                            {item.wrong_count ?? 0}
-                          </span>
-                          {" / "}
-                          <span style={{ color: "#9ca3af" }}>
-                            {item.unanswered_count ?? 0}
-                          </span>
-                        </td>
-
-                        <td>
-                          {item.passed === true && (
-                            <span className="status-active">Lulus</span>
-                          )}
-
-                          {item.passed === false && (
-                            <span className="status-inactive">Tidak Lulus</span>
-                          )}
-
-                          {item.passed === null && (
-                            <span className="status-inactive">-</span>
-                          )}
-                        </td>
-
-                        <td>{formatDate(item.finished_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredScores.length === 0 && (
-                  <div className="empty-message">
-                    {search || selectedSubjectId || selectedTeacherId || selectedTryoutId
-                      ? "Tidak ada hasil yang cocok."
-                      : "Belum ada siswa yang menyelesaikan tryout."}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
+          <select
+            className={`score-select${selectedStatus ? " is-active" : ""}`}
+            aria-label="Filter status kelulusan"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="">Semua Status</option>
+            <option value="PASSED">Lulus</option>
+            <option value="FAILED">Tidak lulus</option>
+          </select>
         </div>
 
-      </main>
-    </div>
+        {loading && (
+          <div className="loading-message">Memuat rekap nilai...</div>
+        )}
+
+        {error && <div className="error-message">{error}</div>}
+
+        {!loading && !error && (
+          <ScoreTable
+            rows={filteredScores}
+            showTeacher
+            resetKey={[
+              search.trim(),
+              selectedSubjectId,
+              selectedTeacherId,
+              selectedTryoutId,
+              selectedStatus,
+            ].join("|")}
+            hasActiveFilter={hasActiveFilter}
+            onReset={resetFilters}
+            emptyMessage={
+              hasActiveFilter
+                ? "Tidak ada hasil yang cocok."
+                : "Belum ada siswa yang menyelesaikan tryout."
+            }
+          />
+        )}
+      </div>
+    </>
   );
 }
 

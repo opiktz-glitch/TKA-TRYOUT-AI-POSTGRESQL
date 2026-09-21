@@ -1,0 +1,62 @@
+/* ---------- Pagination (menempel di bawah area scroll tabel) ---------- */
+
+.pg-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 10px 10px;
+  background: #f9fafb;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.pg-summary {
+  white-space: nowrap;
+}
+
+.pg-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pg-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pg-btn:hover:not(:disabled):not(.is-active) {
+  background: #f3f4f6;
+}
+
+.pg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pg-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.pg-gap {
+  padding: 0 2px;
+  color: #9ca3af;
+}

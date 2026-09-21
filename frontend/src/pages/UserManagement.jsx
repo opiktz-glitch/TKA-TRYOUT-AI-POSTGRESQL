@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconEdit, IconTrash, IconKey, IconEye, IconEyeOff, IconCheck, IconLogOut } from "../components/Icons";
 
 import {
@@ -460,249 +458,235 @@ function UserManagement() {
 
   return (
 
-    <div className="app-layout">
+    <>
+      {/* HEADER */}
 
-      <Sidebar />
+      <div className="page-header">
 
-      <main className="main-content">
+        <div>
 
-        <Header />
+          <h1>Kelola User</h1>
 
-        <div className="content">
-
-          {/* HEADER */}
-
-          <div className="page-header">
-
-            <div>
-
-              <h1>Kelola User</h1>
-
-              <p>
-                Kelola pengguna aplikasi TKA Tryout
-              </p>
-
-            </div>
-
-            <button
-              className="primary-button"
-              onClick={openModal}
-            >
-              + Tambah User
-            </button>
-
-          </div>
-
-
-          {/* TABLE */}
-
-          <div className="dashboard-card">
-
-            <div className="user-toolbar">
-
-              <input
-                type="text"
-                placeholder="Cari username / nama / role..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-
-            </div>
-
-
-            {/* -----------------------------------------------------
-                FEEDBACK AKSI (hapus user) — banner kecil, tidak
-                menyembunyikan tabel di bawahnya sama sekali,
-                beda dengan loadError yang memang berarti tabel
-                gagal dimuat sama sekali.
-                ----------------------------------------------------- */}
-
-            {actionSuccess && (
-
-              <div
-                className="success-message"
-                style={{ margin: "0 18px 15px" }}
-              >
-                <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-                {actionSuccess}
-              </div>
-
-            )}
-
-
-            {actionError && (
-
-              <div
-                className="form-error-message"
-                style={{ margin: "0 18px 15px" }}
-              >
-                {actionError}
-              </div>
-
-            )}
-
-
-            {loading && (
-
-              <div className="loading-message">
-                Memuat data user...
-              </div>
-
-            )}
-
-
-            {loadError && (
-
-              <div className="error-message">
-                {loadError}
-              </div>
-
-            )}
-
-
-            {!loading && !loadError && (
-
-              <div className="table-container">
-
-                <table className="user-table">
-
-                  <thead>
-
-                    <tr>
-
-                      <th className="align-center">No</th>
-                      <th className="align-center">ID</th>
-                      <th className="align-center">Username</th>
-                      <th className="align-center">Nama</th>
-                      <th className="align-center">Role</th>
-                      <th className="align-center">Status</th>
-                      <th className="align-center">Aksi</th>
-
-                    </tr>
-
-                  </thead>
-
-
-                  <tbody>
-
-                    {filteredUsers.map((item, index) => (
-
-                      <tr key={item.id}>
-
-                        <td className="align-center">
-                          {index + 1}
-                        </td>
-
-                        <td>
-                          {item.id}
-                        </td>
-
-                        <td>
-                          <strong>
-                            {item.username}
-                          </strong>
-                        </td>
-
-                        <td className="align-left">
-                          {item.full_name || "-"}
-                        </td>
-
-                        <td>
-
-                          <span
-                            className={`role-badge role-${item.role.toLowerCase()}`}
-                          >
-                            {item.role}
-                          </span>
-
-                        </td>
-
-                        <td>
-
-                          {item.is_active ? (
-
-                            <span className="status-active">
-                              Aktif
-                            </span>
-
-                          ) : (
-
-                            <span className="status-inactive">
-                              Nonaktif
-                            </span>
-
-                          )}
-
-                        </td>
-
-                        <td>
-
-                          <div className="action-buttons">
-
-                            <button
-                              className="edit-button"
-                              onClick={() => openEditModal(item)}
-                            >
-                              <IconEdit size={16} />
-                            </button>
-
-                            <button
-                              className="delete-button"
-                              onClick={() => handleDelete(item)}
-                            >
-                              <IconTrash size={16} />
-                            </button>
-
-                            <button
-                              className="password-button"
-                              onClick={() => openPasswordModal(item)}
-                            >
-                              <IconKey size={16} />
-                            </button>
-
-                            <button
-                              className="password-button"
-                              title="Paksa Logout"
-                              onClick={() => handleForceLogout(item)}
-                            >
-                              <IconLogOut size={16} />
-                            </button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    ))}
-
-                  </tbody>
-
-                </table>
-
-
-                {filteredUsers.length === 0 && (
-
-                  <div className="empty-message">
-                    {search
-                      ? "User tidak ditemukan."
-                      : "Belum ada user."
-                    }
-                  </div>
-
-                )}
-
-              </div>
-
-            )}
-
-          </div>
+          <p>
+            Kelola pengguna aplikasi TKA Tryout
+          </p>
 
         </div>
 
-      </main>
+        <button
+          className="primary-button"
+          onClick={openModal}
+        >
+          + Tambah User
+        </button>
 
+      </div>
+
+
+      {/* TABLE */}
+
+      <div className="dashboard-card">
+
+        <div className="user-toolbar">
+
+          <input
+            type="text"
+            placeholder="Cari username / nama / role..."
+            className="search-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+        </div>
+
+
+        {/* -----------------------------------------------------
+            FEEDBACK AKSI (hapus user) — banner kecil, tidak
+            menyembunyikan tabel di bawahnya sama sekali,
+            beda dengan loadError yang memang berarti tabel
+            gagal dimuat sama sekali.
+            ----------------------------------------------------- */}
+
+        {actionSuccess && (
+
+          <div
+            className="success-message"
+            style={{ margin: "0 18px 15px" }}
+          >
+            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            {actionSuccess}
+          </div>
+
+        )}
+
+
+        {actionError && (
+
+          <div
+            className="form-error-message"
+            style={{ margin: "0 18px 15px" }}
+          >
+            {actionError}
+          </div>
+
+        )}
+
+
+        {loading && (
+
+          <div className="loading-message">
+            Memuat data user...
+          </div>
+
+        )}
+
+
+        {loadError && (
+
+          <div className="error-message">
+            {loadError}
+          </div>
+
+        )}
+
+
+        {!loading && !loadError && (
+
+          <div className="table-container">
+
+            <table className="user-table">
+
+              <thead>
+
+                <tr>
+
+                  <th className="align-center">No</th>
+                  <th className="align-center">ID</th>
+                  <th className="align-center">Username</th>
+                  <th className="align-center">Nama</th>
+                  <th className="align-center">Role</th>
+                  <th className="align-center">Status</th>
+                  <th className="align-center">Aksi</th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {filteredUsers.map((item, index) => (
+
+                  <tr key={item.id}>
+
+                    <td className="align-center">
+                      {index + 1}
+                    </td>
+
+                    <td>
+                      {item.id}
+                    </td>
+
+                    <td>
+                      <strong>
+                        {item.username}
+                      </strong>
+                    </td>
+
+                    <td className="align-left">
+                      {item.full_name || "-"}
+                    </td>
+
+                    <td>
+
+                      <span
+                        className={`role-badge role-${item.role.toLowerCase()}`}
+                      >
+                        {item.role}
+                      </span>
+
+                    </td>
+
+                    <td>
+
+                      {item.is_active ? (
+
+                        <span className="status-active">
+                          Aktif
+                        </span>
+
+                      ) : (
+
+                        <span className="status-inactive">
+                          Nonaktif
+                        </span>
+
+                      )}
+
+                    </td>
+
+                    <td>
+
+                      <div className="action-buttons">
+
+                        <button
+                          className="edit-button"
+                          onClick={() => openEditModal(item)}
+                        >
+                          <IconEdit size={16} />
+                        </button>
+
+                        <button
+                          className="delete-button"
+                          onClick={() => handleDelete(item)}
+                        >
+                          <IconTrash size={16} />
+                        </button>
+
+                        <button
+                          className="password-button"
+                          onClick={() => openPasswordModal(item)}
+                        >
+                          <IconKey size={16} />
+                        </button>
+
+                        <button
+                          className="password-button"
+                          title="Paksa Logout"
+                          onClick={() => handleForceLogout(item)}
+                        >
+                          <IconLogOut size={16} />
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+
+            {filteredUsers.length === 0 && (
+
+              <div className="empty-message">
+                {search
+                  ? "User tidak ditemukan."
+                  : "Belum ada user."
+                }
+              </div>
+
+            )}
+
+          </div>
+
+        )}
+
+      </div>
 
       {/* MODAL TAMBAH / EDIT USER */}
 
@@ -1191,8 +1175,7 @@ function UserManagement() {
         </div>
 
       )}
-    </div>
-
+    </>
   );
 
 }

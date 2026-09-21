@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconEdit, IconTrash, IconCheck } from "../components/Icons";
 
 import {
@@ -241,127 +239,113 @@ function StudentManagement() {
 
 
   return (
-    <div className="app-layout">
+    <>
+      {/* HEADER */}
 
-      <Sidebar />
-
-      <main className="main-content">
-
-        <Header />
-
-        <div className="content">
-
-          {/* HEADER */}
-
-          <div className="page-header">
-            <div>
-              <h1>Data Siswa</h1>
-              <p>Kelola profil siswa (NIS, sekolah, kelas)</p>
-            </div>
-
-            <button className="primary-button" onClick={openModal}>
-              + Tambah Siswa
-            </button>
-          </div>
-
-
-          {/* TABLE */}
-
-          <div className="dashboard-card">
-
-            <div className="user-toolbar">
-              <input
-                type="text"
-                placeholder="Cari nama / NIS / username / sekolah..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            {loading && (
-              <div className="loading-message">Memuat data siswa...</div>
-            )}
-
-            {error && <div className="error-message">{error}</div>}
-
-            {actionError && (
-              <div className="form-error-message" style={{ marginBottom: "15px" }}>
-                {actionError}
-              </div>
-            )}
-
-            {actionSuccess && (
-              <div className="success-message" style={{ marginBottom: "15px" }}>
-                <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-                {actionSuccess}
-              </div>
-            )}
-
-            {!loading && !error && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th className="align-center">No</th>
-                      <th className="align-center">ID</th>
-                      <th className="align-center">NIS</th>
-                      <th className="align-center">Nama</th>
-                      <th className="align-center">Username</th>
-                      <th className="align-center">Sekolah</th>
-                      <th className="align-center">Kelas</th>
-                      <th className="align-center">Aksi</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredStudents.map((item, index) => (
-                      <tr key={item.id}>
-                        <td className="align-center">{index + 1}</td>
-                        <td>{item.id}</td>
-                        <td><strong>{item.student_code}</strong></td>
-                        <td>{item.full_name}</td>
-                        <td>{item.username || "-"}</td>
-                        <td>{item.school_name || "-"}</td>
-                        <td>
-                          {item.grade || "-"}
-                          {item.class_name ? ` / ${item.class_name}` : ""}
-                        </td>
-                        <td>
-                          <div className="action-buttons">
-                            <button
-                              className="edit-button"
-                              onClick={() => openEditModal(item)}
-                            >
-                              <IconEdit size={16} />
-                            </button>
-
-                            <button
-                              className="delete-button"
-                              onClick={() => handleDelete(item)}
-                            >
-                              <IconTrash size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredStudents.length === 0 && (
-                  <div className="empty-message">
-                    {search ? "Siswa tidak ditemukan." : "Belum ada data siswa."}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
+      <div className="page-header">
+        <div>
+          <h1>Data Siswa</h1>
+          <p>Kelola profil siswa (NIS, sekolah, kelas)</p>
         </div>
 
-      </main>
+        <button className="primary-button" onClick={openModal}>
+          + Tambah Siswa
+        </button>
+      </div>
 
+
+      {/* TABLE */}
+
+      <div className="dashboard-card">
+
+        <div className="user-toolbar">
+          <input
+            type="text"
+            placeholder="Cari nama / NIS / username / sekolah..."
+            className="search-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {loading && (
+          <div className="loading-message">Memuat data siswa...</div>
+        )}
+
+        {error && <div className="error-message">{error}</div>}
+
+        {actionError && (
+          <div className="form-error-message" style={{ marginBottom: "15px" }}>
+            {actionError}
+          </div>
+        )}
+
+        {actionSuccess && (
+          <div className="success-message" style={{ marginBottom: "15px" }}>
+            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            {actionSuccess}
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="table-container">
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th className="align-center">No</th>
+                  <th className="align-center">ID</th>
+                  <th className="align-center">NIS</th>
+                  <th className="align-center">Nama</th>
+                  <th className="align-center">Username</th>
+                  <th className="align-center">Sekolah</th>
+                  <th className="align-center">Kelas</th>
+                  <th className="align-center">Aksi</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredStudents.map((item, index) => (
+                  <tr key={item.id}>
+                    <td className="align-center">{index + 1}</td>
+                    <td>{item.id}</td>
+                    <td><strong>{item.student_code}</strong></td>
+                    <td>{item.full_name}</td>
+                    <td>{item.username || "-"}</td>
+                    <td>{item.school_name || "-"}</td>
+                    <td>
+                      {item.grade || "-"}
+                      {item.class_name ? ` / ${item.class_name}` : ""}
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          className="edit-button"
+                          onClick={() => openEditModal(item)}
+                        >
+                          <IconEdit size={16} />
+                        </button>
+
+                        <button
+                          className="delete-button"
+                          onClick={() => handleDelete(item)}
+                        >
+                          <IconTrash size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {filteredStudents.length === 0 && (
+              <div className="empty-message">
+                {search ? "Siswa tidak ditemukan." : "Belum ada data siswa."}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* MODAL TAMBAH / EDIT SISWA */}
 
@@ -522,8 +506,7 @@ function StudentManagement() {
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 }
 

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconShield, IconRefresh, IconClipboard } from "../components/Icons";
 import ProfileTab from "../components/settings/ProfileTab";
 import NetworkTab from "../components/settings/NetworkTab";
+import "../components/settings/settings.css";
 
 import {
   getAIProviders,
@@ -689,724 +688,75 @@ function AdminSettings() {
 
 
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <>
+      {/* HEADER */}
 
-      <main className="main-content">
-        <Header />
+      <div className="page-header">
+        <div>
+          <h1>Pengaturan</h1>
+          <p>Kelola profil, keamanan akun, dan konfigurasi sistem</p>
+        </div>
+      </div>
 
-        <div className="content">
+      {/* TAB SWITCHER */}
 
-          {/* HEADER */}
+      <div className="settings-tabs" role="tablist">
+        {visibleTabs.map((tab) => {
+          const isActive = activeTab === tab.key;
 
-          <div className="page-header">
-            <div>
-              <h1>Pengaturan</h1>
-              <p>Kelola profil, keamanan akun, dan konfigurasi sistem</p>
-            </div>
-          </div>
-
-          {/* TAB SWITCHER */}
-
-          <div
-            style={{
-              display: "flex",
-              gap: 6,
-              maxWidth: "700px",
-              margin: "0 auto 20px",
-              borderBottom: "1px solid var(--line)",
-            }}
-          >
-            {visibleTabs.map((tab) => {
-              const isActive = activeTab === tab.key;
-
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  style={{
-                    padding: "10px 18px",
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    fontWeight: isActive ? 600 : 500,
-                    color: isActive ? "var(--accent)" : "#6b7280",
-                    borderBottom: isActive
-                      ? "2px solid var(--accent)"
-                      : "2px solid transparent",
-                    marginBottom: "-1px",
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ============================================= */}
-          {/* TAB: PROFIL SAYA                                */}
-          {/* ============================================= */}
-
-          {activeTab === "profile" && <ProfileTab />}
-
-          {/* ============================================= */}
-          {/* TAB: AI — GENERIK, MENGIKUTI DAFTAR PROVIDER    */}
-          {/* DARI BACKEND (backend/ai_providers.py). NAMBAH  */}
-          {/* PROVIDER BARU DI BACKEND OTOMATIS MUNCUL DI SINI */}
-          {/* TANPA UBAH KOMPONEN INI.                         */}
-          {/* ============================================= */}
-
-          {activeTab === "ai-model" && (
-            <>
-
-              {/* ============================================= */}
-              {/* KARTU: PROVIDER AI AKTIF                       */}
-              {/* ============================================= */}
-
-              <div
-                className="dashboard-card"
-                style={{ maxWidth: "700px", margin: "0 auto 20px", padding: "24px" }}
-              >
-                <h2 style={{ marginTop: 0, marginBottom: 6 }}>Provider AI Aktif</h2>
-                <p style={{ marginTop: 0, marginBottom: 22, color: "#6b7280", fontSize: 13 }}>
-                  Pilih AI mana yang dipakai fitur "Generate Soal AI" di Bank Soal.
-                  Guru hanya memakai satu provider yang aktif di sini.
-                </p>
-
-                {providerLoading ? (
-                  <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat status provider...</p>
-                ) : (
-                  <>
-                    {providerError && (
-                      <div className="error-message" style={{ marginBottom: 18 }}>
-                        {providerError}
-                      </div>
-                    )}
-
-                    {providerSuccess && (
-                      <div
-                        className="alert-success"
-                        style={{
-                          backgroundColor: "#d4edda",
-                          color: "#155724",
-                          padding: "10px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          marginBottom: "18px",
-                        }}
-                      >
-                        {providerSuccess}
-                      </div>
-                    )}
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
-
-                      {(providers?.providers || []).map((option) => {
-                        const isChecked = providerChoice === option.provider;
-
-                        return (
-                          <label
-                            key={option.provider}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              border: isChecked ? "1.5px solid var(--accent)" : "1px solid var(--line)",
-                              borderRadius: 8,
-                              padding: "12px 14px",
-                              cursor: "pointer",
-                              background: isChecked ? "rgba(37,99,235,0.04)" : "transparent",
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="ai-provider-choice"
-                              value={option.provider}
-                              checked={isChecked}
-                              onChange={() => setProviderChoice(option.provider)}
-                            />
-
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 14 }}>
-                                {option.label}
-                                {providers?.active_provider === option.provider && (
-                                  <span
-                                    style={{
-                                      marginLeft: 8,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      color: "var(--accent)",
-                                    }}
-                                  >
-                                    &middot; SEDANG AKTIF
-                                  </span>
-                                )}
-                              </div>
-
-                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                                Model: <code>{option.model || "-"}</code>
-                              </div>
-
-                              {option.detail && (
-                                <div style={{ fontSize: 12, color: "#856404", marginTop: 2 }}>
-                                  {option.detail}
-                                </div>
-                              )}
-                            </div>
-
-                            <span
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                padding: "3px 9px",
-                                borderRadius: 999,
-                                whiteSpace: "nowrap",
-                                backgroundColor: option.online ? "#d4edda" : "#f8d7da",
-                                color: option.online ? "#155724" : "#721c24",
-                              }}
-                            >
-                              {option.online ? "Online" : "Offline"}
-                            </span>
-                          </label>
-                        );
-                      })}
-
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="primary-button"
-                        disabled={providerSaving || providerChoice === providers?.active_provider}
-                        onClick={handleSaveProvider}
-                      >
-                        {providerSaving ? "Menyimpan..." : "Jadikan Provider Aktif"}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* ============================================= */}
-              {/* KARTU KONFIGURASI — SATU KARTU PER PROVIDER    */}
-              {/* (di-render dari list, bukan hardcode per nama)  */}
-              {/* ============================================= */}
-
-              {!providerLoading && (providers?.providers || []).map((option, index) => {
-                const draft = configDrafts[option.provider] || { apiKey: "", model: "", baseUrl: "" };
-                const isSaving = !!configSaving[option.provider];
-                const errMsg = configError[option.provider];
-                const okMsg = configSuccess[option.provider];
-                const isLast = index === providers.providers.length - 1;
-
-                return (
-                  <div
-                    key={option.provider}
-                    className="dashboard-card"
-                    style={{
-                      maxWidth: "700px",
-                      margin: isLast ? "0 auto" : "0 auto 20px",
-                      padding: "24px",
-                    }}
-                  >
-                    <h2 style={{ marginTop: 0, marginBottom: 6 }}>
-                      Konfigurasi {option.label}
-                    </h2>
-
-                    <p style={{ marginTop: 0, marginBottom: 22, color: "#6b7280", fontSize: 13 }}>
-                      {option.requires_api_key
-                        ? "API key disimpan di database, bukan di file .env — bisa diganti kapan saja dari sini tanpa perlu akses server."
-                        : "Provider ini berjalan lokal dan tidak memerlukan API key. Cukup atur nama model yang dipakai."}
-                    </p>
-
-                    {errMsg && (
-                      <div className="error-message" style={{ marginBottom: 18 }}>
-                        {errMsg}
-                      </div>
-                    )}
-
-                    {okMsg && (
-                      <div
-                        className="alert-success"
-                        style={{
-                          backgroundColor: "#d4edda",
-                          color: "#155724",
-                          padding: "10px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          marginBottom: "18px",
-                        }}
-                      >
-                        {okMsg}
-                      </div>
-                    )}
-
-                    {!option.online && option.detail && (
-                      <div
-                        style={{
-                          backgroundColor: "#fff3cd",
-                          color: "#856404",
-                          padding: "10px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          marginBottom: "18px",
-                        }}
-                      >
-                        {option.detail}
-                      </div>
-                    )}
-
-                    {option.requires_api_key && (
-                      <div className="form-group" style={{ marginBottom: 18 }}>
-                        <label>API Key</label>
-
-                        <input
-                          type="password"
-                          value={draft.apiKey}
-                          onChange={(e) => updateDraft(option.provider, "apiKey", e.target.value)}
-                          placeholder={
-                            option.masked_key
-                              ? `Tersimpan: ${option.masked_key} (isi untuk mengganti)`
-                              : "Tempel API key di sini"
-                          }
-                          autoComplete="off"
-                        />
-
-                        <small style={{ color: "#6b7280" }}>
-                          {option.configured
-                            ? "Sudah ada key tersimpan. Kosongkan kalau cuma mau ganti model, jangan ganti key."
-                            : "Belum ada API key tersimpan."}
-                        </small>
-                      </div>
-                    )}
-
-                    <div className="form-group" style={{ marginBottom: 18 }}>
-                      <label>Model</label>
-
-                      <input
-                        type="text"
-                        value={draft.model}
-                        onChange={(e) => updateDraft(option.provider, "model", e.target.value)}
-                        placeholder="mis. nama-model"
-                      />
-                    </div>
-
-                    {option.configurable_base_url && (
-                      <div className="form-group" style={{ marginBottom: 18 }}>
-                        <label>Alamat Server (Base URL)</label>
-
-                        <input
-                          type="text"
-                          value={draft.baseUrl}
-                          onChange={(e) => updateDraft(option.provider, "baseUrl", e.target.value)}
-                          placeholder={option.default_base_url || "http://localhost:11434"}
-                          autoComplete="off"
-                        />
-
-                        <small style={{ color: "#6b7280" }}>
-                          Kosongkan lalu klik "Kembalikan ke Default" untuk
-                          pakai mesin sendiri ({option.default_base_url || "http://localhost:11434"}).
-                          Untuk production, isi manual dengan alamat server
-                          tempat Ollama benar-benar berjalan, mis.{" "}
-                          <code>http://ollama:11434</code> (service Docker
-                          Compose) atau <code>http://10.0.0.5:11434</code>{" "}
-                          (server terpisah di jaringan).
-                        </small>
-                      </div>
-                    )}
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      {option.configurable_base_url && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={isSaving}
-                          onClick={() => handleResetBaseUrl(option.provider)}
-                        >
-                          Kembalikan ke Default
-                        </button>
-                      )}
-
-                      {option.requires_api_key && option.configured && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={isSaving}
-                          onClick={() => handleClearProviderConfig(option.provider)}
-                        >
-                          Hapus API Key
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        className="primary-button"
-                        disabled={isSaving}
-                        onClick={() => handleSaveProviderConfig(option.provider)}
-                      >
-                        {isSaving ? "Menyimpan..." : `Simpan ${option.label}`}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-            </>
-          )}
-
-          {/* ============================================= */}
-          {/* TAB: KEAMANAN — SECRET_KEY (JWT)               */}
-          {/* ============================================= */}
-
-          {activeTab === "security" && (
-            <div
-              className="dashboard-card"
-              style={{ maxWidth: "700px", margin: "0 auto", padding: "24px" }}
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              className={`settings-tab${isActive ? " is-active" : ""}`}
+              onClick={() => setActiveTab(tab.key)}
             >
-              <h2 style={{ marginTop: 0, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                <IconShield size={18} />
-                SECRET_KEY
-              </h2>
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-              <p style={{ marginTop: 0, marginBottom: 22, color: "#6b7280", fontSize: 13 }}>
-                Kunci rahasia untuk menandatangani sesi login (JWT) seluruh
-                aplikasi. Tersimpan di database — tidak perlu edit file .env
-                atau restart server untuk menggantinya.
-              </p>
+      {/* ============================================= */}
+      {/* TAB: PROFIL SAYA                                */}
+      {/* ============================================= */}
 
-              <div
-                style={{
-                  backgroundColor: "#fff3cd",
-                  color: "#856404",
-                  padding: "10px 12px",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  marginBottom: "20px",
-                }}
-              >
-                ⚠️ Menyimpan atau merotasi SECRET_KEY langsung membuat{" "}
-                <strong>semua sesi login yang sedang aktif tidak valid</strong>{" "}
-                — termasuk sesi Anda sendiri (Anda akan diminta login ulang),
-                guru, dan siswa yang mungkin sedang mengerjakan tryout.
-                Sebaiknya lakukan di luar jam ujian.
-              </div>
+      {activeTab === "profile" && <ProfileTab />}
 
-              {secretKeyError && (
-                <div className="error-message" style={{ marginBottom: 18 }}>
-                  {secretKeyError}
-                </div>
-              )}
+      {/* ============================================= */}
+      {/* TAB: AI — GENERIK, MENGIKUTI DAFTAR PROVIDER    */}
+      {/* DARI BACKEND (backend/ai_providers.py). NAMBAH  */}
+      {/* PROVIDER BARU DI BACKEND OTOMATIS MUNCUL DI SINI */}
+      {/* TANPA UBAH KOMPONEN INI.                         */}
+      {/* ============================================= */}
 
-              {secretKeyLoading ? (
-                <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat status...</p>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      border: "1px solid var(--line)",
-                      borderRadius: 8,
-                      padding: "12px 14px",
-                      marginBottom: 22,
-                      fontSize: 13,
-                    }}
-                  >
-                    <div style={{ marginBottom: 4 }}>
-                      <strong>Key saat ini:</strong>{" "}
-                      <code>{secretKeyStatus?.masked_key || "-"}</code>
-                    </div>
-
-                    {secretKeyStatus?.updated_at && (
-                      <div style={{ color: "#6b7280" }}>
-                        Terakhir diganti:{" "}
-                        {new Date(secretKeyStatus.updated_at).toLocaleString("id-ID")}
-                        {secretKeyStatus?.changed_by
-                          ? ` oleh @${secretKeyStatus.changed_by}`
-                          : ""}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ROTASI OTOMATIS */}
-
-                  <div style={{ marginBottom: 26 }}>
-                    <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>
-                      Rotasi Otomatis
-                    </label>
-                    <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280", fontSize: 13 }}>
-                      Generate key acak baru secara otomatis — cara yang
-                      direkomendasikan untuk rotasi rutin, tidak perlu
-                      mengetik apa pun.
-                    </p>
-
-                    {secretKeyConfirm === "rotate" ? (
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, color: "#721c24" }}>
-                          Yakin? Semua orang akan ter-logout.
-                        </span>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={rotatingSecretKey}
-                          onClick={() => setSecretKeyConfirm(null)}
-                        >
-                          Batal
-                        </button>
-                        <button
-                          type="button"
-                          className="primary-button"
-                          disabled={rotatingSecretKey}
-                          onClick={handleRotateSecretKey}
-                        >
-                          {rotatingSecretKey ? "Merotasi..." : "Ya, Rotasi Sekarang"}
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={rotatingSecretKey}
-                        onClick={() => setSecretKeyConfirm("rotate")}
-                      >
-                        <IconRefresh size={15} />
-                        Rotasi Otomatis
-                      </button>
-                    )}
-                  </div>
-
-                  {/* ISI MANUAL */}
-
-                  <div>
-                    <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>
-                      Isi Manual
-                    </label>
-                    <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280", fontSize: 13 }}>
-                      Tempel SECRET_KEY Anda sendiri (mis. untuk menyamakan
-                      dengan environment lain). Minimal 32 karakter.
-                    </p>
-
-                    <div className="form-group" style={{ marginBottom: 14 }}>
-                      <input
-                        type="password"
-                        value={secretKeyDraft}
-                        onChange={(e) => setSecretKeyDraft(e.target.value)}
-                        placeholder="Tempel SECRET_KEY baru di sini"
-                        autoComplete="off"
-                      />
-                    </div>
-
-                    {secretKeyConfirm === "save" ? (
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, color: "#721c24" }}>
-                          Yakin? Semua orang akan ter-logout.
-                        </span>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={savingSecretKey}
-                          onClick={() => setSecretKeyConfirm(null)}
-                        >
-                          Batal
-                        </button>
-                        <button
-                          type="button"
-                          className="primary-button"
-                          disabled={savingSecretKey}
-                          onClick={handleSaveSecretKey}
-                        >
-                          {savingSecretKey ? "Menyimpan..." : "Ya, Simpan Sekarang"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button
-                          type="button"
-                          className="primary-button"
-                          disabled={savingSecretKey || secretKeyDraft.trim().length < 32}
-                          onClick={() => setSecretKeyConfirm("save")}
-                        >
-                          Simpan
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+      {activeTab === "ai-model" && (
+        <div className="settings-grid">
 
           {/* ============================================= */}
-          {/* TAB: BACKUP — BACKUP DATABASE SQLITE           */}
+          {/* KARTU: PROVIDER AI AKTIF                       */}
           {/* ============================================= */}
 
-          {activeTab === "backup" && (
-            <div
-              className="dashboard-card"
-              style={{ maxWidth: "800px", margin: "0 auto", padding: "24px" }}
-            >
-              <h2 style={{ marginTop: 0, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                <IconClipboard size={18} />
-                Backup Database
-              </h2>
+          <div className="dashboard-card settings-card settings-span-all">
+            <h2>Provider AI Aktif</h2>
+            <p className="settings-desc">
+              Pilih AI mana yang dipakai fitur "Generate Soal AI" di Bank Soal.
+              Guru hanya memakai satu provider yang aktif di sini.
+            </p>
 
-              <p style={{ marginTop: 0, marginBottom: 22, color: "#6b7280", fontSize: 13 }}>
-                Backup otomatis berjalan sendiri tiap 24 jam di server.
-                Gunakan tombol di bawah untuk membuat backup tambahan
-                kapan saja — misalnya sebelum mengganti SECRET_KEY atau
-                menghapus data dalam jumlah besar.
-                {retentionDays != null && (
-                  <> Backup lebih tua dari {retentionDays} hari otomatis dihapus.</>
-                )}
-              </p>
-
-              {backupActionError && (
-                <div className="error-message" style={{ marginBottom: 18 }}>
-                  {backupActionError}
-                </div>
-              )}
-
-              {backupActionSuccess && (
-                <div
-                  className="alert-success"
-                  style={{
-                    backgroundColor: "#d4edda",
-                    color: "#155724",
-                    padding: "10px",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    marginBottom: "18px",
-                  }}
-                >
-                  {backupActionSuccess}
-                </div>
-              )}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 22 }}>
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={creatingBackup}
-                  onClick={handleCreateBackupNow}
-                >
-                  {creatingBackup ? "Membuat Backup..." : "Backup Sekarang"}
-                </button>
-              </div>
-
-              {backupsError && (
-                <div className="error-message" style={{ marginBottom: 18 }}>
-                  {backupsError}
-                </div>
-              )}
-
-              {backupsLoading ? (
-                <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat daftar backup...</p>
-              ) : backups.length === 0 ? (
-                <p style={{ color: "#6b7280", fontSize: 13 }}>
-                  Belum ada backup. Klik "Backup Sekarang" di atas, atau
-                  tunggu jadwal otomatis berikutnya.
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {backups.map((backup) => (
-                    <div
-                      key={backup.filename}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        border: "1px solid var(--line)",
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            fontSize: 13,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {backup.filename}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                          {new Date(backup.created_at).toLocaleString("id-ID")}
-                          {" · "}
-                          {formatBytes(backup.size_bytes)}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={downloadingFilename === backup.filename}
-                        onClick={() => handleDownloadBackup(backup.filename)}
-                      >
-                        {downloadingFilename === backup.filename
-                          ? "Mengunduh..."
-                          : "Download"}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        style={{ color: "#b45309", borderColor: "#fbbf24" }}
-                        disabled={restoringFilename === backup.filename}
-                        onClick={() => requestRestoreFromExisting(backup.filename)}
-                      >
-                        {restoringFilename === backup.filename
-                          ? "Me-restore..."
-                          : "Restore"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ===================================== */}
-              {/* IMPORT DARI FILE LOKAL                 */}
-              {/* ===================================== */}
-
-              <div
-                style={{
-                  marginTop: 32,
-                  paddingTop: 24,
-                  borderTop: "1px solid var(--line)",
-                }}
-              >
-                <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: 15 }}>
-                  Import Database dari File Lokal
-                </h3>
-
-                <p style={{ marginTop: 0, marginBottom: 14, color: "#6b7280", fontSize: 13 }}>
-                  Upload file backup (.db/.sqlite/.sqlite3) dari komputer Anda
-                  sendiri — misalnya backup lama yang pernah di-download, atau
-                  dipindah dari server lain. File yang diupload akan
-                  MENGGANTIKAN seluruh database yang sedang aktif.
-                </p>
-
-                {restoreActionError && (
-                  <div className="error-message" style={{ marginBottom: 14 }}>
-                    {restoreActionError}
+            {providerLoading ? (
+              <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat status provider...</p>
+            ) : (
+              <>
+                {providerError && (
+                  <div className="error-message" style={{ marginBottom: 18 }}>
+                    {providerError}
                   </div>
                 )}
 
-                {restoreActionSuccess && (
+                {providerSuccess && (
                   <div
                     className="alert-success"
                     style={{
@@ -1415,122 +765,736 @@ function AdminSettings() {
                       padding: "10px",
                       borderRadius: "6px",
                       fontSize: "13px",
-                      marginBottom: "14px",
+                      marginBottom: "18px",
                     }}
                   >
-                    {restoreActionSuccess}
+                    {providerSuccess}
                   </div>
                 )}
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div className="settings-options">
+
+                  {(providers?.providers || []).map((option) => {
+                    const isChecked = providerChoice === option.provider;
+
+                    return (
+                      <label
+                        key={option.provider}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          border: isChecked ? "1.5px solid var(--accent)" : "1px solid var(--line)",
+                          borderRadius: 8,
+                          padding: "12px 14px",
+                          cursor: "pointer",
+                          background: isChecked ? "rgba(var(--accent-rgb), 0.06)" : "transparent",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="ai-provider-choice"
+                          value={option.provider}
+                          checked={isChecked}
+                          onChange={() => setProviderChoice(option.provider)}
+                        />
+
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>
+                            {option.label}
+                            {providers?.active_provider === option.provider && (
+                              <span
+                                style={{
+                                  marginLeft: 8,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  color: "var(--accent)",
+                                }}
+                              >
+                                &middot; SEDANG AKTIF
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                            Model: <code>{option.model || "-"}</code>
+                          </div>
+
+                          {option.detail && (
+                            <div style={{ fontSize: 12, color: "#856404", marginTop: 2 }}>
+                              {option.detail}
+                            </div>
+                          )}
+                        </div>
+
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                            whiteSpace: "nowrap",
+                            backgroundColor: option.online ? "#d4edda" : "#f8d7da",
+                            color: option.online ? "#155724" : "#721c24",
+                          }}
+                        >
+                          {option.online ? "Online" : "Offline"}
+                        </span>
+                      </label>
+                    );
+                  })}
+
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={providerSaving || providerChoice === providers?.active_provider}
+                    onClick={handleSaveProvider}
+                  >
+                    {providerSaving ? "Menyimpan..." : "Jadikan Provider Aktif"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ============================================= */}
+          {/* KARTU KONFIGURASI — SATU KARTU PER PROVIDER    */}
+          {/* (di-render dari list, bukan hardcode per nama)  */}
+          {/* ============================================= */}
+
+          {!providerLoading && (providers?.providers || []).map((option) => {
+            const draft = configDrafts[option.provider] || { apiKey: "", model: "", baseUrl: "" };
+            const isSaving = !!configSaving[option.provider];
+            const errMsg = configError[option.provider];
+            const okMsg = configSuccess[option.provider];
+
+            return (
+              <div key={option.provider} className="dashboard-card settings-card">
+                <h2>
+                  Konfigurasi {option.label}
+                </h2>
+
+                <p className="settings-desc">
+                  {option.requires_api_key
+                    ? "API key disimpan di database, bukan di file .env — bisa diganti kapan saja dari sini tanpa perlu akses server."
+                    : "Provider ini berjalan lokal dan tidak memerlukan API key. Cukup atur nama model yang dipakai."}
+                </p>
+
+                {errMsg && (
+                  <div className="error-message" style={{ marginBottom: 18 }}>
+                    {errMsg}
+                  </div>
+                )}
+
+                {okMsg && (
+                  <div
+                    className="alert-success"
+                    style={{
+                      backgroundColor: "#d4edda",
+                      color: "#155724",
+                      padding: "10px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      marginBottom: "18px",
+                    }}
+                  >
+                    {okMsg}
+                  </div>
+                )}
+
+                {!option.online && option.detail && (
+                  <div
+                    style={{
+                      backgroundColor: "#fff3cd",
+                      color: "#856404",
+                      padding: "10px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      marginBottom: "18px",
+                    }}
+                  >
+                    {option.detail}
+                  </div>
+                )}
+
+                {option.requires_api_key && (
+                  <div className="form-group" style={{ marginBottom: 18 }}>
+                    <label>API Key</label>
+
+                    <input
+                      type="password"
+                      value={draft.apiKey}
+                      onChange={(e) => updateDraft(option.provider, "apiKey", e.target.value)}
+                      placeholder={
+                        option.masked_key
+                          ? `Tersimpan: ${option.masked_key} (isi untuk mengganti)`
+                          : "Tempel API key di sini"
+                      }
+                      autoComplete="off"
+                    />
+
+                    <small style={{ color: "#6b7280" }}>
+                      {option.configured
+                        ? "Sudah ada key tersimpan. Kosongkan kalau cuma mau ganti model, jangan ganti key."
+                        : "Belum ada API key tersimpan."}
+                    </small>
+                  </div>
+                )}
+
+                <div className="form-group" style={{ marginBottom: 18 }}>
+                  <label>Model</label>
+
                   <input
-                    type="file"
-                    accept=".db,.sqlite,.sqlite3"
-                    onChange={handleSelectUploadFile}
-                    style={{ fontSize: 13 }}
+                    type="text"
+                    value={draft.model}
+                    onChange={(e) => updateDraft(option.provider, "model", e.target.value)}
+                    placeholder="mis. nama-model"
                   />
+                </div>
+
+                {option.configurable_base_url && (
+                  <div className="form-group" style={{ marginBottom: 18 }}>
+                    <label>Alamat Server (Base URL)</label>
+
+                    <input
+                      type="text"
+                      value={draft.baseUrl}
+                      onChange={(e) => updateDraft(option.provider, "baseUrl", e.target.value)}
+                      placeholder={option.default_base_url || "http://localhost:11434"}
+                      autoComplete="off"
+                    />
+
+                    <small style={{ color: "#6b7280" }}>
+                      Kosongkan lalu klik "Kembalikan ke Default" untuk
+                      pakai mesin sendiri ({option.default_base_url || "http://localhost:11434"}).
+                      Untuk production, isi manual dengan alamat server
+                      tempat Ollama benar-benar berjalan, mis.{" "}
+                      <code>http://ollama:11434</code> (service Docker
+                      Compose) atau <code>http://10.0.0.5:11434</code>{" "}
+                      (server terpisah di jaringan).
+                    </small>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  {option.configurable_base_url && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isSaving}
+                      onClick={() => handleResetBaseUrl(option.provider)}
+                    >
+                      Kembalikan ke Default
+                    </button>
+                  )}
+
+                  {option.requires_api_key && option.configured && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isSaving}
+                      onClick={() => handleClearProviderConfig(option.provider)}
+                    >
+                      Hapus API Key
+                    </button>
+                  )}
 
                   <button
                     type="button"
                     className="primary-button"
-                    disabled={!selectedUploadFile || restoringUpload}
-                    onClick={requestRestoreFromUpload}
+                    disabled={isSaving}
+                    onClick={() => handleSaveProviderConfig(option.provider)}
                   >
-                    {restoringUpload ? "Me-restore..." : "Import File Ini"}
+                    {isSaving ? "Menyimpan..." : `Simpan ${option.label}`}
                   </button>
                 </div>
               </div>
+            );
+          })}
+
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* TAB: KEAMANAN — SECRET_KEY (JWT)               */}
+      {/* ============================================= */}
+
+      {activeTab === "security" && (
+        <div className="dashboard-card settings-card">
+          <h2>
+            <IconShield size={18} />
+            SECRET_KEY
+          </h2>
+
+          <p className="settings-desc">
+            Kunci rahasia untuk menandatangani sesi login (JWT) seluruh
+            aplikasi. Tersimpan di database — tidak perlu edit file .env
+            atau restart server untuk menggantinya.
+          </p>
+
+          <div
+            style={{
+              backgroundColor: "#fff3cd",
+              color: "#856404",
+              padding: "10px 12px",
+              borderRadius: "6px",
+              fontSize: "13px",
+              marginBottom: "16px",
+            }}
+          >
+            ⚠️ Menyimpan atau merotasi SECRET_KEY langsung membuat{" "}
+            <strong>semua sesi login yang sedang aktif tidak valid</strong>{" "}
+            — termasuk sesi Anda sendiri (Anda akan diminta login ulang),
+            guru, dan siswa yang mungkin sedang mengerjakan tryout.
+            Sebaiknya lakukan di luar jam ujian.
+          </div>
+
+          {secretKeyError && (
+            <div className="error-message" style={{ marginBottom: 18 }}>
+              {secretKeyError}
             </div>
           )}
 
-          {/* ===================================== */}
-          {/* MODAL KONFIRMASI RESTORE DATABASE      */}
-          {/* ===================================== */}
-
-          {restoreConfirmTarget && (
-            <div className="modal-overlay" onClick={cancelRestoreConfirm}>
+          {secretKeyLoading ? (
+            <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat status...</p>
+          ) : (
+            <>
               <div
-                className="modal"
-                style={{ width: "480px", maxWidth: "92vw" }}
-                onClick={(e) => e.stopPropagation()}
+                style={{
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  padding: "12px 14px",
+                  marginBottom: 16,
+                  fontSize: 13,
+                }}
               >
-                <div className="modal-header">
-                  <div>
-                    <h2>Konfirmasi Restore Database</h2>
-                  </div>
-                  <button
-                    type="button"
-                    className="modal-close"
-                    onClick={cancelRestoreConfirm}
-                  >
-                    ×
-                  </button>
+                <div style={{ marginBottom: 4 }}>
+                  <strong>Key saat ini:</strong>{" "}
+                  <code>{secretKeyStatus?.masked_key || "-"}</code>
                 </div>
 
-                <div style={{ padding: "4px 22px 22px" }}>
-                  <p style={{ fontSize: 13, marginTop: 0 }}>
-                    Anda akan me-restore database dari{" "}
-                    <strong>
-                      {restoreConfirmTarget.source === "existing"
-                        ? restoreConfirmTarget.filename
-                        : restoreConfirmTarget.file.name}
-                    </strong>
-                    .
-                  </p>
+                {secretKeyStatus?.updated_at && (
+                  <div style={{ color: "#6b7280" }}>
+                    Terakhir diganti:{" "}
+                    {new Date(secretKeyStatus.updated_at).toLocaleString("id-ID")}
+                    {secretKeyStatus?.changed_by
+                      ? ` oleh @${secretKeyStatus.changed_by}`
+                      : ""}
+                  </div>
+                )}
+              </div>
 
-                  <p style={{ fontSize: 13, color: "#b45309" }}>
-                    Tindakan ini akan MENGGANTIKAN seluruh data yang sedang
-                    aktif sekarang (semua user, soal, dan hasil tryout) dengan
-                    isi file ini. Database saat ini akan otomatis di-backup
-                    dulu sebelum ditimpa, jadi masih bisa dikembalikan lewat
-                    Restore sekali lagi kalau ternyata salah pilih file — tapi
-                    perubahan APA PUN yang terjadi SETELAH backup pengaman itu
-                    tetap akan hilang.
-                  </p>
+              <div className="settings-cols">
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+              {/* ROTASI OTOMATIS */}
+
+              <div className="settings-block">
+                <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>
+                  Rotasi Otomatis
+                </label>
+                <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280", fontSize: 13 }}>
+                  Generate key acak baru secara otomatis — cara yang
+                  direkomendasikan untuk rotasi rutin, tidak perlu
+                  mengetik apa pun.
+                </p>
+
+                {secretKeyConfirm === "rotate" ? (
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, color: "#721c24" }}>
+                      Yakin? Semua orang akan ter-logout.
+                    </span>
                     <button
                       type="button"
                       className="secondary-button"
-                      onClick={cancelRestoreConfirm}
-                      disabled={restoringUpload || !!restoringFilename}
+                      disabled={rotatingSecretKey}
+                      onClick={() => setSecretKeyConfirm(null)}
                     >
                       Batal
                     </button>
-
                     <button
                       type="button"
                       className="primary-button"
-                      style={{ backgroundColor: "#b45309" }}
-                      onClick={confirmRestore}
-                      disabled={restoringUpload || !!restoringFilename}
+                      disabled={rotatingSecretKey}
+                      onClick={handleRotateSecretKey}
                     >
-                      {restoringUpload || restoringFilename
-                        ? "Me-restore..."
-                        : "Ya, Timpa Database Sekarang"}
+                      {rotatingSecretKey ? "Merotasi..." : "Ya, Rotasi Sekarang"}
                     </button>
                   </div>
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={rotatingSecretKey}
+                    onClick={() => setSecretKeyConfirm("rotate")}
+                  >
+                    <IconRefresh size={15} />
+                    Rotasi Otomatis
+                  </button>
+                )}
               </div>
+
+              {/* ISI MANUAL */}
+
+              <div className="settings-block">
+                <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>
+                  Isi Manual
+                </label>
+                <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280", fontSize: 13 }}>
+                  Tempel SECRET_KEY Anda sendiri (mis. untuk menyamakan
+                  dengan environment lain). Minimal 32 karakter.
+                </p>
+
+                <div className="form-group" style={{ marginBottom: 14 }}>
+                  <input
+                    type="password"
+                    value={secretKeyDraft}
+                    onChange={(e) => setSecretKeyDraft(e.target.value)}
+                    placeholder="Tempel SECRET_KEY baru di sini"
+                    autoComplete="off"
+                  />
+                </div>
+
+                {secretKeyConfirm === "save" ? (
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, color: "#721c24" }}>
+                      Yakin? Semua orang akan ter-logout.
+                    </span>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={savingSecretKey}
+                      onClick={() => setSecretKeyConfirm(null)}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={savingSecretKey}
+                      onClick={handleSaveSecretKey}
+                    >
+                      {savingSecretKey ? "Menyimpan..." : "Ya, Simpan Sekarang"}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={savingSecretKey || secretKeyDraft.trim().length < 32}
+                      onClick={() => setSecretKeyConfirm("save")}
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* TAB: BACKUP — BACKUP DATABASE SQLITE           */}
+      {/* ============================================= */}
+
+      {activeTab === "backup" && (
+        <div className="dashboard-card settings-card">
+          <h2>
+            <IconClipboard size={18} />
+            Backup Database
+          </h2>
+
+          <p className="settings-desc">
+            Backup otomatis berjalan sendiri tiap 24 jam di server.
+            Gunakan tombol di bawah untuk membuat backup tambahan
+            kapan saja — misalnya sebelum mengganti SECRET_KEY atau
+            menghapus data dalam jumlah besar.
+            {retentionDays != null && (
+              <> Backup lebih tua dari {retentionDays} hari otomatis dihapus.</>
+            )}
+          </p>
+
+          {backupActionError && (
+            <div className="error-message" style={{ marginBottom: 18 }}>
+              {backupActionError}
             </div>
           )}
 
-          {/* ============================================= */}
-          {/* TAB: JARINGAN — AKSES DARI LAPTOP LAIN (WIFI)  */}
-          {/* ============================================= */}
-
-          {activeTab === "network" && (
-            <NetworkTab
-              networkInfo={networkInfo}
-              networkLoading={networkLoading}
-              networkError={networkError}
-            />
+          {backupActionSuccess && (
+            <div
+              className="alert-success"
+              style={{
+                backgroundColor: "#d4edda",
+                color: "#155724",
+                padding: "10px",
+                borderRadius: "6px",
+                fontSize: "13px",
+                marginBottom: "18px",
+              }}
+            >
+              {backupActionSuccess}
+            </div>
           )}
 
-        </div>
+          <div className="settings-cols is-wide-left">
 
-      </main>
-    </div>
+          {/* KIRI: daftar backup */}
+
+          <div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 15 }}>Daftar Backup</h3>
+
+            <button
+              type="button"
+              className="primary-button"
+              disabled={creatingBackup}
+              onClick={handleCreateBackupNow}
+            >
+              {creatingBackup ? "Membuat Backup..." : "Backup Sekarang"}
+            </button>
+          </div>
+
+          {backupsError && (
+            <div className="error-message" style={{ marginBottom: 18 }}>
+              {backupsError}
+            </div>
+          )}
+
+          {backupsLoading ? (
+            <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat daftar backup...</p>
+          ) : backups.length === 0 ? (
+            <p style={{ color: "#6b7280", fontSize: 13 }}>
+              Belum ada backup. Klik "Backup Sekarang" di atas, atau
+              tunggu jadwal otomatis berikutnya.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto", paddingRight: 2 }}>
+              {backups.map((backup) => (
+                <div
+                  key={backup.filename}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    border: "1px solid var(--line)",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 13,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {backup.filename}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                      {new Date(backup.created_at).toLocaleString("id-ID")}
+                      {" · "}
+                      {formatBytes(backup.size_bytes)}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={downloadingFilename === backup.filename}
+                    onClick={() => handleDownloadBackup(backup.filename)}
+                  >
+                    {downloadingFilename === backup.filename
+                      ? "Mengunduh..."
+                      : "Download"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{ color: "#b45309", borderColor: "#fbbf24" }}
+                    disabled={restoringFilename === backup.filename}
+                    onClick={() => requestRestoreFromExisting(backup.filename)}
+                  >
+                    {restoringFilename === backup.filename
+                      ? "Me-restore..."
+                      : "Restore"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ===================================== */}
+          {/* IMPORT DARI FILE LOKAL                 */}
+          {/* ===================================== */}
+
+          </div>
+
+          {/* KANAN: import dari file lokal */}
+
+          <div className="settings-block">
+            <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: 15 }}>
+              Import Database dari File Lokal
+            </h3>
+
+            <p style={{ marginTop: 0, marginBottom: 14, color: "#6b7280", fontSize: 13 }}>
+              Upload file backup (.db/.sqlite/.sqlite3) dari komputer Anda
+              sendiri — misalnya backup lama yang pernah di-download, atau
+              dipindah dari server lain. File yang diupload akan
+              MENGGANTIKAN seluruh database yang sedang aktif.
+            </p>
+
+            {restoreActionError && (
+              <div className="error-message" style={{ marginBottom: 14 }}>
+                {restoreActionError}
+              </div>
+            )}
+
+            {restoreActionSuccess && (
+              <div
+                className="alert-success"
+                style={{
+                  backgroundColor: "#d4edda",
+                  color: "#155724",
+                  padding: "10px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  marginBottom: "14px",
+                }}
+              >
+                {restoreActionSuccess}
+              </div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="file"
+                accept=".db,.sqlite,.sqlite3"
+                onChange={handleSelectUploadFile}
+                style={{ fontSize: 13 }}
+              />
+
+              <button
+                type="button"
+                className="primary-button"
+                disabled={!selectedUploadFile || restoringUpload}
+                onClick={requestRestoreFromUpload}
+              >
+                {restoringUpload ? "Me-restore..." : "Import File Ini"}
+              </button>
+            </div>
+          </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ===================================== */}
+      {/* MODAL KONFIRMASI RESTORE DATABASE      */}
+      {/* ===================================== */}
+
+      {restoreConfirmTarget && (
+        <div className="modal-overlay" onClick={cancelRestoreConfirm}>
+          <div
+            className="modal"
+            style={{ width: "480px", maxWidth: "92vw" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <h2>Konfirmasi Restore Database</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={cancelRestoreConfirm}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: "4px 22px 22px" }}>
+              <p style={{ fontSize: 13, marginTop: 0 }}>
+                Anda akan me-restore database dari{" "}
+                <strong>
+                  {restoreConfirmTarget.source === "existing"
+                    ? restoreConfirmTarget.filename
+                    : restoreConfirmTarget.file.name}
+                </strong>
+                .
+              </p>
+
+              <p style={{ fontSize: 13, color: "#b45309" }}>
+                Tindakan ini akan MENGGANTIKAN seluruh data yang sedang
+                aktif sekarang (semua user, soal, dan hasil tryout) dengan
+                isi file ini. Database saat ini akan otomatis di-backup
+                dulu sebelum ditimpa, jadi masih bisa dikembalikan lewat
+                Restore sekali lagi kalau ternyata salah pilih file — tapi
+                perubahan APA PUN yang terjadi SETELAH backup pengaman itu
+                tetap akan hilang.
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={cancelRestoreConfirm}
+                  disabled={restoringUpload || !!restoringFilename}
+                >
+                  Batal
+                </button>
+
+                <button
+                  type="button"
+                  className="primary-button"
+                  style={{ backgroundColor: "#b45309" }}
+                  onClick={confirmRestore}
+                  disabled={restoringUpload || !!restoringFilename}
+                >
+                  {restoringUpload || restoringFilename
+                    ? "Me-restore..."
+                    : "Ya, Timpa Database Sekarang"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* TAB: JARINGAN — AKSES DARI LAPTOP LAIN (WIFI)  */}
+      {/* ============================================= */}
+
+      {activeTab === "network" && (
+        <NetworkTab
+          networkInfo={networkInfo}
+          networkLoading={networkLoading}
+          networkError={networkError}
+        />
+      )}
+    </>
   );
 }
 

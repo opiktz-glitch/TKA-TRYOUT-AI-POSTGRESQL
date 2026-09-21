@@ -1,4 +1,5 @@
-import { Outlet } from "react-router-dom";
+import { useLayoutEffect, useRef } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -29,6 +30,24 @@ import Header from "./Header";
 // =====================================================
 
 function Layout() {
+  const { pathname } = useLocation();
+  const contentRef = useRef(null);
+
+  // Yang scroll di aplikasi ini adalah .content (overflow-y: auto),
+  // bukan halaman. Dulu tiap pindah route .content ikut dibuat ulang
+  // (karena Layout dirender per halaman), jadi otomatis mulai dari
+  // atas. Sekarang Layout menetap, elemen .content yang SAMA dipakai
+  // terus -- tanpa reset, posisi scroll halaman sebelumnya terbawa ke
+  // halaman berikutnya. useLayoutEffect (bukan useEffect) supaya reset
+  // terjadi sebelum browser menggambar, jadi tidak ada kedipan.
+  // Dipicu pathname saja: ganti query string (?tryout=...) di halaman
+  // yang sama sengaja TIDAK me-reset scroll.
+  useLayoutEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [pathname]);
+
   return (
     <div className="app-layout">
       <Sidebar />
@@ -36,7 +55,7 @@ function Layout() {
       <main className="main-content">
         <Header />
 
-        <div className="content">
+        <div className="content" ref={contentRef}>
           <Outlet />
         </div>
       </main>

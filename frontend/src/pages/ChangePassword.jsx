@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { changeMyPassword } from "../services/api";
 
 function ChangePassword() {
@@ -66,113 +64,105 @@ function ChangePassword() {
   }
 
   return (
-    <div className="app-layout">
-      <Sidebar />
-
-      <main className="main-content">
-        <Header />
-
-        <div className="content">
-          {/* HEADER */}
-          <div className="page-header">
-            <div>
-              <h1>Ganti Password</h1>
-              <p>
-                Gunakan password yang kuat untuk menjaga keamanan akun Anda
-              </p>
-            </div>
-          </div>
-
-          {/* FORM CARD */}
-          <div
-            className="dashboard-card"
-            style={{ maxWidth: "700px", margin: "0 auto", padding: "28px 32px" }}
-          >
-            {error && (
-              <div className="form-error-message" style={{ marginBottom: "18px" }}>
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="success-message" style={{ marginBottom: "18px" }}>
-                {success}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Password Lama</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) =>
-                    setCurrentPassword(e.target.value)
-                  }
-                  placeholder="Masukkan password lama"
-                  autoComplete="current-password"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Password Baru</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Konfirmasi Password Baru</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) =>
-                    setConfirmPassword(e.target.value)
-                  }
-                  placeholder="Ulangi password baru"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-
-              <div
-                style={{
-                  marginTop: "8px",
-                  paddingTop: "20px",
-                  borderTop: "1px solid var(--line)",
-                  display: "flex",
-                  gap: 10,
-                  justifyContent: "flex-end",
-                }}
-              >
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={loading}
-                  onClick={() => navigate(-1)}
-                >
-                  Batal
-                </button>
-
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={loading}
-                >
-                  {loading ? "Mengubah..." : "Ubah Password"}
-                </button>
-              </div>
-            </form>
-          </div>
+    <>
+      {/* HEADER */}
+      <div className="page-header">
+        <div>
+          <h1>Ganti Password</h1>
+          <p>
+            Gunakan password yang kuat untuk menjaga keamanan akun Anda
+          </p>
         </div>
-      </main>
-    </div>
+      </div>
+
+      {/* FORM CARD */}
+      <div
+        className="dashboard-card"
+        style={{ maxWidth: "700px", margin: "0 auto", padding: "28px 32px" }}
+      >
+        {error && (
+          <div className="form-error-message" style={{ marginBottom: "18px" }}>
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="success-message" style={{ marginBottom: "18px" }}>
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Password Lama</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) =>
+                setCurrentPassword(e.target.value)
+              }
+              placeholder="Masukkan password lama"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password Baru</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Minimal 6 karakter"
+              autoComplete="new-password"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Konfirmasi Password Baru</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) =>
+                setConfirmPassword(e.target.value)
+              }
+              placeholder="Ulangi password baru"
+              autoComplete="new-password"
+              required
+            />
+          </div>
+
+          <div
+            style={{
+              marginTop: "8px",
+              paddingTop: "20px",
+              borderTop: "1px solid var(--line)",
+              display: "flex",
+              gap: 10,
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={loading}
+              onClick={() => navigate(-1)}
+            >
+              Batal
+            </button>
+
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={loading}
+            >
+              {loading ? "Mengubah..." : "Ubah Password"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 

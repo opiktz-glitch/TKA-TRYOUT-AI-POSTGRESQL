@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconBarChart } from "../components/Icons";
 
 import { getStudentProfiles } from "../services/api";
@@ -57,91 +55,80 @@ function TeacherStudents() {
 
 
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <>
+      {/* HEADER */}
 
-      <main className="main-content">
-        <Header />
+      <div className="page-header">
+        <div>
+          <h1>Peserta</h1>
+          <p>Daftar siswa yang terdaftar di sistem</p>
+        </div>
+      </div>
 
-        <div className="content">
+      <div className="dashboard-card">
 
-          {/* HEADER */}
+        <div className="user-toolbar">
+          <input
+            type="text"
+            placeholder="Cari nama / NIS / sekolah..."
+            className="search-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
-          <div className="page-header">
-            <div>
-              <h1>Peserta</h1>
-              <p>Daftar siswa yang terdaftar di sistem</p>
-            </div>
-          </div>
+        {loading && (
+          <div className="loading-message">Memuat data siswa...</div>
+        )}
 
-          <div className="dashboard-card">
+        {error && <div className="error-message">{error}</div>}
 
-            <div className="user-toolbar">
-              <input
-                type="text"
-                placeholder="Cari nama / NIS / sekolah..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+        {!loading && !error && (
+          <div className="table-container">
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th>NIS</th>
+                  <th>Nama</th>
+                  <th>Sekolah</th>
+                  <th>Kelas</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
 
-            {loading && (
-              <div className="loading-message">Memuat data siswa...</div>
-            )}
+              <tbody>
+                {filteredStudents.map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.student_code}</strong></td>
+                    <td>{item.full_name}</td>
+                    <td>{item.school_name || "-"}</td>
+                    <td>
+                      {item.grade || "-"}
+                      {item.class_name ? ` / ${item.class_name}` : ""}
+                    </td>
+                    <td>
+                      <button
+                        className="secondary-button"
+                        onClick={() => viewScores(item)}
+                      >
+                        <IconBarChart size={15} />
+                        Lihat Nilai
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-            {error && <div className="error-message">{error}</div>}
-
-            {!loading && !error && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th>NIS</th>
-                      <th>Nama</th>
-                      <th>Sekolah</th>
-                      <th>Kelas</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredStudents.map((item) => (
-                      <tr key={item.id}>
-                        <td><strong>{item.student_code}</strong></td>
-                        <td>{item.full_name}</td>
-                        <td>{item.school_name || "-"}</td>
-                        <td>
-                          {item.grade || "-"}
-                          {item.class_name ? ` / ${item.class_name}` : ""}
-                        </td>
-                        <td>
-                          <button
-                            className="secondary-button"
-                            onClick={() => viewScores(item)}
-                          >
-                            <IconBarChart size={15} />
-                            Lihat Nilai
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredStudents.length === 0 && (
-                  <div className="empty-message">
-                    {search ? "Siswa tidak ditemukan." : "Belum ada data siswa."}
-                  </div>
-                )}
+            {filteredStudents.length === 0 && (
+              <div className="empty-message">
+                {search ? "Siswa tidak ditemukan." : "Belum ada data siswa."}
               </div>
             )}
           </div>
-
-        </div>
-
-      </main>
-    </div>
+        )}
+      </div>
+    </>
   );
 }
 

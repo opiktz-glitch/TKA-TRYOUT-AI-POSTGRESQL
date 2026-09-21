@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 import { IconBarChart, IconCheck, IconTrophy } from "../components/Icons";
 import QuestionImage from "../components/QuestionImage";
 
@@ -123,139 +121,127 @@ function StudentHistory() {
 
 
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <>
+      {/* HEADER */}
 
-      <main className="main-content">
-        <Header />
+      <div className="page-header">
+        <div>
+          <h1>Riwayat &amp; Hasil Tryout</h1>
+          <p>Semua tryout yang sudah kamu selesaikan, lengkap dengan skornya</p>
+        </div>
+      </div>
 
-        <div className="content">
+      <div className="dashboard-card">
 
-          {/* HEADER */}
+        <div className="user-toolbar">
+          <input
+            type="text"
+            placeholder="Cari judul tryout / mata pelajaran..."
+            className="search-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
-          <div className="page-header">
-            <div>
-              <h1>Riwayat &amp; Hasil Tryout</h1>
-              <p>Semua tryout yang sudah kamu selesaikan, lengkap dengan skornya</p>
-            </div>
-          </div>
+        {loading && (
+          <div className="loading-message">Memuat riwayat tryout...</div>
+        )}
 
-          <div className="dashboard-card">
+        {error && <div className="error-message">{error}</div>}
 
-            <div className="user-toolbar">
-              <input
-                type="text"
-                placeholder="Cari judul tryout / mata pelajaran..."
-                className="search-input"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+        {!loading && !error && (
+          <div className="table-container">
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th>Judul Tryout</th>
+                  <th>Mata Pelajaran</th>
+                  <th>Selesai</th>
+                  <th>Skor</th>
+                  <th>Benar / Salah / Kosong</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
 
-            {loading && (
-              <div className="loading-message">Memuat riwayat tryout...</div>
-            )}
+              <tbody>
+                {filteredAttempts.map((item) => (
+                  <tr key={item.attempt_id}>
+                    <td>
+                      <strong>{item.title}</strong>
+                    </td>
 
-            {error && <div className="error-message">{error}</div>}
+                    <td>{item.subject_name || "-"}</td>
 
-            {!loading && !error && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th>Judul Tryout</th>
-                      <th>Mata Pelajaran</th>
-                      <th>Selesai</th>
-                      <th>Skor</th>
-                      <th>Benar / Salah / Kosong</th>
-                      <th>Status</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
+                    <td>{formatDate(item.finished_at)}</td>
 
-                  <tbody>
-                    {filteredAttempts.map((item) => (
-                      <tr key={item.attempt_id}>
-                        <td>
-                          <strong>{item.title}</strong>
-                        </td>
+                    <td>
+                      <strong>
+                        {item.score !== null && item.score !== undefined
+                          ? Math.round(item.score * 100) / 100
+                          : "-"}
+                      </strong>
+                      {item.max_score ? ` / ${item.max_score}` : ""}
+                    </td>
 
-                        <td>{item.subject_name || "-"}</td>
+                    <td>
+                      <span style={{ color: "var(--success, #3F7D58)" }}>
+                        {item.correct_count ?? 0}
+                      </span>
+                      {" / "}
+                      <span style={{ color: "#dc2626" }}>
+                        {item.wrong_count ?? 0}
+                      </span>
+                      {" / "}
+                      <span style={{ color: "#9ca3af" }}>
+                        {item.unanswered_count ?? 0}
+                      </span>
+                    </td>
 
-                        <td>{formatDate(item.finished_at)}</td>
+                    <td>
+                      {item.passed === true && (
+                        <span className="status-active">
+                          <IconCheck size={13} style={{ verticalAlign: "-2px" }} /> Lulus
+                        </span>
+                      )}
 
-                        <td>
-                          <strong>
-                            {item.score !== null && item.score !== undefined
-                              ? Math.round(item.score * 100) / 100
-                              : "-"}
-                          </strong>
-                          {item.max_score ? ` / ${item.max_score}` : ""}
-                        </td>
+                      {item.passed === false && (
+                        <span className="status-inactive">
+                          Tidak Lulus
+                        </span>
+                      )}
 
-                        <td>
-                          <span style={{ color: "var(--success, #3F7D58)" }}>
-                            {item.correct_count ?? 0}
-                          </span>
-                          {" / "}
-                          <span style={{ color: "#dc2626" }}>
-                            {item.wrong_count ?? 0}
-                          </span>
-                          {" / "}
-                          <span style={{ color: "#9ca3af" }}>
-                            {item.unanswered_count ?? 0}
-                          </span>
-                        </td>
+                      {item.passed === null && (
+                        <span className="status-inactive">
+                          {item.status}
+                        </span>
+                      )}
+                    </td>
 
-                        <td>
-                          {item.passed === true && (
-                            <span className="status-active">
-                              <IconCheck size={13} style={{ verticalAlign: "-2px" }} /> Lulus
-                            </span>
-                          )}
+                    <td>
+                      <button
+                        className="secondary-button"
+                        onClick={() => openDetail(item)}
+                      >
+                        <IconBarChart size={15} />
+                        Lihat Detail
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-                          {item.passed === false && (
-                            <span className="status-inactive">
-                              Tidak Lulus
-                            </span>
-                          )}
-
-                          {item.passed === null && (
-                            <span className="status-inactive">
-                              {item.status}
-                            </span>
-                          )}
-                        </td>
-
-                        <td>
-                          <button
-                            className="secondary-button"
-                            onClick={() => openDetail(item)}
-                          >
-                            <IconBarChart size={15} />
-                            Lihat Detail
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredAttempts.length === 0 && (
-                  <div className="empty-message">
-                    {search
-                      ? "Riwayat tidak ditemukan."
-                      : "Belum ada tryout yang kamu selesaikan."}
-                  </div>
-                )}
+            {filteredAttempts.length === 0 && (
+              <div className="empty-message">
+                {search
+                  ? "Riwayat tidak ditemukan."
+                  : "Belum ada tryout yang kamu selesaikan."}
               </div>
             )}
           </div>
-
-        </div>
-
-      </main>
-
+        )}
+      </div>
 
       {/* =========================================================
           MODAL DETAIL HASIL
@@ -516,8 +502,7 @@ function StudentHistory() {
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 }
 
