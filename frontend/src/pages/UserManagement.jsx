@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { IconEdit, IconTrash, IconKey, IconEye, IconEyeOff, IconCheck, IconLogOut } from "../components/Icons";
+import Pagination from "../components/Pagination";
+import "../components/ScoreTable.css";
+
+import { IconEdit, IconTrash, IconKey, IconEye, IconEyeOff, IconCheck, IconLogOut, IconSearch } from "../components/Icons";
 
 import {
   getUsers,
@@ -10,6 +13,10 @@ import {
   resetUserPassword,
   forceLogoutUser
 } from "../services/api";
+
+const ROLES = ["ADMIN", "GURU", "SISWA"];
+
+const USERS_PER_PAGE = 10;
 
 
 function UserManagement() {
@@ -29,6 +36,13 @@ function UserManagement() {
   const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
+
+  // "" = Semua role / status
+  const [roleFilter, setRoleFilter] = useState("");
+
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
 
 
   // --------------------------------------------------------
@@ -436,25 +450,54 @@ function UserManagement() {
     }
   }
 
-  const filteredUsers = users.filter((item) => {
+  const filteredUsers = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-    const keyword = search.toLowerCase();
+    return users.filter((item) => {
+      const matchesSearch =
+        !keyword ||
+        item.username?.toLowerCase().includes(keyword) ||
+        item.full_name?.toLowerCase().includes(keyword);
 
-    return (
-      item.username
-        ?.toLowerCase()
-        .includes(keyword)
-      ||
-      item.full_name
-        ?.toLowerCase()
-        .includes(keyword)
-      ||
-      item.role
-        ?.toLowerCase()
-        .includes(keyword)
-    );
+      const matchesRole = !roleFilter || item.role === roleFilter;
 
-  });
+      const matchesStatus =
+        !statusFilter ||
+        (statusFilter === "ACTIVE" ? item.is_active : !item.is_active);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, search, roleFilter, statusFilter]);
+
+  // Reset ke halaman 1 setiap kali pencarian/filter berubah, supaya
+  // tidak "nyangkut" di halaman yang sudah tidak relevan.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter, statusFilter]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / USERS_PER_PAGE)
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(start, start + USERS_PER_PAGE);
+  }, [filteredUsers, currentPage]);
+
+  const hasActiveUserFilter = Boolean(search || roleFilter || statusFilter);
+
+  function resetUserFilters() {
+    setSearch("");
+    setRoleFilter("");
+    setStatusFilter("");
+  }
 
   return (
 
@@ -483,19 +526,45 @@ function UserManagement() {
       </div>
 
 
-      {/* TABLE */}
+      {/* TABLE & FILTER */}
 
-      <div className="dashboard-card">
+      <div className="score-card">
 
-        <div className="user-toolbar">
+        <div className="score-toolbar">
 
-          <input
-            type="text"
-            placeholder="Cari username / nama / role..."
-            className="search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <label className="score-search">
+            <IconSearch size={16} />
+            <input
+              type="text"
+              placeholder="Cari username / nama..."
+              aria-label="Cari user"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+
+          <select
+            className={`score-select${roleFilter ? " is-active" : ""}`}
+            aria-label="Filter role"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="">Semua Role</option>
+            {ROLES.map((role) => (
+              <option key={role} value={role}>{role}</option>
+            ))}
+          </select>
+
+          <select
+            className={`score-select${statusFilter ? " is-active" : ""}`}
+            aria-label="Filter status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Semua Status</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="INACTIVE">Nonaktif</option>
+          </select>
 
         </div>
 
@@ -511,7 +580,7 @@ function UserManagement() {
 
           <div
             className="success-message"
-            style={{ margin: "0 18px 15px" }}
+            style={{ margin: "0 16px", marginTop: "12px" }}
           >
             <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
             {actionSuccess}
@@ -524,7 +593,7 @@ function UserManagement() {
 
           <div
             className="form-error-message"
-            style={{ margin: "0 18px 15px" }}
+            style={{ margin: "0 16px", marginTop: "12px" }}
           >
             {actionError}
           </div>
@@ -552,137 +621,174 @@ function UserManagement() {
 
         {!loading && !loadError && (
 
-          <div className="table-container">
+          <>
 
-            <table className="user-table">
+            <div className="score-meta">
+              <span>{filteredUsers.length} user</span>
 
-              <thead>
+              {hasActiveUserFilter && (
+                <button type="button" className="score-reset" onClick={resetUserFilters}>
+                  Reset filter
+                </button>
+              )}
+            </div>
 
-                <tr>
-
-                  <th className="align-center">No</th>
-                  <th className="align-center">ID</th>
-                  <th className="align-center">Username</th>
-                  <th className="align-center">Nama</th>
-                  <th className="align-center">Role</th>
-                  <th className="align-center">Status</th>
-                  <th className="align-center">Aksi</th>
-
-                </tr>
-
-              </thead>
-
-
-              <tbody>
-
-                {filteredUsers.map((item, index) => (
-
-                  <tr key={item.id}>
-
-                    <td className="align-center">
-                      {index + 1}
-                    </td>
-
-                    <td>
-                      {item.id}
-                    </td>
-
-                    <td>
-                      <strong>
-                        {item.username}
-                      </strong>
-                    </td>
-
-                    <td className="align-left">
-                      {item.full_name || "-"}
-                    </td>
-
-                    <td>
-
-                      <span
-                        className={`role-badge role-${item.role.toLowerCase()}`}
-                      >
-                        {item.role}
-                      </span>
-
-                    </td>
-
-                    <td>
-
-                      {item.is_active ? (
-
-                        <span className="status-active">
-                          Aktif
-                        </span>
-
-                      ) : (
-
-                        <span className="status-inactive">
-                          Nonaktif
-                        </span>
-
-                      )}
-
-                    </td>
-
-                    <td>
-
-                      <div className="action-buttons">
-
-                        <button
-                          className="edit-button"
-                          onClick={() => openEditModal(item)}
-                        >
-                          <IconEdit size={16} />
-                        </button>
-
-                        <button
-                          className="delete-button"
-                          onClick={() => handleDelete(item)}
-                        >
-                          <IconTrash size={16} />
-                        </button>
-
-                        <button
-                          className="password-button"
-                          onClick={() => openPasswordModal(item)}
-                        >
-                          <IconKey size={16} />
-                        </button>
-
-                        <button
-                          className="password-button"
-                          title="Paksa Logout"
-                          onClick={() => handleForceLogout(item)}
-                        >
-                          <IconLogOut size={16} />
-                        </button>
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-
-                ))}
-
-              </tbody>
-
-            </table>
-
-
-            {filteredUsers.length === 0 && (
+            {filteredUsers.length === 0 ? (
 
               <div className="empty-message">
-                {search
+                {hasActiveUserFilter
                   ? "User tidak ditemukan."
                   : "Belum ada user."
                 }
               </div>
 
+            ) : (
+
+              <div className="table-container">
+
+                <table className="score-table">
+
+                  <colgroup>
+                    <col style={{ width: "5%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "29%" }} />
+                  </colgroup>
+
+                  <thead>
+
+                    <tr>
+
+                      <th>No</th>
+                      <th>ID</th>
+                      <th className="is-left">Username</th>
+                      <th className="is-left">Nama</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Aksi</th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    {paginatedUsers.map((item, index) => (
+
+                      <tr key={item.id}>
+
+                        <td className="is-center is-nowrap">
+                          {(currentPage - 1) * USERS_PER_PAGE + index + 1}
+                        </td>
+
+                        <td className="is-center is-nowrap score-secondary">
+                          {item.id}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.username}>
+                          <span className="score-primary is-strong">
+                            {item.username}
+                          </span>
+                        </td>
+
+                        <td className="score-ellipsis" title={item.full_name || undefined}>
+                          {item.full_name || "-"}
+                        </td>
+
+                        <td className="is-center">
+
+                          <span
+                            className={`role-badge role-${item.role.toLowerCase()}`}
+                          >
+                            {item.role}
+                          </span>
+
+                        </td>
+
+                        <td className="is-center">
+
+                          {item.is_active ? (
+
+                            <span className="score-badge is-pass">
+                              Aktif
+                            </span>
+
+                          ) : (
+
+                            <span className="score-badge is-fail">
+                              Nonaktif
+                            </span>
+
+                          )}
+
+                        </td>
+
+                        <td className="is-center is-nowrap">
+
+                          <div className="action-buttons" style={{ justifyContent: "center" }}>
+
+                            <button
+                              className="edit-button"
+                              onClick={() => openEditModal(item)}
+                              title="Edit"
+                            >
+                              <IconEdit size={16} />
+                            </button>
+
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(item)}
+                              title="Hapus"
+                            >
+                              <IconTrash size={16} />
+                            </button>
+
+                            <button
+                              className="password-button"
+                              onClick={() => openPasswordModal(item)}
+                              title="Reset Password"
+                            >
+                              <IconKey size={16} />
+                            </button>
+
+                            <button
+                              className="password-button"
+                              title="Paksa Logout"
+                              onClick={() => handleForceLogout(item)}
+                            >
+                              <IconLogOut size={16} />
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    ))}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
             )}
 
-          </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredUsers.length}
+              pageSize={USERS_PER_PAGE}
+              itemLabel="user"
+              onPageChange={setCurrentPage}
+            />
+
+          </>
 
         )}
 

@@ -118,6 +118,19 @@ OLLAMA_MODEL = os.getenv(
     "llama3.2:3b"
 )
 
+# Model Ollama KHUSUS untuk fitur "Impor Soal dari Gambar" (lihat
+# ai_vision.py) -- SENGAJA terpisah dari OLLAMA_MODEL di atas, karena
+# model yang bagus untuk generate soal dari teks (mis. qwen2.5:7b)
+# belum tentu bisa/pas untuk membaca gambar, dan sebaliknya. Dibiarkan
+# kosong secara default (bukan ditebak otomatis) supaya admin yang
+# menentukan sendiri model vision mana yang sudah di-`ollama pull`
+# di servernya -- lihat get_vision_capability() di ai_vision.py untuk
+# pesan error kalau field ini kosong / modelnya belum ter-pull.
+OLLAMA_VISION_MODEL = os.getenv(
+    "OLLAMA_VISION_MODEL",
+    ""
+)
+
 
 # ==========================================
 # GEMINI (GENERATE SOAL DENGAN AI - CLOUD)

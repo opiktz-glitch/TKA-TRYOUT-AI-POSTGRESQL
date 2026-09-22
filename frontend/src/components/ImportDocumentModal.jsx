@@ -1,8 +1,54 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { createQuestion, prepareDocumentExtraction, processDocumentChunk } from "../services/api";
 import { OPTION_CODES } from "../data/questionConstants";
 import OptionsEditor from "./OptionsEditor";
+
+// Pesan yang berganti-ganti tiap beberapa detik SEKEDAR untuk
+// memberi kesan "masih berjalan" selama menunggu SATU potongan
+// diproses AI -- backend tidak punya progress granular untuk satu
+// potongan (responsnya baru datang sekali jadi, bukan streaming),
+// jadi urutan pesan ini TIDAK mencerminkan tahapan sungguhan di
+// backend, cuma supaya layar tidak terlihat diam/macet selagi
+// menunggu.
+const IMPORT_PROCESSING_MESSAGES = [
+  "Membaca potongan teks dokumen...",
+  "AI sedang menganalisis soal...",
+  "Menyusun pilihan jawaban...",
+  "Hampir selesai untuk potongan ini...",
+];
+
+// Batas atas & "kecepatan" progres semu untuk SATU potongan yang
+// sedang diproses (lihat computeChunkSubProgress di bawah). MURNI
+// kosmetik -- gunanya supaya progress bar & angka %-nya ikut
+// bergerak maju terus (melambat, tapi TIDAK PERNAH mundur) selagi
+// menunggu potongan itu kelar, alih-alih diam di posisi potongan
+// sebelumnya (paling kentara saat dokumen cuma punya 1 potongan:
+// tanpa ini, progress akan terbaca 0% terus sampai tiba-tiba lompat
+// ke 100% begitu potongan itu selesai).
+const CHUNK_SUB_PROGRESS_CAP = 0.92;
+const CHUNK_SUB_PROGRESS_TAU_SECONDS = 12;
+
+// Kurva "mendekati tapi tidak pernah sampai" batas atas -- naik cepat
+// di awal, makin lama makin melambat, supaya kelihatan wajar untuk
+// potongan yang cepat maupun yang makan waktu belasan menit (Ollama
+// lokal). Sengaja TIDAK dikaitkan ke pesan yang berputar
+// (IMPORT_PROCESSING_MESSAGES) supaya tidak ikut mundur tiap pesan
+// balik ke awal.
+function computeChunkSubProgress(chunkElapsedSeconds) {
+  return CHUNK_SUB_PROGRESS_CAP * (1 - Math.exp(-chunkElapsedSeconds / CHUNK_SUB_PROGRESS_TAU_SECONDS));
+}
+
+function formatImportElapsed(totalSeconds) {
+  if (totalSeconds < 60) {
+    return `${totalSeconds} detik`;
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes} menit ${seconds} detik`;
+}
 
 // ======================================================
 // IMPOR SOAL DARI DOKUMEN (PDF/DOCX/TXT)
@@ -50,6 +96,59 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
   // saat frontend memanggil processDocumentChunk() satu per satu.
   const [importProgressCurrent, setImportProgressCurrent] = useState(0);
   const [importProgressTotal, setImportProgressTotal] = useState(0);
+
+  // MURNI kosmetik (lihat IMPORT_PROCESSING_MESSAGES di atas): waktu
+  // berjalan (detik) & pesan yang berputar selama importStep ===
+  // "processing", supaya guru punya tanda visual jelas bahwa proses
+  // masih berjalan, bukan macet -- terutama untuk potongan yang
+  // makan waktu lama (chunk besar / Ollama lambat).
+  const [importElapsedSeconds, setImportElapsedSeconds] = useState(0);
+  const [importMessageIndex, setImportMessageIndex] = useState(0);
+
+  // Detik berjalan KHUSUS untuk potongan yang sedang diproses saat
+  // ini -- beda dari importElapsedSeconds (yang total sejak proses
+  // mulai). Dipakai computeChunkSubProgress() supaya progres semu
+  // dalam satu potongan mulai dari 0 lagi tiap kali potongan
+  // berganti, TAPI tidak pernah mundur SELAMA potongan yang sama
+  // masih diproses (beda dengan pendekatan lama yang mengikuti
+  // pesan berputar dan jadi ikut mundur).
+  const [importChunkElapsedSeconds, setImportChunkElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (importStep !== "processing") {
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      setImportElapsedSeconds((seconds) => seconds + 1);
+      setImportChunkElapsedSeconds((seconds) => seconds + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [importStep]);
+
+  useEffect(() => {
+    if (importStep !== "processing") {
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      setImportMessageIndex(
+        (index) => (index + 1) % IMPORT_PROCESSING_MESSAGES.length,
+      );
+    }, 2400);
+
+    return () => clearInterval(timer);
+  }, [importStep]);
+
+  // Setiap kali potongan BERGANTI (importProgressCurrent berubah),
+  // mulai lagi dari pesan pertama -- supaya pesan "Hampir selesai..."
+  // dari potongan sebelumnya tidak nyangkut ke awal potongan
+  // berikutnya.
+  useEffect(() => {
+    setImportMessageIndex(0);
+    setImportChunkElapsedSeconds(0);
+  }, [importProgressCurrent]);
 
   // Dipakai tombol "Batalkan" saat importStep === "processing":
   // loop di handleExtractSubmit mengecek ref ini SEBELUM memproses
@@ -152,6 +251,8 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
     setImportSkippedCount(0);
     setImportProgressCurrent(0);
     setImportProgressTotal(chunks.length);
+    setImportElapsedSeconds(0);
+    setImportMessageIndex(0);
     setImportStep("processing");
 
     let totalSkipped = 0;
@@ -480,47 +581,108 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
           </form>
         )}
 
-        {importStep === "processing" && (
+        {importStep === "processing" && (() => {
+          // Potongan yang SEDANG diproses (belum tercatat selesai di
+          // importProgressCurrent) dianggap sudah berjalan sebagian,
+          // supaya bar & angka %-nya tidak diam di posisi potongan
+          // sebelumnya sepanjang menunggu (lihat CHUNK_SUB_PROGRESS).
+          const currentChunkFraction =
+            importProgressCurrent < importProgressTotal
+              ? computeChunkSubProgress(importChunkElapsedSeconds)
+              : 0;
+
+          const overallFraction =
+            importProgressTotal > 0
+              ? (importProgressCurrent + currentChunkFraction) / importProgressTotal
+              : 0;
+
+          const overallPercent = Math.min(99, Math.round(overallFraction * 100));
+
+          return (
           <div>
             <div
               style={{
-                marginBottom: "12px",
-                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "4px",
               }}
             >
-              Memproses potongan {Math.min(importProgressCurrent + 1, importProgressTotal)} dari{" "}
-              {importProgressTotal}...
+              <span className="import-spinner" aria-hidden="true" />
+
+              <span style={{ fontSize: "15px", fontWeight: 600 }}>
+                {importProgressTotal > 1
+                  ? `Memproses potongan ${Math.min(
+                      importProgressCurrent + 1,
+                      importProgressTotal,
+                    )} dari ${importProgressTotal}`
+                  : "Memproses dokumen..."}
+              </span>
+
+              <span style={{ color: "#9ca3af", fontSize: "13px", marginLeft: "auto" }}>
+                {formatImportElapsed(importElapsedSeconds)}
+              </span>
+            </div>
+
+            {/* key={importMessageIndex} sengaja dipasang supaya elemen
+                DI-MOUNT ULANG tiap pesan berganti -- animasi fade-in
+                CSS-nya (import-status-message) jalan lagi dari awal
+                setiap kali, bukan cuma sekali di awal. */}
+            <p
+              key={importMessageIndex}
+              className="import-status-message"
+              style={{ color: "#6b7280", fontSize: "13px", marginBottom: "12px", minHeight: "18px" }}
+            >
+              {IMPORT_PROCESSING_MESSAGES[importMessageIndex]}
+            </p>
+
+            <div className="import-progress-track" style={{ marginBottom: "10px" }}>
+              <div
+                className="import-progress-fill"
+                style={{
+                  width: `${overallPercent}%`,
+                  transition: "width 0.6s ease",
+                }}
+              />
+
+              {/* Potongan hijau ini menandai sisa dari potongan yang
+                  SEDANG diproses saat ini (belum selesai) -- diberi
+                  animasi shimmer supaya terlihat "hidup"/berjalan,
+                  nyambung persis di ujung bar solid di atas. */}
+              {importProgressCurrent < importProgressTotal && (
+                <div
+                  className="import-progress-active"
+                  style={{
+                    left: `${overallPercent}%`,
+                    width: `${Math.max(
+                      0,
+                      (1 / importProgressTotal) * 100 -
+                        (overallPercent - (importProgressCurrent / importProgressTotal) * 100),
+                    )}%`,
+                  }}
+                />
+              )}
             </div>
 
             <div
               style={{
-                width: "100%",
-                height: "10px",
-                borderRadius: "6px",
-                background: "#e5e7eb",
-                overflow: "hidden",
-                marginBottom: "10px",
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "13px",
+                color: "#9ca3af",
+                marginBottom: "16px",
               }}
             >
-              <div
-                style={{
-                  width: `${
-                    importProgressTotal > 0
-                      ? (importProgressCurrent / importProgressTotal) * 100
-                      : 0
-                  }%`,
-                  height: "100%",
-                  background: "#2563eb",
-                  transition: "width 0.3s ease",
-                }}
-              />
+              <span>{overallPercent}% selesai</span>
+
+              <span>
+                {importedQuestions.length > 0 && `${importedQuestions.length} soal ditemukan`}
+                {importSkippedCount > 0 && ` · ${importSkippedCount} bagian dilewati`}
+              </span>
             </div>
 
-            <p style={{ color: "#6b7280", marginBottom: "20px" }}>
-              {importedQuestions.length} soal ditemukan sejauh ini
-              {importSkippedCount > 0 &&
-                ` (${importSkippedCount} bagian tidak dikenali sebagai soal)`}
-              . Jangan tutup jendela ini — soal yang sudah ditemukan tetap aman meski ada potongan
+            <p style={{ color: "#6b7280", marginBottom: "20px", fontSize: "13px" }}>
+              Jangan tutup jendela ini — soal yang sudah ditemukan tetap aman meski ada potongan
               berikutnya yang gagal.
             </p>
 
@@ -534,7 +696,8 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {importStep === "review" && (
           <div>

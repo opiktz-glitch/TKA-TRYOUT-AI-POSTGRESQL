@@ -6,10 +6,12 @@ diubah. Modul ini hanya MEMBACA dari ai_providers (provider aktif,
 API key & model yang tersimpan di t_app_setting), jadi admin tetap
 mengatur semuanya lewat Pengaturan > AI seperti biasa.
 
-Saat ini hanya Gemini yang didukung (Gemini menerima gambar langsung
-lewat `inline_data`). Provider lain (mis. Ollama dengan model
-text-only seperti llama3.2:3b) TIDAK bisa membaca gambar, dan akan
-ditolak dengan pesan yang jelas -- bukan gagal samar di tengah jalan.
+Dua provider didukung: Gemini (menerima gambar langsung lewat
+`inline_data`) dan Ollama LOKAL dengan model vision (mis.
+qwen3vl:8b, qwen2.5vl:7b -- lihat OLLAMA_VISION_MODEL di config.py).
+Model Ollama yang TEXT-ONLY (mis. qwen2.5:7b, llama3.2:3b) TIDAK bisa
+membaca gambar, dan akan ditolak dengan pesan yang jelas -- bukan
+gagal samar di tengah jalan.
 
 Menambah provider baru yang bisa baca gambar: tulis fungsi
 async (prompt, image_bytes, mime_type, db) -> dict lalu daftarkan di
@@ -25,7 +27,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import ai_providers
-from config import GEMINI_API_KEY, GEMINI_BASE_URL, GEMINI_MODEL
+from config import (
+    GEMINI_API_KEY,
+    GEMINI_BASE_URL,
+    GEMINI_MODEL,
+    OLLAMA_BASE_URL,
+    OLLAMA_VISION_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +43,16 @@ logger = logging.getLogger(__name__)
 MAX_OUTPUT_TOKENS = 6000
 
 REQUEST_TIMEOUT_SECONDS = 120.0
+
+# Ollama LOKAL biasanya jauh lebih lambat dari Gemini (cloud) untuk
+# tugas vision, apalagi tanpa GPU khusus -- timeout dilonggarkan
+# mengikuti pola larger_output di ai_providers.call_ollama_provider.
+OLLAMA_VISION_TIMEOUT_SECONDS = 240.0
+
+# Satu gambar (terutama resolusi tinggi) makan jatah context TOKEN
+# jauh lebih banyak daripada teks biasa -- num_ctx dilonggarkan supaya
+# gambar + prompt + jatah keluaran tidak melebihi context window model.
+OLLAMA_VISION_NUM_CTX = 8192
 
 
 def _gemini_settings(db: Session) -> tuple[str, str]:
@@ -185,19 +203,170 @@ async def _call_gemini_vision(
         )
 
 
+def _ollama_vision_settings(db: Session) -> tuple[str, str]:
+    base_url = ai_providers.get_provider_base_url(
+        db, "OLLAMA", default=OLLAMA_BASE_URL
+    )
+
+    # Field config TERPISAH dari model teks biasa ("model") -- lihat
+    # penjelasan OLLAMA_VISION_MODEL di config.py.
+    model = (
+        ai_providers.get_provider_config(
+            db, "OLLAMA", "vision_model", default=OLLAMA_VISION_MODEL
+        )
+        or OLLAMA_VISION_MODEL
+    )
+
+    return base_url, model
+
+
+async def call_ollama_vision(
+    prompt: str, image_bytes: bytes, mime_type: str, db: Session
+) -> dict:
+
+    base_url, model = _ollama_vision_settings(db)
+
+    if not model:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Model vision Ollama belum diatur. Isi 'Model Vision' "
+                "(mis. qwen3vl:8b) di Pengaturan > AI, lalu pastikan "
+                "modelnya sudah di-pull di server ('ollama pull <model>')."
+            ),
+        )
+
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                # "/no_think" DITAMBAHKAN di akhir prompt selain
+                # "think": False di bawah. Sebagian TAG model
+                # Qwen3-VL (mis. "qwen3-vl:8b" polos, BEDA dengan
+                # "qwen3-vl:8b-instruct") dikirim Ollama dengan
+                # template chat yang cacat -- tidak menghormati
+                # parameter "think" sama sekali, sehingga SELURUH
+                # jatah token habis untuk bernalar diam-diam dan
+                # tidak ada JSON yang tersisa (bug resmi Ollama,
+                # issue #14798). Instruksi inline ini adalah
+                # workaround yang didokumentasikan tim Ollama sendiri
+                # untuk kasus itu. Aman dikirim ke model vision lain
+                # (Gemma, LLaVA, dll) -- kalau modelnya tidak mengenal
+                # instruksi ini, diperlakukan sebagai teks biasa dan
+                # tidak berpengaruh.
+                "content": prompt + "\n\n/no_think",
+                # Format yang diharapkan Ollama untuk model vision:
+                # array base64 (tanpa prefix data:...;base64,) di
+                # field "images" pada pesan yang sama dengan teksnya.
+                "images": [base64.b64encode(image_bytes).decode("ascii")],
+            }
+        ],
+        "format": "json",
+        "stream": False,
+        "keep_alive": "30m",
+        "think": False,
+        "options": {
+            "num_predict": MAX_OUTPUT_TOKENS,
+            "num_ctx": OLLAMA_VISION_NUM_CTX,
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=OLLAMA_VISION_TIMEOUT_SECONDS) as client:
+            response = await client.post(f"{base_url}/api/chat", json=payload)
+
+        response.raise_for_status()
+
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"Tidak dapat terhubung ke Ollama di {base_url}. "
+                "Pastikan Ollama sudah berjalan, dan model vision "
+                f"'{model}' sudah di-pull ('ollama pull {model}')."
+            ),
+        )
+
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "AI (Ollama) terlalu lama membaca gambar (lebih dari "
+                f"{int(OLLAMA_VISION_TIMEOUT_SECONDS // 60)} menit). Coba lagi, "
+                "atau gunakan model vision Ollama yang lebih ringan."
+            ),
+        )
+
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Ollama mengembalikan error: " + exc.response.text[:200],
+        )
+
+    data = response.json()
+
+    content = data.get("message", {}).get("content", "")
+
+    # Pengaman TAMBAHAN di luar "/no_think" + "think": False di atas
+    # -- kalau TETAP ada blok <think> yang lolos (mis. tag model lain
+    # yang templatenya juga cacat), buang dulu supaya sisanya yang
+    # murni tetap dicoba diparse sebagai JSON, bukan langsung gagal.
+    content = _strip_think_block(content)
+
+    # Dipinjam dari ai_providers -- penyelamatan JSON terpotong yang
+    # sama persis dipakai fitur teks, supaya perilakunya konsisten.
+    return ai_providers._parse_ai_json(content, "Ollama")
+
+
+def _strip_think_block(content: str) -> str:
+    """
+    Buang blok <think>...</think> dari keluaran Ollama, kalau ada.
+
+    TIDAK PERNAH melempar exception -- ini pengaman tambahan, bukan
+    validasi. Kalau tidak ada tag <think>, dikembalikan apa adanya.
+    Kalau tag-nya TIDAK tertutup (jatah token kemungkinan besar habis
+    termakan penalaran -- lihat komentar "/no_think" di atas), bagian
+    sejak <think> dibuang; sisa SEBELUM tag itu tetap dicoba diparse
+    (biasanya kosong, sehingga pesan error yang tampil ke guru tetap
+    jelas seperti biasa, bukan berubah jadi gagal diam-diam).
+    """
+
+    lower = content.lower()
+    start = lower.find("<think>")
+
+    if start == -1:
+        return content
+
+    end = lower.find("</think>", start)
+
+    if end == -1:
+        return content[:start]
+
+    return content[:start] + content[end + len("</think>") :]
+
+
 # key provider -> fungsi pemanggil. Provider yang TIDAK ada di sini
 # dianggap tidak mendukung gambar.
 VISION_CALLERS = {
     "GEMINI": _call_gemini_vision,
+    "OLLAMA": call_ollama_vision,
 }
 
 
-def get_vision_capability(db: Session) -> dict:
+async def get_vision_capability(db: Session) -> dict:
     """
-    Cek CEPAT (tanpa panggilan jaringan) apakah provider AI yang
-    aktif sekarang bisa membaca gambar. Dipakai tombol di frontend
-    sebelum modal dibuka, dan diulang di call_active_vision_provider
-    sebagai pengaman.
+    Cek apakah provider AI yang aktif sekarang bisa membaca gambar.
+    Dipakai tombol di frontend sebelum modal dibuka, dan diulang di
+    call_active_vision_provider sebagai pengaman.
+
+    Untuk Ollama, ini MEMANGGIL jaringan (cek daftar model yang sudah
+    ter-pull di server -- pola yang sama dengan
+    ai_providers.status_ollama_provider), supaya tombol "Impor Soal
+    dari Gambar" tidak tampil aktif padahal model vision-nya belum
+    ada di server -- konsisten dengan filosofi kode ini: gagal dengan
+    pesan jelas SEBELUM guru sempat mencoba, bukan gagal samar di
+    tengah proses.
 
     -> { available: bool, provider: str | None, reason: str | None,
          http_status: int }   (http_status hanya dipakai internal)
@@ -241,6 +410,42 @@ def get_vision_capability(db: Session) -> dict:
                 "http_status": 503,
             }
 
+    if active_key == "OLLAMA":
+        base_url, model = _ollama_vision_settings(db)
+
+        if not model:
+            return {
+                "available": False,
+                "provider": active_key,
+                "reason": (
+                    "Model vision Ollama belum diatur. Minta admin mengisi "
+                    "'Model Vision' (mis. qwen3vl:8b) di Pengaturan > AI."
+                ),
+                "http_status": 503,
+            }
+
+        installed_models, reachable = await ai_providers._fetch_ollama_models(base_url)
+
+        if not reachable:
+            return {
+                "available": False,
+                "provider": active_key,
+                "reason": f"Tidak dapat terhubung ke Ollama di {base_url}.",
+                "http_status": 503,
+            }
+
+        if not any(model in installed for installed in installed_models):
+            return {
+                "available": False,
+                "provider": active_key,
+                "reason": (
+                    f"Model vision '{model}' belum di-pull di Ollama. Minta "
+                    f"admin menjalankan 'ollama pull {model}' di server, atau "
+                    "gunakan provider Google Gemini untuk fitur ini sementara."
+                ),
+                "http_status": 503,
+            }
+
     return {
         "available": True,
         "provider": active_key,
@@ -253,7 +458,7 @@ async def call_active_vision_provider(
     prompt: str, image_bytes: bytes, mime_type: str, db: Session
 ) -> dict:
 
-    capability = get_vision_capability(db)
+    capability = await get_vision_capability(db)
 
     if not capability["available"]:
         raise HTTPException(

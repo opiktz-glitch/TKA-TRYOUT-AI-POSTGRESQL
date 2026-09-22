@@ -7,7 +7,14 @@ import QuestionImage from "../components/QuestionImage";
 import TryoutQuestionPicker from "../components/TryoutQuestionPicker";
 import "../components/TryoutWizard.css";
 import { useAuth } from "../auth/AuthContext";
-import { IconEdit, IconTrash, IconCheck, IconEye } from "../components/Icons";
+import {
+  IconEdit,
+  IconTrash,
+  IconCheck,
+  IconEye,
+  IconSearch,
+} from "../components/Icons";
+import "../components/ScoreTable.css";
 import {
   getSubjects,
   getTryouts,
@@ -81,7 +88,8 @@ function TryoutManagement() {
 
   const [search, setSearch] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
-  const [difficultyFilter, setDifficultyFilter] = useState("");
+  // "" = Semua soal, "mine" = hanya tryout buatan user yang login
+  const [creatorFilter, setCreatorFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   // =====================================================
@@ -588,34 +596,26 @@ function TryoutManagement() {
       const matchesSubject =
         !subjectFilter || String(tryout.subject_id) === String(subjectFilter);
 
-      const matchesDifficulty =
-        !difficultyFilter ||
-        (tryout.difficulty || "")
-          .toLowerCase()
-          .includes(difficultyFilter.trim().toLowerCase());
+      const matchesCreator =
+        !creatorFilter ||
+        (creatorFilter === "mine" &&
+          Number(tryout.created_by) === Number(user?.id));
 
       const matchesStatus =
         !statusFilter ||
         (statusFilter === "ACTIVE" ? tryout.is_active : !tryout.is_active);
 
       return (
-        matchesSearch && matchesSubject && matchesDifficulty && matchesStatus
+        matchesSearch && matchesSubject && matchesCreator && matchesStatus
       );
     });
-  }, [
-    tryouts,
-    subjects,
-    search,
-    subjectFilter,
-    difficultyFilter,
-    statusFilter,
-  ]);
+  }, [tryouts, subjects, search, subjectFilter, creatorFilter, statusFilter, user]);
 
   // Reset ke halaman 1 setiap kali pencarian/filter berubah, supaya
   // tidak "nyangkut" di halaman yang sudah tidak relevan.
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, subjectFilter, difficultyFilter, statusFilter]);
+  }, [search, subjectFilter, creatorFilter, statusFilter]);
 
   const totalPages = Math.max(
     1,
@@ -630,6 +630,23 @@ function TryoutManagement() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  const hasActiveTryoutFilter = Boolean(
+    search || subjectFilter || creatorFilter || statusFilter
+  );
+
+  // Label opsi "mine" di filter Guru Pembuat: tampilkan nama guru yang
+  // sedang login supaya jelas ini bukan sekadar teks generik.
+  const myTryoutOptionLabel = (user?.full_name || user?.username)
+    ? `Punya saya (${user.full_name || user.username})`
+    : "Guru yang login saja";
+
+  const resetTryoutFilters = () => {
+    setSearch("");
+    setSubjectFilter("");
+    setCreatorFilter("");
+    setStatusFilter("");
+  };
 
   const paginatedTryouts = useMemo(() => {
     const start = (currentPage - 1) * TRYOUTS_PER_PAGE;
@@ -693,54 +710,53 @@ function TryoutManagement() {
               TABLE CARD & FILTER
           ================================================= */}
 
-          <div className="dashboard-card">
-            <div className="question-filter">
-              <div className="filter-group">
+          <div className="score-card">
+            <div className="score-toolbar">
+              <label className="score-search">
+                <IconSearch size={16} />
                 <input
                   type="text"
                   placeholder="Cari judul tryout..."
-                  className="search-input"
+                  aria-label="Cari tryout"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-              </div>
+              </label>
 
-              <div className="filter-group">
-                <select
-                  value={subjectFilter}
-                  onChange={(e) => setSubjectFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Mata Pelajaran</option>
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                className={`score-select${subjectFilter ? " is-active" : ""}`}
+                aria-label="Filter mata pelajaran"
+                value={subjectFilter}
+                onChange={(e) => setSubjectFilter(e.target.value)}
+              >
+                <option value="">Semua Mapel</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
 
-              <div className="filter-group">
-                <input
-                  type="text"
-                  placeholder="Cari keterangan..."
-                  className="search-input"
-                  value={difficultyFilter}
-                  onChange={(e) => setDifficultyFilter(e.target.value)}
-                />
-              </div>
+              <select
+                className={`score-select${creatorFilter ? " is-active" : ""}`}
+                aria-label="Filter guru pembuat"
+                value={creatorFilter}
+                onChange={(e) => setCreatorFilter(e.target.value)}
+              >
+                <option value="">Semua Tryout</option>
+                <option value="mine">{myTryoutOptionLabel}</option>
+              </select>
 
-              <div className="filter-group">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Status</option>
-                  <option value="ACTIVE">Aktif</option>
-                  <option value="INACTIVE">Nonaktif</option>
-                </select>
-              </div>
+              <select
+                className={`score-select${statusFilter ? " is-active" : ""}`}
+                aria-label="Filter status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">Semua Status</option>
+                <option value="ACTIVE">Aktif</option>
+                <option value="INACTIVE">Nonaktif</option>
+              </select>
             </div>
 
             {loading && (
@@ -752,119 +768,140 @@ function TryoutManagement() {
             )}
 
             {actionError && (
-              <div className="form-error-message" style={{ marginBottom: "15px" }}>
+              <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
                 {actionError}
               </div>
             )}
 
             {actionSuccess && (
-              <div className="success-message" style={{ marginBottom: "15px" }}>
+              <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
                 <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
                 {actionSuccess}
               </div>
             )}
 
             {!loading && (
-              <div className="table-container">
-                <table className="user-table">
-                  <thead>
-                    <tr>
-                      <th className="align-center">No</th>
-                      <th className="align-center">ID</th>
-                      <th className="align-center">Judul Tryout</th>
-                      <th className="align-center">Mata Pelajaran</th>
-                      <th className="align-center">Kelas</th>
-                      <th className="align-center">Soal</th>
-                      <th className="align-center">Durasi</th>
-                      <th className="align-center">Keterangan</th>
-                      <th className="align-center">Status</th>
-                      <th className="align-center sticky-col">Aksi</th>
-                    </tr>
-                  </thead>
+              <>
+                <div className="score-meta">
+                  <span>{filteredTryouts.length} tryout</span>
 
-                  <tbody>
-                    {paginatedTryouts.map((tryout, index) => (
-                      <tr key={tryout.id}>
-                        <td className="align-center">
-                          {(currentPage - 1) * TRYOUTS_PER_PAGE + index + 1}
-                        </td>
+                  {hasActiveTryoutFilter && (
+                    <button type="button" className="score-reset" onClick={resetTryoutFilters}>
+                      Reset filter
+                    </button>
+                  )}
+                </div>
 
-                        <td>{tryout.id}</td>
-
-                        <td>
-                          <strong>{tryout.title}</strong>
-                          {tryout.description && (
-                            <div
-                              style={{
-                                marginTop: "4px",
-                                fontSize: "12px",
-                                color: "#777",
-                              }}
-                            >
-                              {tryout.description}
-                            </div>
-                          )}
-                        </td>
-
-                        <td>{getSubjectName(tryout.subject_id)}</td>
-
-                        <td>{tryout.grade || "-"}</td>
-
-                        <td>{tryout.total_questions}</td>
-
-                        <td>{tryout.duration_minutes} menit</td>
-
-                        <td>{tryout.difficulty || "-"}</td>
-
-                        <td>
-                          {tryout.is_active ? (
-                            <span className="status-active">Aktif</span>
-                          ) : (
-                            <span className="status-inactive">Nonaktif</span>
-                          )}
-                        </td>
-
-                        <td className="sticky-col">
-                          <div className="action-buttons">
-                            <button
-                              className="edit-button"
-                              onClick={() => openEditModal(tryout)}
-                              title="Edit"
-                            >
-                              <IconEdit size={16} />
-                            </button>
-
-                            <button
-                              className="review-button"
-                              onClick={() => openReviewModal(tryout)}
-                              title="Review Soal"
-                            >
-                              <IconEye size={16} />
-                            </button>
-
-                            <button
-                              className="delete-button"
-                              onClick={() => handleDelete(tryout)}
-                              disabled={deletingId === tryout.id}
-                              title="Hapus"
-                            >
-                              <IconTrash size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredTryouts.length === 0 && (
+                {filteredTryouts.length === 0 ? (
                   <div className="empty-message">
-                    {search ||
-                    subjectFilter ||
-                    difficultyFilter ||
-                    statusFilter
+                    {hasActiveTryoutFilter
                       ? "Paket tryout tidak ditemukan."
                       : "Belum ada paket tryout."}
+                  </div>
+                ) : (
+                  <div className="table-container">
+                    <table className="score-table">
+                      <colgroup>
+                        <col style={{ width: "32%" }} />
+                        <col style={{ width: "9%" }} />
+                        <col style={{ width: "11%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "11%" }} />
+                        <col style={{ width: "17%" }} />
+                      </colgroup>
+
+                      <thead>
+                        <tr>
+                          <th className="is-left">Tryout</th>
+                          <th>Soal</th>
+                          <th>Durasi</th>
+                          <th className="is-left">Pembuat Tryout</th>
+                          <th>Status</th>
+                          <th>Aksi</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {paginatedTryouts.map((tryout) => {
+                          const meta = [
+                            getSubjectName(tryout.subject_id),
+                            tryout.grade ? `Kelas ${tryout.grade}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ");
+
+                          return (
+                            <tr key={tryout.id}>
+                              <td>
+                                <div
+                                  className="score-primary is-strong score-ellipsis"
+                                  title={tryout.title}
+                                >
+                                  {tryout.title}
+                                </div>
+                                <div
+                                  className="score-secondary score-ellipsis"
+                                  title={meta || undefined}
+                                >
+                                  {meta || "-"}
+                                </div>
+                              </td>
+
+                              <td className="is-center is-nowrap">
+                                <span className="score-value">
+                                  {tryout.total_questions ?? 0}
+                                </span>
+                              </td>
+
+                              <td className="is-center is-nowrap">
+                                {tryout.duration_minutes} menit
+                              </td>
+
+                              <td className="score-ellipsis" title={tryout.created_by_name || undefined}>
+                                {tryout.created_by_name || "-"}
+                              </td>
+
+                              <td className="is-center">
+                                {tryout.is_active ? (
+                                  <span className="score-badge is-pass">Aktif</span>
+                                ) : (
+                                  <span className="score-badge is-fail">Nonaktif</span>
+                                )}
+                              </td>
+
+                              <td className="is-center is-nowrap">
+                                <div className="action-buttons" style={{ justifyContent: "center" }}>
+                                  <button
+                                    className="edit-button"
+                                    onClick={() => openEditModal(tryout)}
+                                    title="Edit"
+                                  >
+                                    <IconEdit size={16} />
+                                  </button>
+
+                                  <button
+                                    className="review-button"
+                                    onClick={() => openReviewModal(tryout)}
+                                    title="Review Soal"
+                                  >
+                                    <IconEye size={16} />
+                                  </button>
+
+                                  <button
+                                    className="delete-button"
+                                    onClick={() => handleDelete(tryout)}
+                                    disabled={deletingId === tryout.id}
+                                    title="Hapus"
+                                  >
+                                    <IconTrash size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
 
@@ -876,7 +913,7 @@ function TryoutManagement() {
                   itemLabel="tryout"
                   onPageChange={setCurrentPage}
                 />
-              </div>
+              </>
             )}
           </div>
         </div>

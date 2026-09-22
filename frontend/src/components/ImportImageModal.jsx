@@ -35,6 +35,43 @@ const MAX_IMAGES = 10;
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // sama dengan batas di backend
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
+// Pesan yang berganti-ganti tiap beberapa detik SEKEDAR untuk memberi
+// kesan "masih berjalan" selama menunggu SATU gambar dibaca AI --
+// sama seperti IMPORT_PROCESSING_MESSAGES di ImportDocumentModal,
+// tapi kata-katanya disesuaikan untuk gambar. Tidak mencerminkan
+// tahapan sungguhan di backend (responsnya baru datang sekali jadi,
+// bukan streaming).
+const IMAGE_PROCESSING_MESSAGES = [
+  "Membaca gambar dengan AI...",
+  "Mengenali soal & pilihan jawaban...",
+  "Menandai gambar/diagram di dalam soal...",
+  "Hampir selesai untuk gambar ini...",
+];
+
+// Batas atas & "kecepatan" progres semu untuk SATU gambar yang
+// sedang diproses -- sama persis konsepnya dengan
+// CHUNK_SUB_PROGRESS_CAP/TAU di ImportDocumentModal. MURNI kosmetik,
+// supaya progress bar & angka %-nya ikut bergerak maju terus
+// (melambat, tapi TIDAK PERNAH mundur) selagi menunggu gambar itu
+// kelar, alih-alih diam di posisi gambar sebelumnya.
+const IMAGE_SUB_PROGRESS_CAP = 0.92;
+const IMAGE_SUB_PROGRESS_TAU_SECONDS = 8;
+
+function computeImageSubProgress(imageElapsedSeconds) {
+  return IMAGE_SUB_PROGRESS_CAP * (1 - Math.exp(-imageElapsedSeconds / IMAGE_SUB_PROGRESS_TAU_SECONDS));
+}
+
+function formatImportElapsed(totalSeconds) {
+  if (totalSeconds < 60) {
+    return `${totalSeconds} detik`;
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes} menit ${seconds} detik`;
+}
+
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -66,6 +103,19 @@ function ImportImageModal({ subjects, onClose, onImported }) {
   // key soal yang potongan gambarnya sedang diatur di ImageCropDialog
   const [cropKey, setCropKey] = useState(null);
 
+  // MURNI kosmetik (lihat IMAGE_PROCESSING_MESSAGES di atas): waktu
+  // berjalan (detik) & pesan yang berputar selama step === "processing",
+  // supaya guru punya tanda visual jelas bahwa proses masih berjalan,
+  // bukan macet -- sama seperti di ImportDocumentModal.
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  // Detik berjalan KHUSUS untuk gambar yang sedang diproses saat ini --
+  // beda dari elapsedSeconds (total sejak proses mulai). Dipakai
+  // computeImageSubProgress() supaya progres semu dalam satu gambar
+  // mulai dari 0 lagi tiap kali gambar berganti.
+  const [imageElapsedSeconds, setImageElapsedSeconds] = useState(0);
+
   const cancelRef = useRef(false);
 
   // AbortController milik request yang SEDANG jalan, supaya tombol
@@ -94,6 +144,47 @@ function ImportImageModal({ subjects, onClose, onImported }) {
   itemsRef.current = items;
 
   const addFilesRef = useRef(null);
+
+  // Dipakai timer di bawah (untuk reset per-gambar) maupun layar
+  // "processing" & "review" nanti -- dihitung di sini (bukan di
+  // bagian TAMPILAN paling bawah) supaya bisa dipakai sebagai
+  // dependency useEffect sebelum dideklarasikan lagi di bawah.
+  const finishedImages = images.filter((image) =>
+    ["done", "error", "cancelled"].includes(image.status),
+  ).length;
+
+  useEffect(() => {
+    if (step !== "processing") {
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      setElapsedSeconds((seconds) => seconds + 1);
+      setImageElapsedSeconds((seconds) => seconds + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "processing") {
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      setMessageIndex((index) => (index + 1) % IMAGE_PROCESSING_MESSAGES.length);
+    }, 2400);
+
+    return () => clearInterval(timer);
+  }, [step]);
+
+  // Setiap kali gambar BERGANTI (finishedImages berubah), mulai lagi
+  // dari pesan pertama -- supaya pesan "Hampir selesai..." dari gambar
+  // sebelumnya tidak nyangkut ke awal gambar berikutnya.
+  useEffect(() => {
+    setMessageIndex(0);
+    setImageElapsedSeconds(0);
+  }, [finishedImages]);
 
   const pendingCount = items.filter((item) => item.selected && item.saveStatus !== "saved").length;
 
@@ -313,6 +404,9 @@ function ImportImageModal({ subjects, onClose, onImported }) {
       prev.map((image) => ({ ...image, status: "pending", count: 0, message: "" })),
     );
 
+    setElapsedSeconds(0);
+    setMessageIndex(0);
+    setImageElapsedSeconds(0);
     setStep("processing");
 
     for (let i = 0; i < queue.length; i++) {
@@ -715,10 +809,6 @@ function ImportImageModal({ subjects, onClose, onImported }) {
   // TAMPILAN
   // ======================================================
 
-  const finishedImages = images.filter((image) =>
-    ["done", "error", "cancelled"].includes(image.status),
-  ).length;
-
   const imageIssues = images.filter(
     (image) => image.status === "error" || (image.status === "done" && image.message),
   );
@@ -1037,30 +1127,94 @@ function ImportImageModal({ subjects, onClose, onImported }) {
           </form>
         )}
 
-        {step === "processing" && (
+        {step === "processing" && (() => {
+          // Gambar yang SEDANG diproses (belum tercatat selesai di
+          // finishedImages) dianggap sudah berjalan sebagian, supaya
+          // bar & angka %-nya tidak diam di posisi gambar sebelumnya
+          // sepanjang menunggu (lihat IMAGE_SUB_PROGRESS di atas).
+          const currentImageFraction =
+            finishedImages < images.length ? computeImageSubProgress(imageElapsedSeconds) : 0;
+
+          const overallFraction =
+            images.length > 0 ? (finishedImages + currentImageFraction) / images.length : 0;
+
+          const overallPercent = Math.min(99, Math.round(overallFraction * 100));
+
+          return (
           <div>
-            <div style={{ marginBottom: "12px", fontWeight: 600 }}>
-              Membaca gambar {Math.min(finishedImages + 1, images.length)} dari {images.length}...
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "4px",
+              }}
+            >
+              <span className="import-spinner" aria-hidden="true" />
+
+              <span style={{ fontSize: "15px", fontWeight: 600 }}>
+                {images.length > 1
+                  ? `Membaca gambar ${Math.min(finishedImages + 1, images.length)} dari ${images.length}`
+                  : "Membaca gambar..."}
+              </span>
+
+              <span style={{ color: "#9ca3af", fontSize: "13px", marginLeft: "auto" }}>
+                {formatImportElapsed(elapsedSeconds)}
+              </span>
+            </div>
+
+            {/* key={messageIndex} sengaja dipasang supaya elemen
+                DI-MOUNT ULANG tiap pesan berganti -- animasi fade-in
+                CSS-nya (import-status-message) jalan lagi dari awal
+                setiap kali, bukan cuma sekali di awal. */}
+            <p
+              key={messageIndex}
+              className="import-status-message"
+              style={{ color: "#6b7280", fontSize: "13px", marginBottom: "12px", minHeight: "18px" }}
+            >
+              {IMAGE_PROCESSING_MESSAGES[messageIndex]}
+            </p>
+
+            <div className="import-progress-track" style={{ marginBottom: "10px" }}>
+              <div
+                className="import-progress-fill"
+                style={{
+                  width: `${overallPercent}%`,
+                  transition: "width 0.6s ease",
+                }}
+              />
+
+              {/* Potongan hijau ini menandai sisa dari gambar yang
+                  SEDANG diproses saat ini (belum selesai) -- diberi
+                  animasi shimmer supaya terlihat "hidup"/berjalan,
+                  nyambung persis di ujung bar solid di atas. */}
+              {images.length > 0 && finishedImages < images.length && (
+                <div
+                  className="import-progress-active"
+                  style={{
+                    left: `${overallPercent}%`,
+                    width: `${Math.max(
+                      0,
+                      (1 / images.length) * 100 -
+                        (overallPercent - (finishedImages / images.length) * 100),
+                    )}%`,
+                  }}
+                />
+              )}
             </div>
 
             <div
               style={{
-                width: "100%",
-                height: "10px",
-                borderRadius: "6px",
-                background: "#e5e7eb",
-                overflow: "hidden",
-                marginBottom: "12px",
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "13px",
+                color: "#9ca3af",
+                marginBottom: "16px",
               }}
             >
-              <div
-                style={{
-                  width: `${images.length > 0 ? (finishedImages / images.length) * 100 : 0}%`,
-                  height: "100%",
-                  background: "#2563eb",
-                  transition: "width 0.3s ease",
-                }}
-              />
+              <span>{overallPercent}% selesai</span>
+
+              <span>{items.length > 0 && `${items.length} soal ditemukan`}</span>
             </div>
 
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px", fontSize: "14px" }}>
@@ -1073,9 +1227,9 @@ function ImportImageModal({ subjects, onClose, onImported }) {
               ))}
             </ul>
 
-            <p style={{ color: "#6b7280", marginBottom: "20px" }}>
-              {items.length} soal ditemukan sejauh ini. Soal yang sudah ditemukan tetap aman meski
-              gambar berikutnya gagal.
+            <p style={{ color: "#6b7280", marginBottom: "20px", fontSize: "13px" }}>
+              Jangan tutup jendela ini — soal yang sudah ditemukan tetap aman meski gambar
+              berikutnya gagal.
             </p>
 
             <div className="modal-footer">
@@ -1084,7 +1238,8 @@ function ImportImageModal({ subjects, onClose, onImported }) {
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {step === "review" && (
           <div>

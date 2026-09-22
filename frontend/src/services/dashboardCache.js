@@ -17,7 +17,8 @@
 //   tidak boleh) bertahan setelah tab ditutup.
 //
 // Isi per kunci: "admin", "teacher", "student", "live" (angka live admin),
-// dan "system" (status sistem) -- bentuknya ditentukan Dashboard.jsx.
+// "system" (status sistem lengkap, khusus ADMIN), dan "aiCard" (status
+// AI ringkas, khusus GURU) -- bentuknya ditentukan Dashboard.jsx.
 // =====================================================================
 
 const EMPTY = Object.freeze({});
@@ -30,6 +31,7 @@ function createEmptyCache(userId) {
     student: null,
     live: null,
     system: null,
+    aiCard: null,
   };
 }
 

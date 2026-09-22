@@ -1718,6 +1718,132 @@ button {
 }
 
 
+/* =========================================================
+   IMPOR SOAL DARI DOKUMEN -- indikator "sedang berjalan"
+   (ImportDocumentModal.jsx, langkah "processing")
+
+   Progress bar lama cuma diam sampai satu potongan selesai --
+   terlihat seperti macet padahal AI masih memproses (bisa sampai
+   puluhan detik per potongan). Tiga potongan CSS di bawah ini
+   sekedar KOSMETIK (tidak mengubah alur data apa pun): spinner
+   berputar, shimmer berjalan di ujung progress bar yang sedang
+   diproses, dan fade-in halus tiap pesan status berganti.
+   ========================================================= */
+
+.import-spinner {
+
+  width: 18px;
+
+  height: 18px;
+
+  border: 2.5px solid var(--accent-soft-strong);
+
+  border-top-color: var(--accent);
+
+  border-radius: 50%;
+
+  flex-shrink: 0;
+
+  animation: status-spin 0.7s linear infinite;
+}
+
+
+.import-status-message {
+
+  animation: import-message-fade-in 0.25s ease-out;
+}
+
+
+@keyframes import-message-fade-in {
+
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.import-progress-track {
+
+  position: relative;
+
+  width: 100%;
+
+  height: 10px;
+
+  border-radius: 6px;
+
+  background: #e5e7eb;
+
+  overflow: hidden;
+}
+
+
+.import-progress-fill {
+
+  position: absolute;
+
+  top: 0;
+
+  left: 0;
+
+  height: 100%;
+
+  border-radius: 6px;
+
+  background: var(--accent);
+
+  transition: width 0.3s ease;
+}
+
+
+/* Sliver yang mewakili SATU potongan yang lagi diproses saat ini
+   (belum selesai) -- shimmer bergerak terus-menerus supaya terlihat
+   "hidup", ditempel persis di ujung kanan .import-progress-fill. */
+.import-progress-active {
+
+  position: absolute;
+
+  top: 0;
+
+  height: 100%;
+
+  min-width: 6px;
+
+  border-radius: 6px;
+
+  background: linear-gradient(
+    90deg,
+    var(--accent-hover) 0%,
+    var(--accent) 50%,
+    var(--accent-hover) 100%
+  );
+
+  background-size: 200% 100%;
+
+  transition: left 0.3s ease;
+
+  animation: import-progress-shimmer 1.1s linear infinite;
+}
+
+
+@keyframes import-progress-shimmer {
+
+  0% {
+    background-position: 0% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+
 .system-error-banner {
 
   margin: 0 18px 8px;

@@ -125,6 +125,22 @@ def get_tryouts(
         .all()
     )
 
+    # Satu query untuk nama semua pembuat tryout (bukan query per baris),
+    # dipakai untuk kolom "Pembuat Soal" di tabel Paket Tryout.
+    creator_ids = {tryout.created_by for tryout in tryouts}
+
+    creator_names = {}
+    if creator_ids:
+        creators = (
+            db.query(User.id, User.full_name, User.username)
+            .filter(User.id.in_(creator_ids))
+            .all()
+        )
+        creator_names = {
+            c.id: (c.full_name or c.username)
+            for c in creators
+        }
+
     result = []
 
     for tryout in tryouts:
@@ -151,6 +167,7 @@ def get_tryouts(
             "max_score": tryout.max_score,
             "difficulty": tryout.difficulty,
             "created_by": tryout.created_by,
+            "created_by_name": creator_names.get(tryout.created_by, "-"),
             "is_active": tryout.is_active,
             "questions": questions
         })

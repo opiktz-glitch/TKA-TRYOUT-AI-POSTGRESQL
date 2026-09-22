@@ -241,6 +241,12 @@ class AIQuestionGenerateResponse(BaseModel):
 class AIExplanationOption(BaseModel):
     option_code: str
     option_text: str = ""
+    # Dikirim frontend & tetap diterima di sini untuk kompatibilitas
+    # bentuk data dengan AIVerifyAnswerRequest (yang me-reuse tipe ini
+    # dan MEMANG butuh field ini) -- tapi endpoint /ai-explanation
+    # sendiri SEKARANG mengabaikannya sepenuhnya (lihat require_answer
+    # di _prepare_explanation_input, routers/questions.py): pembahasan
+    # dibuat tanpa tahu kunci jawaban, kunci ditandai manual belakangan.
     is_correct: bool = False
 
 
@@ -253,10 +259,44 @@ class AIExplanationRequest(BaseModel):
 
 class AIExplanationResponse(BaseModel):
     explanation: str
-    # Diisi kalau pembahasan menyebut huruf lain sebagai jawaban benar
-    # (lihat _check_explanation_consistency). None kalau tidak ada yang
-    # janggal.
-    consistency_warning: str | None = None
+
+
+# ==========================================
+# VERIFIKASI JAWABAN DENGAN AI (tombol TERPISAH & OPSIONAL,
+# "Verifikasi Jawaban")
+#
+# BEDA dari AIExplanationRequest/Response di atas: endpoint ini
+# TIDAK memberi tahu AI jawaban mana yang benar -- justru meminta AI
+# menyimpulkan sendiri dari nol, untuk mengecek independen apakah
+# kunci yang guru tandai di form itu sendiri masuk akal. Reuse
+# AIExplanationOption karena bentuk datanya sama persis.
+# ==========================================
+
+class AIVerifyAnswerRequest(BaseModel):
+    question_text: str
+    options: list[AIExplanationOption]
+
+
+class AIVerifyAnswerResponse(BaseModel):
+    # False kalau verifikasi gagal dijalankan (provider AI error/
+    # timeout/JSON tidak valid) -- dalam kasus ini verified_option_code
+    # dan matches ikut None, dan message berisi alasannya untuk guru.
+    checked: bool
+    verified_option_code: str | None = None
+    # None kalau checked=False. True/False kalau checked=True --
+    # apakah kesimpulan independen AI sama dengan kunci yang ditandai
+    # guru di form.
+    matches: bool | None = None
+    message: str
+    # Diisi HANYA saat checked=True dan matches=False -- pembahasan
+    # versi AI untuk verified_option_code, dihasilkan DALAM panggilan
+    # AI yang sama dengan verifikasi (tidak ada panggilan AI
+    # tambahan). None kalau matches=True (tidak dibutuhkan guru) atau
+    # checked=False. Frontend menawarkan ini sebagai pengganti isi
+    # kolom Pembahasan lewat tombol "Gunakan pembahasan ini" --
+    # TIDAK otomatis mencentang ulang opsi jawabannya, guru tetap
+    # perlu menandai manual.
+    suggested_explanation: str | None = None
 
 
 # ==========================================
@@ -351,6 +391,13 @@ class ProviderStatus(BaseModel):
     configurable_base_url: bool = False
     base_url: str | None = None  # nilai EFEKTIF yang sedang dipakai (override admin, atau default)
     default_base_url: str | None = None  # nilai bawaan dari .env, dipakai kalau admin belum override
+    # Model KHUSUS untuk fitur "Impor Soal dari Gambar" (lihat
+    # ai_vision.py) -- terpisah dari `model` di atas (yang untuk
+    # generate/impor soal dari TEKS). Cuma relevan untuk provider yang
+    # base_url-nya bisa diarahkan admin (saat ini: Ollama) -- provider
+    # lain (mis. Gemini) pakai `model` yang sama untuk teks maupun
+    # gambar, jadi field ini tetap None.
+    vision_model: str | None = None
 
 
 class AIProvidersResponse(BaseModel):
@@ -369,6 +416,10 @@ class ProviderConfigUpdate(BaseModel):
     api_key: str | None = None
     model: str | None = None
     base_url: str | None = None
+    # Sama polanya dengan `model`: None = tidak diubah, "" = hapus
+    # override (kembali ke OLLAMA_VISION_MODEL di .env / kosong).
+    # Hanya dipakai provider yang mendukungnya (saat ini: Ollama).
+    vision_model: str | None = None
 
 
 class AIStatusResponse(BaseModel):

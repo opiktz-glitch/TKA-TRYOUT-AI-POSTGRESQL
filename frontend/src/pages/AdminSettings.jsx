@@ -486,6 +486,10 @@ function AdminSettings() {
         drafts[p.provider] = {
           apiKey: "",
           model: p.model || "",
+          // Cuma relevan untuk provider yang punya konsep "model
+          // vision terpisah" (saat ini: Ollama) — lihat vision_model
+          // di ProviderStatus (backend/schemas.py).
+          visionModel: p.vision_model || "",
           // Alamat EFEKTIF yang sedang dipakai (override admin kalau
           // ada, atau default bawaan) — bukan dikosongkan seperti
           // apiKey, supaya admin langsung lihat & bisa edit nilainya.
@@ -547,8 +551,14 @@ function AdminSettings() {
     const draft = configDrafts[providerKey] || {};
     const trimmedKey = (draft.apiKey || "").trim();
     const trimmedModel = (draft.model || "").trim();
+    const trimmedVisionModel = (draft.visionModel || "").trim();
     const trimmedBaseUrl = (draft.baseUrl || "").trim();
     const supportsBaseUrl = !!providerOption?.configurable_base_url;
+    // vision_model bernilai null (bukan "") untuk provider yang TIDAK
+    // punya konsep model vision terpisah (mis. Gemini, karena model
+    // teksnya sendiri sudah bisa baca gambar) — beda dari Ollama yang
+    // selalu string (walau boleh kosong "" kalau belum diisi admin).
+    const supportsVisionModel = providerOption?.vision_model != null;
 
     if (!trimmedModel) {
       setConfigError((prev) => ({
@@ -577,6 +587,7 @@ function AdminSettings() {
       const data = await updateProviderConfig(providerKey, {
         apiKey: trimmedKey ? trimmedKey : undefined,
         model: trimmedModel,
+        visionModel: supportsVisionModel ? trimmedVisionModel : undefined,
         baseUrl: supportsBaseUrl ? trimmedBaseUrl : undefined,
       });
 
@@ -589,6 +600,7 @@ function AdminSettings() {
         [providerKey]: {
           apiKey: "",
           model: updated?.model || trimmedModel,
+          visionModel: updated?.vision_model || trimmedVisionModel,
           baseUrl: updated?.base_url || updated?.default_base_url || trimmedBaseUrl,
         },
       }));
@@ -627,7 +639,11 @@ function AdminSettings() {
 
       setConfigDrafts((prev) => ({
         ...prev,
-        [providerKey]: { apiKey: "", model: updated?.model || "" },
+        [providerKey]: {
+          apiKey: "",
+          model: updated?.model || "",
+          visionModel: updated?.vision_model || "",
+        },
       }));
 
       setConfigSuccess((prev) => ({
@@ -700,23 +716,25 @@ function AdminSettings() {
 
       {/* TAB SWITCHER */}
 
-      <div className="settings-tabs" role="tablist">
-        {visibleTabs.map((tab) => {
-          const isActive = activeTab === tab.key;
+      <div className="settings-tabs-sticky">
+        <div className="settings-tabs" role="tablist">
+          {visibleTabs.map((tab) => {
+            const isActive = activeTab === tab.key;
 
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              className={`settings-tab${isActive ? " is-active" : ""}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`settings-tab${isActive ? " is-active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ============================================= */}
@@ -872,7 +890,12 @@ function AdminSettings() {
           {/* ============================================= */}
 
           {!providerLoading && (providers?.providers || []).map((option) => {
-            const draft = configDrafts[option.provider] || { apiKey: "", model: "", baseUrl: "" };
+            const draft = configDrafts[option.provider] || {
+              apiKey: "",
+              model: "",
+              visionModel: "",
+              baseUrl: "",
+            };
             const isSaving = !!configSaving[option.provider];
             const errMsg = configError[option.provider];
             const okMsg = configSuccess[option.provider];
@@ -959,7 +982,37 @@ function AdminSettings() {
                     onChange={(e) => updateDraft(option.provider, "model", e.target.value)}
                     placeholder="mis. nama-model"
                   />
+
+                  <small style={{ color: "#6b7280" }}>
+                    Dipakai untuk generate soal, pembahasan, dan Impor Soal
+                    dari Dokumen (teks).
+                  </small>
                 </div>
+
+                {option.vision_model != null && (
+                  <div className="form-group" style={{ marginBottom: 18 }}>
+                    <label>Model Vision</label>
+
+                    <input
+                      type="text"
+                      value={draft.visionModel}
+                      onChange={(e) =>
+                        updateDraft(option.provider, "visionModel", e.target.value)
+                      }
+                      placeholder="mis. qwen3vl:8b"
+                    />
+
+                    <small style={{ color: "#6b7280" }}>
+                      Model TERPISAH khusus untuk fitur "Impor Soal dari
+                      Gambar" — harus model vision (bisa membaca gambar),
+                      BEDA dari Model di atas yang cuma untuk teks. Kosongkan
+                      untuk menonaktifkan fitur impor gambar lewat provider
+                      ini. Pastikan modelnya sudah di-pull di server
+                      (<code>ollama pull &lt;model&gt;</code>) sebelum diisi
+                      di sini.
+                    </small>
+                  </div>
+                )}
 
                 {option.configurable_base_url && (
                   <div className="form-group" style={{ marginBottom: 18 }}>

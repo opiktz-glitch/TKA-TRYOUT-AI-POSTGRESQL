@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database import get_db, IS_SQLITE
-from dependencies import get_current_user, require_role
+from dependencies import require_role
 from config import DATABASE_URL, OLLAMA_BASE_URL, GEMINI_BASE_URL, FRONTEND_PORT, BACKEND_PORT, APP_MODE
 from models import User
 from schemas import NetworkInfoResponse, NetworkAddress
@@ -21,8 +21,9 @@ router = APIRouter(
 
 # =========================================================
 # HELPER — pecah DATABASE_URL jadi info engine/nama/direktori
-# untuk ditampilkan di frontend (kartu "Informasi Sistem" di
-# Dashboard, endpoint ini bisa diakses semua role yang login).
+# untuk ditampilkan di frontend (kartu "Informasi Sistem" penuh
+# di Dashboard admin -- endpoint /status di bawah dibatasi ADMIN
+# karena responsnya memuat direktori DB dan alamat server AI).
 #
 # PENTING: untuk Postgres/lainnya, JANGAN PERNAH kembalikan
 # database_url mentah — itu mengandung username & password
@@ -196,11 +197,16 @@ def get_network_info(
 @router.get("/status")
 async def get_system_status(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("ADMIN")),
 ):
     """
-    Status sistem real-time untuk kartu "Informasi Sistem" di
-    Dashboard. Setiap bagian benar-benar dicek (bukan hardcode):
+    Status sistem LENGKAP untuk kartu "Informasi Sistem" di Dashboard
+    admin -- khusus ADMIN karena responsnya memuat direktori database
+    dan alamat server AI (lihat parse_db_info/parse_ai_host di atas).
+    GURU melihat status AI ringkas lewat GET /api/settings/ai-status,
+    yang sudah tidak membawa detail infrastruktur ini.
+
+    Setiap bagian benar-benar dicek (bukan hardcode):
 
     - database : jalankan query ringan ke SQLite
     - ai       : ping endpoint /api/tags milik Ollama

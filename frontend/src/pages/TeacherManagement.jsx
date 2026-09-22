@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { IconEdit, IconTrash, IconCheck } from "../components/Icons";
+import { IconEdit, IconTrash, IconCheck, IconSearch } from "../components/Icons";
+import Pagination from "../components/Pagination";
+import "../components/ScoreTable.css";
 
 import {
   getTeacherProfiles,
@@ -18,6 +20,8 @@ const EMPTY_FORM = {
   school_name: "",
 };
 
+const TEACHERS_PER_PAGE = 10;
+
 
 function TeacherManagement() {
 
@@ -31,6 +35,7 @@ function TeacherManagement() {
   const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [showModal, setShowModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
@@ -218,16 +223,47 @@ function TeacherManagement() {
   }
 
 
-  const filteredTeachers = teachers.filter((item) => {
-    const keyword = search.toLowerCase();
+  const filteredTeachers = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-    return (
-      item.full_name?.toLowerCase().includes(keyword) ||
-      item.teacher_code?.toLowerCase().includes(keyword) ||
-      item.username?.toLowerCase().includes(keyword) ||
-      item.school_name?.toLowerCase().includes(keyword)
-    );
-  });
+    return teachers.filter((item) => {
+      return (
+        !keyword ||
+        item.full_name?.toLowerCase().includes(keyword) ||
+        item.teacher_code?.toLowerCase().includes(keyword) ||
+        item.username?.toLowerCase().includes(keyword) ||
+        item.school_name?.toLowerCase().includes(keyword)
+      );
+    });
+  }, [teachers, search]);
+
+  // Reset ke halaman 1 setiap kali pencarian berubah, supaya
+  // tidak "nyangkut" di halaman yang sudah tidak relevan.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredTeachers.length / TEACHERS_PER_PAGE)
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedTeachers = useMemo(() => {
+    const start = (currentPage - 1) * TEACHERS_PER_PAGE;
+    return filteredTeachers.slice(start, start + TEACHERS_PER_PAGE);
+  }, [filteredTeachers, currentPage]);
+
+  const hasActiveTeacherFilter = Boolean(search);
+
+  function resetTeacherFilters() {
+    setSearch("");
+  }
 
 
   return (
@@ -246,18 +282,21 @@ function TeacherManagement() {
       </div>
 
 
-      {/* TABLE */}
+      {/* TABLE & FILTER */}
 
-      <div className="dashboard-card">
+      <div className="score-card">
 
-        <div className="user-toolbar">
-          <input
-            type="text"
-            placeholder="Cari nama / NIP / username / sekolah..."
-            className="search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="score-toolbar">
+          <label className="score-search">
+            <IconSearch size={16} />
+            <input
+              type="text"
+              placeholder="Cari nama / NIP / username / sekolah..."
+              aria-label="Cari guru"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
         </div>
 
         {loading && (
@@ -267,70 +306,123 @@ function TeacherManagement() {
         {error && <div className="error-message">{error}</div>}
 
         {actionError && (
-          <div className="form-error-message" style={{ marginBottom: "15px" }}>
+          <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
             {actionError}
           </div>
         )}
 
         {actionSuccess && (
-          <div className="success-message" style={{ marginBottom: "15px" }}>
+          <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
             <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
             {actionSuccess}
           </div>
         )}
 
         {!loading && !error && (
-          <div className="table-container">
-            <table className="user-table">
-              <thead>
-                <tr>
-                  <th className="align-center">No</th>
-                  <th className="align-center">ID</th>
-                  <th className="align-center">NIP</th>
-                  <th className="align-center">Nama</th>
-                  <th className="align-center">Username</th>
-                  <th className="align-center">Sekolah</th>
-                  <th className="align-center">Aksi</th>
-                </tr>
-              </thead>
+          <>
+            <div className="score-meta">
+              <span>{filteredTeachers.length} guru</span>
 
-              <tbody>
-                {filteredTeachers.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="align-center">{index + 1}</td>
-                    <td>{item.id}</td>
-                    <td><strong>{item.teacher_code}</strong></td>
-                    <td>{item.full_name}</td>
-                    <td>{item.username || "-"}</td>
-                    <td>{item.school_name || "-"}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="edit-button"
-                          onClick={() => openEditModal(item)}
-                        >
-                          <IconEdit size={16} />
-                        </button>
+              {hasActiveTeacherFilter && (
+                <button type="button" className="score-reset" onClick={resetTeacherFilters}>
+                  Reset filter
+                </button>
+              )}
+            </div>
 
-                        <button
-                          className="delete-button"
-                          onClick={() => handleDelete(item)}
-                        >
-                          <IconTrash size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredTeachers.length === 0 && (
+            {filteredTeachers.length === 0 ? (
               <div className="empty-message">
-                {search ? "Guru tidak ditemukan." : "Belum ada data guru."}
+                {hasActiveTeacherFilter ? "Guru tidak ditemukan." : "Belum ada data guru."}
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="score-table">
+                  <colgroup>
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "7%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "26%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "12%" }} />
+                  </colgroup>
+
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>ID</th>
+                      <th className="is-left">NIP</th>
+                      <th className="is-left">Nama</th>
+                      <th className="is-left">Username</th>
+                      <th className="is-left">Sekolah</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {paginatedTeachers.map((item, index) => (
+                      <tr key={item.id}>
+                        <td className="is-center is-nowrap">
+                          {(currentPage - 1) * TEACHERS_PER_PAGE + index + 1}
+                        </td>
+
+                        <td className="is-center is-nowrap score-secondary">
+                          {item.id}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.teacher_code}>
+                          <span className="score-primary is-strong">
+                            {item.teacher_code}
+                          </span>
+                        </td>
+
+                        <td className="score-ellipsis" title={item.full_name}>
+                          {item.full_name}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.username || undefined}>
+                          {item.username || "-"}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.school_name || undefined}>
+                          {item.school_name || "-"}
+                        </td>
+
+                        <td className="is-center is-nowrap">
+                          <div className="action-buttons" style={{ justifyContent: "center" }}>
+                            <button
+                              className="edit-button"
+                              onClick={() => openEditModal(item)}
+                              title="Edit"
+                            >
+                              <IconEdit size={16} />
+                            </button>
+
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(item)}
+                              title="Hapus"
+                            >
+                              <IconTrash size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTeachers.length}
+              pageSize={TEACHERS_PER_PAGE}
+              itemLabel="guru"
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 

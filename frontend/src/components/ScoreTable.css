@@ -1,7 +1,11 @@
 /* =====================================================
    NILAI (ADMIN & GURU) — toolbar, tabel, dan pagination
    Di-import oleh components/ScoreTable.jsx (dipakai
-   pages/AdminScores.jsx dan pages/TeacherScores.jsx)
+   pages/AdminScores.jsx dan pages/TeacherScores.jsx).
+
+   Class-class score-* di sini juga dipakai langsung (tanpa lewat
+   komponen ScoreTable) oleh pages/TryoutManagement.jsx supaya
+   tabel "Paket Tryout" tampilannya konsisten dengan tabel "Nilai".
    ===================================================== */
 
 /* overflow TIDAK di-hidden (beda dengan .dashboard-card).

@@ -199,21 +199,23 @@ Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis se
     "/capability",
     response_model=ImageCapabilityResponse,
 )
-def get_image_import_capability(
+async def get_image_import_capability(
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_role("ADMIN", "GURU")
     ),
 ):
     """
-    Cek cepat (tanpa memanggil AI) apakah provider AI yang aktif bisa
-    membaca gambar. Sengaja TIDAK memakai GET /api/settings/ai-status
-    karena itu hanya menjawab "AI online atau tidak", bukan "AI ini
-    bisa baca gambar atau tidak" -- Ollama text-only bisa online tapi
-    tetap tidak bisa dipakai di sini.
+    Cek apakah provider AI yang aktif bisa membaca gambar. Sengaja
+    TIDAK memakai GET /api/settings/ai-status karena itu hanya
+    menjawab "AI online atau tidak", bukan "AI ini bisa baca gambar
+    atau tidak" -- Ollama text-only bisa online tapi tetap tidak bisa
+    dipakai di sini (dan untuk Ollama vision, di sini SEKALIAN dicek
+    apakah model vision-nya sudah ter-pull -- lihat get_vision_
+    capability di ai_vision.py).
     """
 
-    capability = ai_vision.get_vision_capability(db)
+    capability = await ai_vision.get_vision_capability(db)
 
     return ImageCapabilityResponse(
         available=capability["available"],
@@ -255,7 +257,7 @@ async def extract_questions_from_image(
     # Cek kemampuan provider LEBIH DULU, sebelum repot memproses
     # gambar -- kalau AI aktif tidak bisa baca gambar, langsung
     # gagal dengan pesan jelas.
-    capability = ai_vision.get_vision_capability(db)
+    capability = await ai_vision.get_vision_capability(db)
 
     if not capability["available"]:
         raise HTTPException(

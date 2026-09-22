@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import logging
+import re
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from config import (
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
+    OLLAMA_VISION_MODEL,
     GEMINI_API_KEY,
     GEMINI_MODEL,
     GEMINI_BASE_URL,
@@ -407,6 +409,186 @@ async def _fetch_ollama_models(base_url: str) -> tuple[list[str], bool]:
         return [], False
 
 
+# =========================================================
+# PARSING JSON HASIL AI -- DENGAN USAHA PENYELAMATAN
+#
+# LATAR BELAKANG: meskipun Ollama dipanggil dengan "format": "json"
+# dan Gemini dengan responseMimeType "application/json" (keduanya
+# MEMAKSA model supaya token yang dipilih selalu membentuk JSON yang
+# valid secara grammar), keluarannya TETAP bisa gagal di-parse kalau
+# generate terhenti SEBELUM JSON-nya selesai ditutup -- paling sering
+# karena jatah token keluaran (num_predict / maxOutputTokens) habis
+# duluan, atau (khusus model "reasoning" seperti deepseek-r1/qwen3)
+# jatah token habis dipakai untuk "mikir" (thinking) sebelum sempat
+# menulis jawaban sungguhan. Hasilnya: JSON separuh jadi, kurung
+# tidak lengkap -> json.loads() gagal begitu saja.
+#
+# AIJsonParseError DIPISAHKAN dari HTTPException error konfigurasi/
+# koneksi (Ollama mati, API key salah, dst) supaya caller (proses
+# impor dokumen di routers/questions.py) bisa membedakan: kegagalan
+# JSON itu soal KUALITAS satu kali generate (kadang berhasil kalau
+# dicoba ulang), BUKAN masalah yang pasti akan gagal lagi -- jadi
+# bisa di-retry / potongan itu saja yang dilewati, TANPA menghentikan
+# SELURUH proses impor dokumen (sebelumnya: satu potongan gagal JSON
+# = semua potongan lain ikut batal diproses, meskipun dokumennya
+# cuma 1 potongan seperti yang dialami Akmal -- hasilnya nihil sama
+# sekali).
+# =========================================================
+
+class AIJsonParseError(HTTPException):
+    """
+    HTTPException status 502 KHUSUS untuk kegagalan parsing JSON
+    dari keluaran AI. Tetap subclass HTTPException (bukan Exception
+    polos) supaya endpoint LAIN yang memanggil call_active_provider
+    tanpa penanganan khusus (ai-generate, ai-explanation, dst) tetap
+    dapat response error yang rapi seperti sebelumnya. Caller yang
+    MAU membedakan (proses impor dokumen) tinggal except
+    AIJsonParseError SEBELUM except HTTPException biasa.
+    """
+    pass
+
+
+def _salvage_json_object(content: str) -> str | None:
+    """
+    Langkah penyelamatan PERTAMA (paling murah): buang pembungkus
+    markdown ```json ... ``` kalau ada, lalu potong ke rentang
+    karakter pertama '{'/'[' sampai TERAKHIR '}'/']' yang ada di
+    teks -- membuang teks pembuka/penutup di luar JSON-nya (mis.
+    kalimat basa-basi yang kadang tetap diselipkan model meskipun
+    sudah diminta JSON murni). Mengembalikan None kalau memang tidak
+    ada tanda-tanda JSON sama sekali (mis. content kosong).
+    """
+
+    if not content or not content.strip():
+        return None
+
+    text = content.strip()
+
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+        text = re.sub(r"```\s*$", "", text)
+        text = text.strip()
+
+    start_candidates = [
+        i for i in (text.find("{"), text.find("[")) if i != -1
+    ]
+
+    if not start_candidates:
+        return None
+
+    start = min(start_candidates)
+
+    end_candidates = [
+        i for i in (text.rfind("}"), text.rfind("]")) if i != -1
+    ]
+
+    end = max(end_candidates) if end_candidates else len(text) - 1
+
+    return text[start:end + 1]
+
+
+def _attempt_close_truncated_json(text: str) -> str:
+    """
+    Langkah penyelamatan KEDUA (dicoba kalau langkah pertama masih
+    gagal di-parse): tutup kurung `{`/`[` dan tanda kutip string
+    yang masih "menggantung" di akhir teks -- kasus paling umum
+    untuk JSON yang kepotong di tengah generate. Hasilnya BELUM
+    TENTU isinya utuh (bagian yang betul-betul terpotong tetap
+    hilang), tapi strukturnya jadi valid JSON -- lebih baik dapat
+    SEBAGIAN soal daripada kehilangan SEMUA soal di potongan itu
+    gara-gara satu karakter penutup yang hilang.
+    """
+
+    stack: list[str] = []
+    in_string = False
+    escaped = False
+
+    for ch in text:
+
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+
+    result = text
+
+    if in_string:
+        result += '"'
+
+    # Buang koma gantung sebelum kurung penutup ditambahkan --
+    # ",]" atau ",}" bukan JSON yang valid.
+    result = re.sub(r",\s*$", "", result)
+
+    closers = {"{": "}", "[": "]"}
+
+    for opener in reversed(stack):
+        result += closers[opener]
+
+    return result
+
+
+def _parse_ai_json(content: str, provider_name: str) -> dict:
+    """
+    Titik masuk tunggal untuk parsing JSON dari keluaran mentah AI
+    (field "content" Ollama / gabungan "text" Gemini), dipakai KEDUA
+    provider supaya perilakunya konsisten. Mencoba beberapa lapis
+    (mentah apa adanya -> hasil _salvage_json_object ->  hasil
+    _attempt_close_truncated_json) sebelum benar-benar menyerah.
+    Melempar AIJsonParseError (lihat docstring-nya) kalau semua
+    percobaan gagal, dengan cuplikan mentahnya dicatat ke log supaya
+    developer bisa lihat sebenarnya keluaran AI-nya seperti apa
+    (pesan error ke guru sengaja tidak menyertakan JSON mentah --
+    tidak berguna & cuma bikin bingung).
+    """
+
+    attempts = [content]
+
+    salvaged = _salvage_json_object(content)
+
+    if salvaged is not None and salvaged != content:
+
+        attempts.append(salvaged)
+
+        closed = _attempt_close_truncated_json(salvaged)
+
+        if closed != salvaged:
+            attempts.append(closed)
+
+    for attempt in attempts:
+
+        try:
+            return json.loads(attempt)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    logger.warning(
+        "Gagal mem-parsing JSON dari %s setelah semua usaha "
+        "penyelamatan. Cuplikan mentah (maks 500 karakter): %r",
+        provider_name,
+        (content or "")[:500],
+    )
+
+    raise AIJsonParseError(
+        status_code=502,
+        detail=(
+            f"Hasil AI ({provider_name}) tidak berupa JSON yang valid. "
+            "Coba generate ulang."
+        )
+    )
+
+
 async def call_ollama_provider(
     prompt: str, db: Session, larger_output: bool = False
 ) -> dict:
@@ -453,6 +635,18 @@ async def call_ollama_provider(
         # memori lebih lama supaya generate berikutnya tidak perlu
         # nunggu load ulang dari disk.
         "keep_alive": "30m",
+        # Matikan mode "thinking"/reasoning kalau model yang dipakai
+        # mendukungnya (mis. deepseek-r1, qwen3, gpt-oss). Model
+        # begini SECARA DEFAULT sering menghabiskan sebagian besar
+        # (bahkan seluruh) jatah num_predict untuk "mikir" dulu
+        # sebelum menulis jawaban JSON sungguhan -- kalau jatahnya
+        # habis duluan di fase mikir ini, field "content" hasilnya
+        # kosong/separuh jadi sama sekali, dan json.loads() gagal
+        # (persis error "Hasil AI (Ollama) tidak berupa JSON yang
+        # valid" yang dialami guru). Field ini diabaikan begitu saja
+        # oleh model yang TIDAK mendukung thinking, jadi aman
+        # disertakan selalu.
+        "think": False,
         "options": {
             # Batas keras jumlah token keluaran, supaya waktu
             # generate lebih terprediksi.
@@ -521,19 +715,7 @@ async def call_ollama_provider(
 
     content = data.get("message", {}).get("content", "")
 
-    try:
-
-        return json.loads(content)
-
-    except (json.JSONDecodeError, TypeError):
-
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Hasil AI (Ollama) tidak berupa JSON yang valid. "
-                "Coba generate ulang."
-            )
-        )
+    return _parse_ai_json(content, "Ollama")
 
 
 async def status_ollama_provider(db: Session) -> ProviderStatus:
@@ -545,6 +727,14 @@ async def status_ollama_provider(db: Session) -> ProviderStatus:
     model = get_provider_config(
         db, "OLLAMA", "model", default=OLLAMA_MODEL
     ) or OLLAMA_MODEL
+
+    # Model vision TERPISAH (lihat ai_vision.py) -- dibiarkan "" kalau
+    # admin belum pernah mengisinya sama sekali, BUKAN ikut fallback
+    # ke `model` teks di atas, karena model teks belum tentu bisa
+    # baca gambar.
+    vision_model = get_provider_config(
+        db, "OLLAMA", "vision_model", default=OLLAMA_VISION_MODEL
+    ) or OLLAMA_VISION_MODEL
 
     detail = None
 
@@ -576,6 +766,7 @@ async def status_ollama_provider(db: Session) -> ProviderStatus:
         configurable_base_url=True,
         base_url=base_url,
         default_base_url=OLLAMA_BASE_URL,
+        vision_model=vision_model,
     )
 
 
@@ -740,19 +931,7 @@ async def call_gemini_provider(
         part.get("text", "") for part in parts if isinstance(part, dict)
     )
 
-    try:
-
-        return json.loads(content)
-
-    except (json.JSONDecodeError, TypeError):
-
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Hasil AI (Gemini) tidak berupa JSON yang valid. "
-                "Coba generate ulang."
-            )
-        )
+    return _parse_ai_json(content, "Gemini")
 
 
 async def status_gemini_provider(db: Session) -> ProviderStatus:
@@ -808,7 +987,21 @@ register_provider(ProviderDefinition(
     status_fn=status_ollama_provider,
     # Kecil karena context window Ollama lokal (num_ctx) terbatas
     # — lihat penjelasan lengkap di call_ollama_provider().
-    extract_chunk_chars=4000,
+    #
+    # SEMPAT dinaikkan ke 4000 (mengurangi jumlah panggilan AI per
+    # dokumen), tapi ini TERBUKTI membuat error "Hasil AI (Ollama)
+    # tidak berupa JSON yang valid" jadi sering muncul untuk model
+    # 7B seperti qwen2.5:7b -- makin banyak soal yang dijejalkan ke
+    # satu potongan, makin panjang & rumit JSON yang harus
+    # dihasilkan model SEKALIGUS tanpa putus, dan model sekecil 7B
+    # parameter jauh lebih gampang "kepeleset" (salah kurung/kutip,
+    # atau kehabisan num_predict di tengah) untuk output sepanjang
+    # itu dibanding model besar seperti Gemini. Dikembalikan ke 2200
+    # (nilai DEFAULT_EXTRACT_CHUNK_CHARS yang memang didesain aman
+    # untuk Ollama lokal, lihat dokumentasinya) -- konsekuensinya
+    # jumlah panggilan AI per dokumen jadi lebih banyak (lebih
+    # lambat), tapi jauh lebih andal berhasil per panggilannya.
+    extract_chunk_chars=2200,
     # Alamat server Ollama BISA diarahkan admin lewat Pengaturan (mis.
     # ke server GPU terpisah saat production), bukan cuma localhost.
     # default_base_url = OLLAMA_BASE_URL dari .env (default bawaan

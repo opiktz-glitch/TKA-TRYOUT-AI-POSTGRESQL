@@ -209,6 +209,17 @@ async def update_provider_config(
         else:
             ai_providers.delete_provider_config(db, provider_key, "model")
 
+    if setting_data.vision_model is not None:
+
+        new_vision_model = setting_data.vision_model.strip()
+
+        if new_vision_model:
+            ai_providers.set_provider_config(
+                db, provider_key, "vision_model", new_vision_model
+            )
+        else:
+            ai_providers.delete_provider_config(db, provider_key, "vision_model")
+
     if setting_data.base_url is not None:
 
         new_base_url = setting_data.base_url.strip()

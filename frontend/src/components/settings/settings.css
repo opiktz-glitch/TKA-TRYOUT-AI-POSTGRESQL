@@ -4,17 +4,23 @@
    components/settings/ProfileTab.jsx & NetworkTab.jsx
    ===================================================== */
 
-/* ---------- Tab (menempel di atas saat halaman di-scroll) ---------- */
+/* ---------- Tab ----------
+   Sebelumnya "position: sticky" (menempel di atas saat di-scroll),
+   tapi Chrome terus-menerus salah gambar ulang elemen ini pas
+   scroll -- baris/kartu di baliknya sempat "mengintip" tembus,
+   walau sudah dicoba dipisah dari overflow-x DAN dipaksa punya
+   compositing layer sendiri (will-change/transform). Daripada terus
+   kejar bug rendering yang keras kepala, sticky-nya DICOPOT --
+   sekarang baris tab ikut scroll biasa seperti konten lain. */
+.settings-tabs-sticky {
+  background: var(--paper);
+}
 
 .settings-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: flex;
   gap: 4px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
-  background: var(--paper);
   overflow-x: auto;
 }
 

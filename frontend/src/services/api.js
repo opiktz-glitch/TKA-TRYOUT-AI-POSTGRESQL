@@ -444,6 +444,36 @@ export async function generateAIExplanation(payload) {
 }
 
 
+// Verifikasi jawaban dengan AI (tombol TERPISAH & OPSIONAL,
+// "Verifikasi Jawaban" -- bukan bagian dari "Pembahasan dengan AI").
+// Beda dari generateAIExplanation: endpoint ini TIDAK memberi tahu AI
+// jawaban mana yang benar, jadi hasilnya independen dari kunci yang
+// sudah ditandai guru di form. Sengaja jadi tombol terpisah karena
+// ini panggilan AI ekstra (waktu tunggu & biaya token tambahan) --
+// guru yang menentukan kapan perlu menjalankannya.
+export async function verifyAIAnswer(payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 130000);
+
+  try {
+    return await apiFetch("/api/questions/ai-verify-answer", {
+      method: "POST",
+      body: payload,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(
+        "AI terlalu lama merespons (lebih dari 130 detik). Coba lagi, atau gunakan model Ollama yang lebih ringan."
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+
 // =====================================================
 // IMPOR SOAL DARI DOKUMEN (PDF/DOCX/TXT) — 2 LANGKAH
 //
@@ -559,7 +589,10 @@ export async function updateActiveProvider(provider) {
 // Simpan/ganti API key & model milik SATU provider (bekerja untuk
 // provider mana pun, bukan cuma Gemini — cukup kirim providerKey
 // yang sesuai, mis. "GEMINI", "OLLAMA", atau provider baru lainnya).
-export async function updateProviderConfig(providerKey, { apiKey, model, baseUrl } = {}) {
+export async function updateProviderConfig(
+  providerKey,
+  { apiKey, model, visionModel, baseUrl } = {},
+) {
   const body = {};
 
   // undefined -> field tidak dikirim sama sekali -> backend tidak
@@ -571,6 +604,12 @@ export async function updateProviderConfig(providerKey, { apiKey, model, baseUrl
 
   if (model !== undefined) {
     body.model = model;
+  }
+
+  // Model KHUSUS untuk fitur "Impor Soal dari Gambar" -- lihat
+  // catatan di ai_vision.py. Cuma relevan untuk Ollama saat ini.
+  if (visionModel !== undefined) {
+    body.vision_model = visionModel;
   }
 
   // baseUrl: "" dikirim eksplisit -> backend reset ke alamat default

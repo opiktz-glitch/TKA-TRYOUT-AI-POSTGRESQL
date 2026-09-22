@@ -26,12 +26,31 @@ import {
   getTeacherDashboardSummary,
   getStudentDashboardSummary,
   getSystemStatus,
+  getAIStatus,
 } from "../services/api";
 
 
 // =====================================================
 // HELPER — potong teks panjang untuk preview singkat
 // =====================================================
+
+// =====================================================
+// HELPER — nama tampilan provider AI untuk kartu "Status AI"
+// milik GURU (GET /api/settings/ai-status cuma mengirim kode
+// provider, mis. "OLLAMA", bukan label siap-tampil).
+// =====================================================
+
+function providerLabel(activeProvider) {
+  if (activeProvider === "OLLAMA") {
+    return "Ollama";
+  }
+
+  if (activeProvider === "GEMINI") {
+    return "Google Gemini";
+  }
+
+  return activeProvider || "-";
+}
 
 function truncateText(text, maxLength = 70) {
   if (!text) {
@@ -199,6 +218,16 @@ function Dashboard() {
   );
   const [dashError, setDashError] = useState("");
 
+  // Pemuatan PERTAMA gagal (belum ada data lama): dashError terisi
+  // dan state masih bernilai awal (0 / kosong). Nilai awal itu jangan
+  // ditampilkan seolah data asli -- pakai "–" / "Gagal dimuat". Kalau
+  // sudah ada data lama, dashError tidak pernah terisi (lihat
+  // loadDashboardData), jadi data lama tetap tampil.
+  const dashFailed = Boolean(dashError);
+
+  // Nilai kartu angka: "…" saat memuat, "–" kalau gagal.
+  const show = (value) => (dashLoading ? "…" : dashFailed ? "–" : value);
+
   // ADMIN
   const [adminStats, setAdminStats] = useState(
     () =>
@@ -282,6 +311,14 @@ function Dashboard() {
   const [systemLoading, setSystemLoading] = useState(() => !cached.system);
   const [systemError, setSystemError] = useState("");
 
+  // Kartu "Status AI" milik GURU -- ringkasan, bukan status sistem
+  // penuh (lihat loadAiCardStatus dan GET /api/settings/ai-status).
+  const [aiCardStatus, setAiCardStatus] = useState(
+    () => cached.aiCard ?? null
+  );
+  const [aiCardLoading, setAiCardLoading] = useState(() => !cached.aiCard);
+  const [aiCardError, setAiCardError] = useState("");
+
 
   // =====================================================
   // LOAD DATA — sesuai role user yang sedang login
@@ -311,8 +348,15 @@ function Dashboard() {
       return;
     }
 
-    // Sudah ada status lama -> perbarui diam-diam (tanpa "Memeriksa...").
-    loadSystemStatus({ silent: Boolean(readDashboardCache(user.id).system) });
+    // Kartu "Informasi Sistem" cuma untuk ADMIN (lengkap) dan GURU
+    // (ringkas, guru perlu tahu AI hidup untuk membuat soal). SISWA
+    // tidak melihat kartu ini sama sekali, jadi tidak ada panggilan API.
+    if (user.role === "ADMIN") {
+      // Sudah ada status lama -> perbarui diam-diam (tanpa "Memeriksa...").
+      loadSystemStatus({ silent: Boolean(readDashboardCache(user.id).system) });
+    } else if (user.role === "GURU") {
+      loadAiCardStatus({ silent: Boolean(readDashboardCache(user.id).aiCard) });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -402,6 +446,33 @@ function Dashboard() {
       }
     } finally {
       setSystemLoading(false);
+    }
+  }
+
+  // Sama seperti loadSystemStatus di atas, tapi untuk kartu ringkas
+  // GURU: cuma memanggil GET /api/settings/ai-status (tidak membawa
+  // detail infrastruktur seperti direktori DB / alamat server AI).
+  async function loadAiCardStatus({ silent = false } = {}) {
+    try {
+      if (!silent) {
+        setAiCardLoading(true);
+      }
+
+      setAiCardError("");
+
+      const data = await getAIStatus();
+      setAiCardStatus(data);
+      writeDashboardCache(user?.id, "aiCard", data);
+    } catch (err) {
+      console.error("LOAD AI CARD STATUS ERROR:", err);
+
+      if (!silent) {
+        setAiCardError(
+          err.message || "Gagal memuat status AI"
+        );
+      }
+    } finally {
+      setAiCardLoading(false);
     }
   }
 
@@ -566,10 +637,27 @@ function Dashboard() {
 
 
       {dashError && (
-        <div className="dashboard-card" style={{ borderColor: "#fca5a5" }}>
+        <div
+          className="dashboard-card"
+          style={{
+            borderColor: "#fca5a5",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
           <p style={{ color: "#dc2626", margin: 0 }}>
             {dashError}
           </p>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => loadDashboardData(user)}
+          >
+            Coba lagi
+          </button>
         </div>
       )}
 
@@ -587,7 +675,7 @@ function Dashboard() {
             <StatCard
               icon={<IconGraduationCap />}
               title="Siswa"
-              value={dashLoading ? "…" : adminStats.totalStudents}
+              value={show(adminStats.totalStudents)}
               description="Siswa terdaftar"
             />
 
@@ -608,11 +696,13 @@ function Dashboard() {
             <StatCard
               icon={<IconClipboard />}
               title="Paket Tryout Aktif"
-              value={dashLoading ? "…" : adminStats.activeTryouts}
+              value={show(adminStats.activeTryouts)}
               description={
                 dashLoading
                   ? "Memuat…"
-                  : `dari ${adminStats.totalTryouts} paket tryout`
+                  : dashFailed
+                    ? "Gagal dimuat"
+                    : `dari ${adminStats.totalTryouts} paket tryout`
               }
             />
 
@@ -644,6 +734,12 @@ function Dashboard() {
 
                 <div className="loading-message">
                   Memuat komposisi bank soal...
+                </div>
+
+              ) : dashFailed ? (
+
+                <div className="error-message">
+                  Gagal memuat komposisi bank soal.
                 </div>
 
               ) : questionBank.subjects.length === 0 ? (
@@ -782,28 +878,30 @@ function Dashboard() {
                     <small>
                       {dashLoading
                         ? "Memuat…"
-                        : attention.inactiveTryouts.count === 0
-                          ? "Semua soal di paket aktif masih aktif"
-                          : attention.inactiveTryouts.items
-                              .map(
-                                (item) =>
-                                  `${truncateText(item.title, 28)} (${item.inactive_count})`
-                              )
-                              .join(", ") +
-                            (attention.inactiveTryouts.count >
-                            attention.inactiveTryouts.items.length
-                              ? ` +${
-                                  attention.inactiveTryouts.count -
-                                  attention.inactiveTryouts.items.length
-                                } lainnya`
-                              : "")}
+                        : dashFailed
+                          ? "Gagal dimuat"
+                          : attention.inactiveTryouts.count === 0
+                            ? "Semua soal di paket aktif masih aktif"
+                            : attention.inactiveTryouts.items
+                                .map(
+                                  (item) =>
+                                    `${truncateText(item.title, 28)} (${item.inactive_count})`
+                                )
+                                .join(", ") +
+                              (attention.inactiveTryouts.count >
+                              attention.inactiveTryouts.items.length
+                                ? ` +${
+                                    attention.inactiveTryouts.count -
+                                    attention.inactiveTryouts.items.length
+                                  } lainnya`
+                                : "")}
                     </small>
 
                   </div>
 
                   <span
                     style={attentionBadgeStyle(
-                      dashLoading
+                      dashLoading || dashFailed
                         ? "info"
                         : attention.inactiveTryouts.count > 0
                           ? "warn"
@@ -812,9 +910,11 @@ function Dashboard() {
                   >
                     {dashLoading
                       ? "…"
-                      : attention.inactiveTryouts.count > 0
-                        ? attention.inactiveTryouts.count
-                        : "Aman"}
+                      : dashFailed
+                        ? "–"
+                        : attention.inactiveTryouts.count > 0
+                          ? attention.inactiveTryouts.count
+                          : "Aman"}
                   </span>
 
                 </button>
@@ -838,16 +938,18 @@ function Dashboard() {
                     <small>
                       {dashLoading
                         ? "Memuat…"
-                        : attention.withoutExplanation === 0
-                          ? "Semua soal aktif sudah berpembahasan"
-                          : "Pembahasan tampil saat siswa meninjau hasil"}
+                        : dashFailed
+                          ? "Gagal dimuat"
+                          : attention.withoutExplanation === 0
+                            ? "Semua soal aktif sudah berpembahasan"
+                            : "Pembahasan tampil saat siswa meninjau hasil"}
                     </small>
 
                   </div>
 
                   <span
                     style={attentionBadgeStyle(
-                      dashLoading
+                      dashLoading || dashFailed
                         ? "info"
                         : attention.withoutExplanation > 0
                           ? "warn"
@@ -856,9 +958,11 @@ function Dashboard() {
                   >
                     {dashLoading
                       ? "…"
-                      : attention.withoutExplanation > 0
-                        ? attention.withoutExplanation
-                        : "Aman"}
+                      : dashFailed
+                        ? "–"
+                        : attention.withoutExplanation > 0
+                          ? attention.withoutExplanation
+                          : "Aman"}
                   </span>
 
                 </button>
@@ -882,7 +986,9 @@ function Dashboard() {
                     <small>
                       {dashLoading
                         ? "Memuat…"
-                        : `${attention.imageStorage.count} gambar di database`}
+                        : dashFailed
+                          ? "Gagal dimuat"
+                          : `${attention.imageStorage.count} gambar di database`}
                     </small>
 
                   </div>
@@ -890,7 +996,9 @@ function Dashboard() {
                   <span style={attentionBadgeStyle("info")}>
                     {dashLoading
                       ? "…"
-                      : formatBytes(attention.imageStorage.bytes)}
+                      : dashFailed
+                        ? "–"
+                        : formatBytes(attention.imageStorage.bytes)}
                   </span>
 
                 </button>
@@ -914,9 +1022,11 @@ function Dashboard() {
                     <small>
                       {dashLoading
                         ? "Memuat…"
-                        : attention.questionTableSize.bytes === null
-                          ? "Hanya tersedia di database Postgres"
-                          : "Termasuk gambar yang tersimpan di kolom soal"}
+                        : dashFailed
+                          ? "Gagal dimuat"
+                          : attention.questionTableSize.bytes === null
+                            ? "Hanya tersedia di database Postgres"
+                            : "Termasuk gambar yang tersimpan di kolom soal"}
                     </small>
 
                   </div>
@@ -924,9 +1034,11 @@ function Dashboard() {
                   <span style={attentionBadgeStyle("info")}>
                     {dashLoading
                       ? "…"
-                      : attention.questionTableSize.bytes === null
-                        ? "N/A"
-                        : formatBytes(attention.questionTableSize.bytes)}
+                      : dashFailed
+                        ? "–"
+                        : attention.questionTableSize.bytes === null
+                          ? "N/A"
+                          : formatBytes(attention.questionTableSize.bytes)}
                   </span>
 
                 </button>
@@ -955,28 +1067,28 @@ function Dashboard() {
             <StatCard
               icon={<IconNotebook />}
               title="Soal Saya"
-              value={dashLoading ? "…" : teacherStats.totalSoal}
+              value={show(teacherStats.totalSoal)}
               description="Soal dibuat"
             />
 
             <StatCard
               icon={<IconClipboard />}
               title="Tryout Saya"
-              value={dashLoading ? "…" : teacherStats.totalTryout}
+              value={show(teacherStats.totalTryout)}
               description="Paket tryout"
             />
 
             <StatCard
               icon={<IconGraduationCap />}
               title="Peserta"
-              value={dashLoading ? "…" : teacherStats.totalPeserta}
+              value={show(teacherStats.totalPeserta)}
               description="Peserta tryout"
             />
 
             <StatCard
               icon={<IconBarChart />}
               title="Hasil"
-              value={dashLoading ? "…" : teacherStats.totalHasil}
+              value={show(teacherStats.totalHasil)}
               description="Hasil pengerjaan"
             />
 
@@ -1019,12 +1131,14 @@ function Dashboard() {
                     </strong>
 
                     <span>
-                      {teacherActivity.latestQuestion
-                        ? truncateText(
-                            teacherActivity.latestQuestion.question_text,
-                            60
-                          )
-                        : "Belum ada soal yang Anda buat"}
+                      {dashFailed
+                        ? "Gagal dimuat"
+                        : teacherActivity.latestQuestion
+                          ? truncateText(
+                              teacherActivity.latestQuestion.question_text,
+                              60
+                            )
+                          : "Belum ada soal yang Anda buat"}
                     </span>
 
                   </div>
@@ -1045,9 +1159,11 @@ function Dashboard() {
                     </strong>
 
                     <span>
-                      {teacherActivity.latestTryout
-                        ? teacherActivity.latestTryout.title
-                        : "Belum ada tryout yang Anda buat"}
+                      {dashFailed
+                        ? "Gagal dimuat"
+                        : teacherActivity.latestTryout
+                          ? teacherActivity.latestTryout.title
+                          : "Belum ada tryout yang Anda buat"}
                     </span>
 
                   </div>
@@ -1175,44 +1291,40 @@ function Dashboard() {
             <StatCard
               icon={<IconClipboard />}
               title="Tryout Tersedia"
-              value={dashLoading ? "…" : studentStats.tryoutTersedia}
+              value={show(studentStats.tryoutTersedia)}
               description="Siap dikerjakan"
             />
 
             <StatCard
               icon={<IconTarget />}
               title="Tryout Diikuti"
-              value={dashLoading ? "…" : studentStats.tryoutDiikuti}
+              value={show(studentStats.tryoutDiikuti)}
               description="Sudah dikerjakan"
             />
 
             <StatCard
               icon={<IconTrophy />}
               title="Nilai Terakhir"
-              value={
-                dashLoading
-                  ? "…"
-                  : (studentStats.nilaiTerakhir ?? "-")
-              }
+              value={show(studentStats.nilaiTerakhir ?? "-")}
               description={
-                studentStats.lastAttemptDate
-                  ? timeAgo(studentStats.lastAttemptDate)
-                  : "Belum ada nilai"
+                dashFailed
+                  ? "Gagal dimuat"
+                  : studentStats.lastAttemptDate
+                    ? timeAgo(studentStats.lastAttemptDate)
+                    : "Belum ada nilai"
               }
             />
 
             <StatCard
               icon={<IconTrendingUp />}
               title="Rata-rata"
-              value={
-                dashLoading
-                  ? "…"
-                  : (studentStats.rataRata ?? "-")
-              }
+              value={show(studentStats.rataRata ?? "-")}
               description={
-                studentStats.tryoutDiikuti > 0
-                  ? `Dari ${studentStats.tryoutDiikuti} tryout`
-                  : "Belum ada data"
+                dashFailed
+                  ? "Gagal dimuat"
+                  : studentStats.tryoutDiikuti > 0
+                    ? `Dari ${studentStats.tryoutDiikuti} tryout`
+                    : "Belum ada data"
               }
             />
 
@@ -1253,11 +1365,13 @@ function Dashboard() {
                     <div className="activity-content">
 
                       <strong>
-                        Belum ada tryout
+                        {dashFailed ? "Gagal memuat tryout" : "Belum ada tryout"}
                       </strong>
 
                       <span>
-                        Tryout yang tersedia akan muncul di sini
+                        {dashFailed
+                          ? "Klik \"Coba lagi\" di atas untuk memuat ulang"
+                          : "Tryout yang tersedia akan muncul di sini"}
                       </span>
 
                     </div>
@@ -1406,7 +1520,10 @@ function Dashboard() {
 
       {/* =========================================
           SYSTEM INFORMATION (interaktif, real-time)
+          Hanya ADMIN -- lihat kartu ringkas GURU di bawah.
       ========================================= */}
+
+      {user?.role === "ADMIN" && (
 
       <section className="dashboard-card system-card">
 
@@ -1589,6 +1706,103 @@ function Dashboard() {
         </div>
 
       </section>
+
+      )}
+
+
+      {/* =========================================
+          STATUS AI (ringkas, khusus GURU)
+
+          Guru perlu tahu AI hidup sebelum mencoba membuat soal
+          dengan AI (tombol "Pembahasan dengan AI" & sejenisnya
+          sudah punya pengecekannya sendiri lewat useAiStatusGate,
+          kartu ini cuma pratinjau di Dashboard).
+      ========================================= */}
+
+      {user?.role === "GURU" && (
+
+      <section className="dashboard-card system-card">
+
+        <div className="card-header">
+
+          <div>
+
+            <h3>
+              Status AI
+            </h3>
+
+            <p>
+              Perlu online untuk membuat soal dengan AI
+              {aiCardStatus && !aiCardLoading && (
+                <span className="system-updated">
+                  {" "}· diperbarui baru saja
+                </span>
+              )}
+            </p>
+
+          </div>
+
+          <button
+            type="button"
+            className={
+              "system-refresh-btn" +
+              (aiCardLoading ? " spinning" : "")
+            }
+            onClick={() => loadAiCardStatus()}
+            disabled={aiCardLoading}
+            title="Cek ulang status AI"
+          >
+            <IconRefresh size={16} />
+            {aiCardLoading ? "Memeriksa..." : "Cek Ulang"}
+          </button>
+
+        </div>
+
+
+        {aiCardError && !aiCardLoading && (
+          <div className="system-error-banner">
+            Gagal memeriksa status AI: {aiCardError}
+          </div>
+        )}
+
+
+        <div className="system-status">
+
+          <div className="status-item">
+
+            <div className="status-item-title">
+              <span
+                className={
+                  "status-dot" +
+                  (aiCardLoading
+                    ? " checking"
+                    : aiCardStatus?.online
+                    ? ""
+                    : " offline")
+                }
+              ></span>
+
+              <strong>AI</strong>
+            </div>
+
+            <small>
+              {providerLabel(aiCardStatus?.active_provider)}
+            </small>
+
+            <small className="status-sub">
+              {aiCardLoading
+                ? "Memeriksa..."
+                : aiCardStatus?.online
+                ? "Online"
+                : aiCardStatus?.reason || "Offline"}
+            </small>
+          </div>
+
+        </div>
+
+      </section>
+
+      )}
     </>
   );
 

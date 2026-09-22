@@ -32,7 +32,9 @@ from schemas import (
     AIChunkProcessRequest,
     AIChunkProcessResponse,
     AIExplanationRequest,
-    AIExplanationResponse
+    AIExplanationResponse,
+    AIVerifyAnswerRequest,
+    AIVerifyAnswerResponse
 )
 from dependencies import require_role
 
@@ -963,7 +965,21 @@ async def generate_question_ai(
 # =========================================================
 # PEMBAHASAN DENGAN AI (tombol di form Tambah/Edit Soal)
 #
-# Membuat DRAF pembahasan untuk soal yang sedang diisi/diedit guru.
+# Membuat DRAF pembahasan untuk soal yang sedang diisi/diedit guru --
+# TANPA diberi tahu jawaban mana yang sudah ditandai benar di form
+# (kalaupun ada). AI menghitung/menyimpulkan sendiri dari nol, sama
+# seperti _build_verification_prompt di atas, TAPI sekaligus diminta
+# menuliskan pembahasannya (bukan cuma kode opsi).
+#
+# Alurnya sengaja dibalik dari versi sebelumnya: guru bisa membuat
+# pembahasan LEBIH DULU (sebelum menandai jawaban benar), membaca
+# kesimpulan AI di teks pembahasannya (yang menyebutkan hurufnya),
+# lalu menandai pilihan yang benar secara MANUAL. Supaya guru tidak
+# menimpa pembahasan yang sudah ada tanpa sadar, tombolnya otomatis
+# nonaktif kalau kolom Pembahasan sudah terisi (lihat blockReason di
+# ExplanationField.jsx) -- jadi endpoint ini sendiri tidak perlu
+# memvalidasi itu.
+#
 # Pola sama dengan generate_question_ai(): endpoint ini HANYA
 # mengembalikan draf -- TIDAK menyimpan apa pun. Draf mengisi kolom
 # Pembahasan di form, guru memeriksanya, lalu menyimpan lewat
@@ -988,43 +1004,45 @@ def build_explanation_prompt(
     subject_name: str | None,
     question_text: str,
     options: list[tuple[str, str]],
-    correct_code: str,
 ) -> str:
     options_block = "\n".join(
         f"{code}. {text}" for code, text in options
     )
 
-    correct_text = next(
-        text for code, text in options if code == correct_code
-    )
-
     subject_part = f" mata pelajaran {subject_name}" if subject_name else ""
 
-    return f"""Anda adalah seorang guru{subject_part} untuk siswa kelas 6 SD.
-Berikut sebuah soal pilihan ganda beserta kunci jawabannya yang SUDAH PASTI benar:
+    return f"""Anda adalah seorang guru{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan SATU jawaban yang paling tepat, lalu tulis pembahasannya.
 
 Soal: {question_text}
 Pilihan:
 {options_block}
-Jawaban yang benar: {correct_code}. {correct_text}
 
-Tulis pembahasan singkat (2 sampai 4 kalimat) yang menjelaskan MENGAPA jawaban tersebut benar.
+Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
-- JANGAN mengubah atau meragukan kunci jawaban di atas, dan JANGAN menyebut huruf pilihan lain sebagai jawaban yang benar.
+- Sebutkan HANYA SATU huruf sebagai jawaban benar -- jangan ragu-ragu, jangan menyebut lebih dari satu kemungkinan.
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
 {{"explanation": "pembahasan di sini"}}"""
 
 
-def _prepare_explanation_input(question_text, raw_options):
+def _prepare_explanation_input(question_text, raw_options, *, require_answer=True):
     """
-    Memvalidasi & merapikan isi form dari frontend. Mengembalikan
-    (teks_soal, [(kode, teks), ...], kode_jawaban_benar), atau
-    melempar HTTPException 400 dengan pesan yang jelas untuk guru.
-    Aturannya sengaja sejalan dengan penyimpanan soal: jawaban
-    benar harus TEPAT SATU.
+    Memvalidasi & merapikan isi form dari frontend.
+
+    require_answer=True (default -- dipakai /ai-verify-answer, yang
+    membandingkan kesimpulan independen AI dengan kunci yang SUDAH
+    ditandai guru di form): jawaban benar harus TEPAT SATU, sejalan
+    dengan aturan penyimpanan soal. Mengembalikan (teks_soal,
+    [(kode, teks), ...], kode_jawaban_benar), atau melempar
+    HTTPException 400 dengan pesan yang jelas untuk guru.
+
+    require_answer=False (dipakai /ai-explanation): status is_correct
+    di form diabaikan sepenuhnya -- alurnya sekarang guru bisa
+    membuat pembahasan DULU, baru menandai jawaban benar manual
+    setelah membaca kesimpulan AI di teksnya. Mengembalikan
+    (teks_soal, [(kode, teks), ...]) TANPA kode_jawaban_benar.
     """
 
     text = (question_text or "").strip()
@@ -1057,6 +1075,9 @@ def _prepare_explanation_input(question_text, raw_options):
             status_code=400,
             detail="Isi minimal dua pilihan jawaban terlebih dahulu"
         )
+
+    if not require_answer:
+        return text, options
 
     if len(correct_codes) != 1:
         raise HTTPException(
@@ -1099,63 +1120,117 @@ def _clean_explanation_text(text: str) -> str:
     return cleaned
 
 
-# Kalimat yang menyatakan sebuah HURUF sebagai jawaban benar, mis.
-# "Jawaban yang benar adalah B", "Jawabannya: C", "Pilihan D benar",
-# "A adalah jawaban yang benar". Sengaja sempit supaya jarang salah
-# menuduh: kalimat seperti "Pilihan A salah" atau "bukan jawaban
-# yang benar" TIDAK cocok.
-_EXPLANATION_CLAIM_PATTERNS = [
-    re.compile(
-        r"\bjawaban(?:nya)?(?:\s+yang)?(?:\s+(?:paling\s+)?(?:benar|tepat))?"
-        r"\s*(?:adalah|ialah|yaitu|:)\s*(?:pilihan\s+|opsi\s+)?\(?([A-D])\)?"
-        r"(?![A-Za-z0-9])",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\b(?:pilihan|opsi)\s+([A-D])\s+(?:adalah\s+)?(?:jawaban\s+)?"
-        r"(?:yang\s+)?(?:benar|tepat)(?![-\w])",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\b([A-D])\s+adalah\s+jawaban\s+(?:yang\s+)?(?:benar|tepat)(?![-\w])",
-        re.IGNORECASE,
-    ),
-]
-
-
-def _check_explanation_consistency(
-    explanation: str,
-    correct_code: str,
-) -> str | None:
+def _build_verification_with_explanation_prompt(
+    question_text: str,
+    options: list[dict],
+) -> str:
     """
-    Pemeriksaan ringan TANPA panggilan AI tambahan: kalau pembahasan
-    menyebut huruf lain sebagai jawaban benar, kembalikan pesan
-    peringatan untuk guru. None kalau tidak ada yang janggal.
+    Mirip _build_verification_prompt di atas (soal + pilihan, TANPA
+    kunci jawaban, minta AI simpulkan sendiri) -- TAPI sekaligus
+    minta pembahasannya juga dalam JSON yang sama, khusus dipakai
+    _verify_explanation_answer/endpoint "Verifikasi Jawaban" di
+    bawah. SENGAJA fungsi terpisah dari _build_verification_prompt
+    (bukan menambah parameter opsional ke situ): yang lama dipakai
+    juga oleh generate_question_ai() (Tahap 2) yang sengaja dibuat
+    seringkas mungkin (bisa dipanggil berkali-kali/bulk), jadi jangan
+    diperberat dengan permintaan pembahasan yang tidak dibutuhkan di
+    sana.
     """
 
-    claimed_codes = set()
+    options_text = "\n".join(
+        f"{option['option_code']}. {option['option_text']}"
+        for option in options
+    )
 
-    for pattern in _EXPLANATION_CLAIM_PATTERNS:
-        for match in pattern.finditer(explanation):
-            letter = match.group(1)
+    return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan SATU huruf pilihan yang paling benar, lalu tulis pembahasan singkatnya.
 
-            # Hanya huruf KAPITAL yang dianggap kode pilihan (menghindari
-            # "jawabannya adalah a..." yang sebenarnya kata biasa).
-            if letter.isupper():
-                claimed_codes.add(letter)
+Soal:
+{question_text}
 
-    wrong_codes = sorted(claimed_codes - {correct_code})
+Pilihan:
+{options_text}
 
-    if not wrong_codes:
+Tulis pembahasan singkat (2 sampai 4 kalimat) yang menjelaskan MENGAPA jawaban tersebut benar.
+Ketentuan:
+- Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
+Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
+{{"correct_option_code": "A", "explanation": "pembahasan di sini"}}"""
+
+
+async def _verify_explanation_answer(
+    db: Session,
+    question_text: str,
+    options: list[tuple[str, str]],
+) -> tuple[str, str] | None:
+    """
+    Verifikasi independen (panggilan AI ekstra): panggil provider AI
+    dengan prompt TERPISAH yang hanya berisi teks soal + pilihan
+    (TANPA kunci jawaban), minta dihitung/disimpulkan ulang dari awal
+    SEKALIGUS pembahasannya -- lihat
+    _build_verification_with_explanation_prompt. Sengaja diminta
+    sekaligus dalam SATU panggilan (bukan panggilan terpisah untuk
+    kode lalu panggilan lain untuk pembahasan) supaya tombol
+    "Verifikasi Jawaban" tetap 1 panggilan AI seperti sebelumnya,
+    tidak nambah biaya -- pembahasannya "gratis" ikut kebawa, caller
+    yang memutuskan mau dipakai atau dibuang (lihat verify_answer_ai
+    di bawah: dibuang kalau kunci guru sudah cocok, dikirim ke
+    frontend sebagai saran kalau ternyata beda).
+
+    Dipakai OLEH TOMBOL TERPISAH "Verifikasi Jawaban" (lihat endpoint
+    verify_answer_ai di bawah), dijalankan SETELAH guru menandai
+    jawaban benar secara manual di form (lihat komentar di atas
+    build_explanation_prompt soal alur "Pembahasan dengan AI" yang
+    sekarang dibuat sebelum kunci jawaban ditandai). Ini panggilan AI
+    ekstra (menambah waktu tunggu & biaya token) yang mengecek ulang
+    dari nol apakah kunci yang baru saja ditandai guru itu sendiri
+    masuk akal, jadi guru sendiri yang memutuskan kapan perlu
+    menjalankannya lewat tombolnya -- bukan otomatis.
+
+    Mengembalikan (kode_opsi, pembahasan) hasil kesimpulan independen
+    AI, atau None kalau verifikasi gagal dijalankan (provider error/
+    timeout/JSON tidak valid) atau AI tidak menjawab format yang
+    diminta.
+    """
+
+    options_payload = [
+        {"option_code": code, "option_text": text}
+        for code, text in options
+    ]
+
+    verification_prompt = _build_verification_with_explanation_prompt(
+        question_text, options_payload
+    )
+
+    try:
+
+        verification_result = await ai_providers.call_active_provider(
+            verification_prompt, db
+        )
+
+        verified_code = str(
+            verification_result.get("correct_option_code", "")
+        ).strip().upper()
+
+        suggested_explanation = _clean_explanation_text(
+            str(verification_result.get("explanation", ""))
+        )
+
+    except Exception:
+
+        logger.warning(
+            "Verifikasi independen jawaban (tombol \"Verifikasi "
+            "Jawaban\") gagal dijalankan.",
+            exc_info=True,
+        )
+
         return None
 
-    return (
-        "Pembahasan dari AI menyebut jawaban benar adalah "
-        + ", ".join(wrong_codes)
-        + f", padahal kunci yang ditandai adalah {correct_code}. "
-        "Periksa kembali kunci jawaban dan isi pembahasannya "
-        "sebelum menyimpan."
-    )
+    if verified_code not in ALLOWED_OPTIONS or not suggested_explanation:
+        return None
+
+    return verified_code, suggested_explanation
 
 
 @router.post(
@@ -1170,9 +1245,12 @@ async def generate_explanation_ai(
     )
 ):
 
-    question_text, options, correct_code = _prepare_explanation_input(
+    # require_answer=False: status is_correct di form (kalaupun ada)
+    # sengaja diabaikan -- lihat komentar di atas build_explanation_prompt.
+    question_text, options = _prepare_explanation_input(
         request_data.question_text,
         request_data.options,
+        require_answer=False,
     )
 
     # Nama mapel hanya konteks tambahan di prompt; kalau tidak ada /
@@ -1193,7 +1271,6 @@ async def generate_explanation_ai(
         subject_name,
         question_text,
         options,
-        correct_code,
     )
 
     ai_result = await ai_providers.call_active_provider(prompt, db)
@@ -1215,11 +1292,104 @@ async def generate_explanation_ai(
             detail="AI tidak menghasilkan pembahasan. Coba lagi."
         )
 
-    return AIExplanationResponse(
-        explanation=explanation,
-        consistency_warning=_check_explanation_consistency(
-            explanation, correct_code
-        ),
+    return AIExplanationResponse(explanation=explanation)
+
+
+# =========================================================
+# VERIFIKASI JAWABAN DENGAN AI (tombol TERPISAH & OPSIONAL,
+# "Verifikasi Jawaban", bukan bagian dari "Pembahasan dengan AI")
+#
+# Guru yang sudah menandai jawaban benar (biasanya setelah membaca
+# pembahasan dari tombol "Pembahasan dengan AI" dan mengklik manual)
+# bisa minta AI menghitung ulang soal dari nol -- TANPA diberi tahu
+# kunci jawabannya -- untuk mengecek independen apakah kunci yang
+# ditandai di form itu sendiri masuk akal. Beda dari "Pembahasan
+# dengan AI": endpoint itu SEKARANG JUGA tidak diberi tahu kuncinya
+# (lihat komentar di atas build_explanation_prompt), tapi tujuannya
+# beda -- endpoint itu untuk membuat draf pembahasan, endpoint ini
+# khusus untuk mengecek ulang kunci yang SUDAH ditandai guru di form.
+#
+# Sengaja jadi tombol terpisah (bukan otomatis nempel di setiap
+# klik "Pembahasan dengan AI"): ini panggilan AI ekstra (menambah
+# waktu tunggu & biaya token), jadi guru yang menentukan kapan perlu
+# menjalankannya -- bukan dipaksa setiap kali.
+# =========================================================
+
+@router.post(
+    "/ai-verify-answer",
+    response_model=AIVerifyAnswerResponse
+)
+async def verify_answer_ai(
+    request_data: AIVerifyAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role("ADMIN", "GURU")
+    )
+):
+
+    question_text, options, correct_code = _prepare_explanation_input(
+        request_data.question_text,
+        request_data.options,
+    )
+
+    verification_result = await _verify_explanation_answer(
+        db, question_text, options,
+    )
+
+    if verification_result is None:
+        return AIVerifyAnswerResponse(
+            checked=False,
+            verified_option_code=None,
+            matches=None,
+            message=(
+                "Verifikasi tidak bisa dijalankan saat ini (provider "
+                "AI error/timeout, atau jawabannya tidak valid). Coba "
+                "lagi sebentar lagi."
+            ),
+            suggested_explanation=None,
+        )
+
+    verified_code, suggested_explanation = verification_result
+
+    matches = verified_code == correct_code
+
+    if matches:
+        message = (
+            "Pengecekan ulang independen oleh AI (tanpa diberi tahu "
+            f"kunci jawaban) juga menyimpulkan opsi {correct_code} -- "
+            "sejalan dengan kunci yang ditandai di form."
+        )
+
+        # Pembahasan hasil AI dibuang -- guru tidak butuh, kunci yang
+        # ada sudah sejalan dengan kesimpulan independen AI.
+        return AIVerifyAnswerResponse(
+            checked=True,
+            verified_option_code=verified_code,
+            matches=True,
+            message=message,
+            suggested_explanation=None,
+        )
+
+    message = (
+        "Pengecekan ulang independen oleh AI (tanpa diberi tahu "
+        f"kunci jawaban) menghasilkan opsi {verified_code}, "
+        f"berbeda dari kunci yang ditandai di form ({correct_code}"
+        "). Ini bisa berarti kunci jawabannya keliru -- periksa "
+        "kembali sebelum menyimpan."
+    )
+
+    return AIVerifyAnswerResponse(
+        checked=True,
+        verified_option_code=verified_code,
+        matches=False,
+        message=message,
+        # Dikirim HANYA saat mismatch -- pembahasan versi AI untuk
+        # opsi verified_code, siap ditawarkan ke guru sebagai
+        # pengganti isi kolom Pembahasan lewat tombol "Gunakan
+        # pembahasan ini" di ExplanationField.jsx. Guru tetap perlu
+        # mencentang manual opsi verified_code -- endpoint/komponen
+        # ini tidak mengubah status is_correct di form.
+        suggested_explanation=suggested_explanation,
     )
 
 
@@ -1279,10 +1449,34 @@ def _get_active_subject_or_404(db: Session, subject_id: int) -> Subject:
 
 
 def build_document_extract_prompt(subject_name: str, chunk_text: str) -> str:
+    """
+    Impor Soal dari Dokumen SEKARANG MURNI menyalin teks soal +
+    pilihan jawaban -- TIDAK diminta mendeteksi/menandai jawaban
+    benar (is_correct) ATAUPUN menyalin pembahasan (explanation) sama
+    sekali, untuk SEMUA provider (bukan cuma Ollama seperti
+    sebelumnya). Dua alasan sekaligus:
+
+    1. Mendeteksi kunci jawaban dari format dokumen yang bervariasi
+       (tebal, garis bawah, "Jawaban: C", tabel kunci terpisah, dst)
+       rawan salah baca oleh AI -- dan kunci jawaban yang salah tapi
+       tampak "sudah ditandai otomatis" lebih berbahaya daripada
+       kosong sama sekali (guru bisa lengah tidak ngecek ulang kalau
+       mengira itu sudah benar). Sekarang guru WAJIB menandai jawaban
+       benar manual untuk SEMUA soal hasil impor -- lihat
+       _normalize_extracted_options yang selalu is_correct=False.
+    2. Output JSON per chunk jadi lebih ringkas (dulu ini juga alasan
+       include_explanation=False khusus Ollama) -- lebih kecil jatah
+       token yang dibutuhkan, lebih kecil peluang JSON kepotong &
+       seluruh chunk terbuang, berlaku untuk provider apa pun.
+
+    Pembahasan tetap bisa diisi belakangan lewat tombol "Pembahasan
+    dengan AI" per soal di form Tambah/Edit Soal (yang sekarang
+    independen -- lihat build_explanation_prompt).
+    """
 
     return f"""Anda sedang membantu seorang guru mata pelajaran {subject_name} memindahkan soal-soal PILIHAN GANDA yang SUDAH ADA di sebuah dokumen lama ke sistem baru.
 
-PENTING: Anda TIDAK membuat soal baru. Tugas Anda HANYA membaca teks di bawah ini dan menyalin ulang setiap soal pilihan ganda yang benar-benar ADA di dalamnya, apa adanya, ke dalam format JSON. Jangan mengarang, mengubah, atau menambah isi soal/opsi/pembahasan.
+PENTING: Anda TIDAK membuat soal baru. Tugas Anda HANYA membaca teks di bawah ini dan menyalin ulang setiap soal pilihan ganda yang benar-benar ADA di dalamnya, apa adanya, ke dalam format JSON. Jangan mengarang, mengubah, atau menambah isi soal/opsi.
 
 Teks dokumen (satu potongan, mungkin berisi beberapa soal):
 ---
@@ -1292,8 +1486,8 @@ Teks dokumen (satu potongan, mungkin berisi beberapa soal):
 Untuk SETIAP soal pilihan ganda yang Anda temukan di teks di atas (bisa 0 kalau memang tidak ada soal valid di potongan ini):
 - Salin teks soalnya persis seperti di dokumen ke "question_text".
 - Salin SEMUA pilihan jawaban yang ada (boleh kurang dari 4 kalau memang begitu di dokumen aslinya) ke "options", masing-masing dengan "option_code" (huruf sesuai dokumen, atau A/B/C/D berurutan kalau dokumen tidak memberi huruf) dan "option_text".
-- Kalau dokumen menyertakan kunci jawaban (mis. tertulis "Jawaban: C" atau huruf yang ditandai tebal/khusus), tandai opsi itu dengan "is_correct": true. Kalau TIDAK ada info kunci jawaban yang jelas di teks, biarkan SEMUA opsi "is_correct": false — jangan menebak.
-- Kalau ada pembahasan/kunci penjelasan di dokumen, salin ke "explanation". Kalau tidak ada, isi string kosong.
+- JANGAN menandai atau menebak jawaban mana yang benar, walaupun dokumen mencantumkan kunci jawabannya -- itu akan ditentukan guru secara manual setelah diimpor.
+- JANGAN sertakan pembahasan/penjelasan apa pun.
 
 Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis seperti ini:
 {{
@@ -1301,9 +1495,8 @@ Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis se
     {{
       "question_text": "...",
       "options": [
-        {{"option_code": "A", "option_text": "...", "is_correct": false}}
-      ],
-      "explanation": ""
+        {{"option_code": "A", "option_text": "..."}}
+      ]
     }}
   ]
 }}"""
@@ -1318,11 +1511,31 @@ def _normalize_extracted_options(
     len(ALLOWED_OPTIONS) slot opsi A-D (dilengkapi placeholder kosong
     kalau dokumen sumber kurang dari itu) beserta pesan `warning`
     kalau ada yang perlu diperiksa manual oleh guru.
+
+    is_correct SELALU False di sini -- lihat docstring
+    build_document_extract_prompt soal alasannya (AI sekarang tidak
+    pernah diminta mendeteksi jawaban benar sama sekali, untuk SEMUA
+    provider). Guru WAJIB menandai jawaban benar manual untuk semua
+    soal hasil impor.
     """
 
     warnings: list[str] = []
 
     options_by_code: dict[str, dict] = {}
+
+    # Teks opsi yang PUNYA isi tapi kode-nya tidak bisa dipakai
+    # langsung (bukan A-D, atau duplikat kode yang sudah kepakai).
+    # Ini SERING terjadi kalau dokumen sumber tidak memakai huruf
+    # A-D untuk labelnya (mis. diberi angka "1)/2)/3)/4)", bullet
+    # "-", atau AI salah membaca label karena tata letak dokumen
+    # tidak standar) -- BUKAN berarti opsi itu tidak ada di
+    # dokumen. Sebelumnya teks ini langsung dibuang (`continue`)
+    # kalau kode-nya tidak cocok, sehingga jawaban yang sebenarnya
+    # ADA di dokumen hilang begitu saja dari hasil impor. Sekarang
+    # disimpan dulu sebagai cadangan, dipakai mengisi slot A-D yang
+    # masih kosong di bawah -- supaya isi jawabannya tetap masuk,
+    # cuma urutannya yang mungkin perlu guru cek ulang manual.
+    leftover_texts: list[str] = []
 
     if isinstance(raw_options, list):
 
@@ -1339,18 +1552,61 @@ def _normalize_extracted_options(
                 str(raw_option.get("option_text", "")).strip()
             )
 
-            if (
-                code not in ALLOWED_OPTIONS
-                or not text
-                or code in options_by_code
-            ):
+            if not text:
+                continue
+
+            if code not in ALLOWED_OPTIONS or code in options_by_code:
+                leftover_texts.append(text)
                 continue
 
             options_by_code[code] = {
                 "option_code": code,
                 "option_text": text,
-                "is_correct": bool(raw_option.get("is_correct", False)),
+                # SELALU False -- build_document_extract_prompt
+                # sekarang sengaja TIDAK meminta AI mendeteksi/
+                # menandai jawaban benar sama sekali (lihat
+                # docstring-nya), jadi tidak ada is_correct dari AI
+                # untuk dibaca di sini. Guru menandai manual untuk
+                # SEMUA soal hasil impor.
+                "is_correct": False,
             }
+
+    # Isi slot A-D yang masih kosong pakai cadangan di atas (kalau
+    # ada), berurutan sesuai urutan aslinya di dokumen -- daripada
+    # slot itu dibiarkan kosong padahal sebenarnya ada teksnya.
+    used_leftover = False
+
+    for code in ALLOWED_OPTIONS:
+
+        if code in options_by_code or not leftover_texts:
+            continue
+
+        options_by_code[code] = {
+            "option_code": code,
+            "option_text": leftover_texts.pop(0),
+            "is_correct": False,
+        }
+
+        used_leftover = True
+
+    if used_leftover:
+
+        warnings.append(
+            "Sebagian pilihan jawaban labelnya tidak terbaca sesuai "
+            "format A-D oleh AI (mis. dokumen memakai angka/simbol "
+            "lain), jadi urutannya diisi otomatis -- cek ulang urutan "
+            "A-D di bawah sesuai dokumen aslinya."
+        )
+
+    # Teks tersisa (kalau dokumen ternyata punya lebih dari 4 pilihan
+    # jawaban) tidak bisa ditampung -- sistem cuma mendukung A-D.
+    if leftover_texts:
+
+        warnings.append(
+            f"Ditemukan {len(leftover_texts)} pilihan jawaban tambahan "
+            "di dokumen yang tidak ikut diimpor karena sistem hanya "
+            "mendukung 4 pilihan (A-D)."
+        )
 
     missing_codes = [
         code for code in ALLOWED_OPTIONS if code not in options_by_code
@@ -1362,25 +1618,6 @@ def _normalize_extracted_options(
             "Pilihan "
             + ", ".join(missing_codes)
             + " tidak ditemukan di dokumen, lengkapi manual."
-        )
-
-    correct_count = sum(
-        1 for option in options_by_code.values() if option["is_correct"]
-    )
-
-    if correct_count != 1:
-
-        # Jangan menebak jawaban benar kalau dokumen tidak
-        # memberikan info yang jelas / ambigu (lebih dari satu opsi
-        # ditandai benar). Semua opsi dikembalikan is_correct=False
-        # supaya guru WAJIB menandai manual, alih-alih diam-diam
-        # memakai tebakan yang bisa salah.
-        for option in options_by_code.values():
-            option["is_correct"] = False
-
-        warnings.append(
-            "Jawaban benar tidak terdeteksi dengan pasti dari "
-            "dokumen, tandai manual sebelum menyimpan."
         )
 
     ordered_options = [
@@ -1499,6 +1736,51 @@ async def process_document_chunk(
 
         if not isinstance(raw_questions, list):
             raise ValueError("'questions' bukan berupa list")
+
+    except ai_providers.AIJsonParseError:
+
+        # BEDA dari except HTTPException di bawah: kegagalan JSON
+        # ini soal KUALITAS satu kali generate (model AI kadang
+        # menghasilkan JSON kepotong/aneh secara acak — lihat
+        # docstring AIJsonParseError di ai_providers.py), BUKAN
+        # masalah konfigurasi yang pasti terus gagal. Coba SEKALI
+        # LAGI dulu sebelum menyerah — sebelumnya kegagalan macam
+        # ini langsung membatalkan SELURUH proses impor (ikut masuk
+        # ke except HTTPException di bawah), padahal kalau dokumennya
+        # cuma 1 potongan (seperti yang dialami Akmal), itu berarti
+        # HASILNYA NIHIL SAMA SEKALI walau cuma satu kali generate
+        # yang kebetulan gagal.
+        logger.warning(
+            "Hasil AI bukan JSON valid untuk satu potongan dokumen, "
+            "mencoba ulang sekali sebelum melewati potongan ini.",
+        )
+
+        try:
+
+            ai_result = await ai_providers.call_active_provider(
+                prompt, db, larger_output=True
+            )
+
+            raw_questions = ai_result.get("questions", [])
+
+            if not isinstance(raw_questions, list):
+                raise ValueError("'questions' bukan berupa list")
+
+        except Exception:
+
+            # Percobaan ulang JUGA gagal — lewati potongan ini saja
+            # (SAMA seperti except Exception generik di bawah),
+            # BUKAN menghentikan potongan lain yang belum diproses.
+            logger.warning(
+                "Percobaan ulang untuk potongan dokumen ini juga "
+                "gagal, potongan ini dilewati.",
+                exc_info=True,
+            )
+
+            return AIChunkProcessResponse(
+                questions=[],
+                skipped_count=payload.expected_count,
+            )
 
     except HTTPException:
 

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { IconEdit, IconTrash, IconCheck } from "../components/Icons";
+import { IconEdit, IconTrash, IconCheck, IconSearch } from "../components/Icons";
+import Pagination from "../components/Pagination";
+import "../components/ScoreTable.css";
 
 import {
   getStudentProfiles,
@@ -20,6 +22,8 @@ const EMPTY_FORM = {
   class_name: "",
 };
 
+const STUDENTS_PER_PAGE = 10;
+
 
 function StudentManagement() {
 
@@ -33,6 +37,7 @@ function StudentManagement() {
   const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
@@ -226,16 +231,47 @@ function StudentManagement() {
   }
 
 
-  const filteredStudents = students.filter((item) => {
-    const keyword = search.toLowerCase();
+  const filteredStudents = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-    return (
-      item.full_name?.toLowerCase().includes(keyword) ||
-      item.student_code?.toLowerCase().includes(keyword) ||
-      item.username?.toLowerCase().includes(keyword) ||
-      item.school_name?.toLowerCase().includes(keyword)
-    );
-  });
+    return students.filter((item) => {
+      return (
+        !keyword ||
+        item.full_name?.toLowerCase().includes(keyword) ||
+        item.student_code?.toLowerCase().includes(keyword) ||
+        item.username?.toLowerCase().includes(keyword) ||
+        item.school_name?.toLowerCase().includes(keyword)
+      );
+    });
+  }, [students, search]);
+
+  // Reset ke halaman 1 setiap kali pencarian berubah, supaya
+  // tidak "nyangkut" di halaman yang sudah tidak relevan.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredStudents.length / STUDENTS_PER_PAGE)
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * STUDENTS_PER_PAGE;
+    return filteredStudents.slice(start, start + STUDENTS_PER_PAGE);
+  }, [filteredStudents, currentPage]);
+
+  const hasActiveStudentFilter = Boolean(search);
+
+  function resetStudentFilters() {
+    setSearch("");
+  }
 
 
   return (
@@ -254,18 +290,21 @@ function StudentManagement() {
       </div>
 
 
-      {/* TABLE */}
+      {/* TABLE & FILTER */}
 
-      <div className="dashboard-card">
+      <div className="score-card">
 
-        <div className="user-toolbar">
-          <input
-            type="text"
-            placeholder="Cari nama / NIS / username / sekolah..."
-            className="search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="score-toolbar">
+          <label className="score-search">
+            <IconSearch size={16} />
+            <input
+              type="text"
+              placeholder="Cari nama / NIS / username / sekolah..."
+              aria-label="Cari siswa"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
         </div>
 
         {loading && (
@@ -275,75 +314,130 @@ function StudentManagement() {
         {error && <div className="error-message">{error}</div>}
 
         {actionError && (
-          <div className="form-error-message" style={{ marginBottom: "15px" }}>
+          <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
             {actionError}
           </div>
         )}
 
         {actionSuccess && (
-          <div className="success-message" style={{ marginBottom: "15px" }}>
+          <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
             <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
             {actionSuccess}
           </div>
         )}
 
         {!loading && !error && (
-          <div className="table-container">
-            <table className="user-table">
-              <thead>
-                <tr>
-                  <th className="align-center">No</th>
-                  <th className="align-center">ID</th>
-                  <th className="align-center">NIS</th>
-                  <th className="align-center">Nama</th>
-                  <th className="align-center">Username</th>
-                  <th className="align-center">Sekolah</th>
-                  <th className="align-center">Kelas</th>
-                  <th className="align-center">Aksi</th>
-                </tr>
-              </thead>
+          <>
+            <div className="score-meta">
+              <span>{filteredStudents.length} siswa</span>
 
-              <tbody>
-                {filteredStudents.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="align-center">{index + 1}</td>
-                    <td>{item.id}</td>
-                    <td><strong>{item.student_code}</strong></td>
-                    <td>{item.full_name}</td>
-                    <td>{item.username || "-"}</td>
-                    <td>{item.school_name || "-"}</td>
-                    <td>
-                      {item.grade || "-"}
-                      {item.class_name ? ` / ${item.class_name}` : ""}
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="edit-button"
-                          onClick={() => openEditModal(item)}
-                        >
-                          <IconEdit size={16} />
-                        </button>
+              {hasActiveStudentFilter && (
+                <button type="button" className="score-reset" onClick={resetStudentFilters}>
+                  Reset filter
+                </button>
+              )}
+            </div>
 
-                        <button
-                          className="delete-button"
-                          onClick={() => handleDelete(item)}
-                        >
-                          <IconTrash size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredStudents.length === 0 && (
+            {filteredStudents.length === 0 ? (
               <div className="empty-message">
-                {search ? "Siswa tidak ditemukan." : "Belum ada data siswa."}
+                {hasActiveStudentFilter ? "Siswa tidak ditemukan." : "Belum ada data siswa."}
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="score-table">
+                  <colgroup>
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "6%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "22%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: "12%" }} />
+                  </colgroup>
+
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>ID</th>
+                      <th className="is-left">NIS</th>
+                      <th className="is-left">Nama</th>
+                      <th className="is-left">Username</th>
+                      <th className="is-left">Sekolah</th>
+                      <th>Kelas</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {paginatedStudents.map((item, index) => (
+                      <tr key={item.id}>
+                        <td className="is-center is-nowrap">
+                          {(currentPage - 1) * STUDENTS_PER_PAGE + index + 1}
+                        </td>
+
+                        <td className="is-center is-nowrap score-secondary">
+                          {item.id}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.student_code}>
+                          <span className="score-primary is-strong">
+                            {item.student_code}
+                          </span>
+                        </td>
+
+                        <td className="score-ellipsis" title={item.full_name}>
+                          {item.full_name}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.username || undefined}>
+                          {item.username || "-"}
+                        </td>
+
+                        <td className="score-ellipsis" title={item.school_name || undefined}>
+                          {item.school_name || "-"}
+                        </td>
+
+                        <td className="is-center is-nowrap">
+                          {item.grade || "-"}
+                          {item.class_name ? ` / ${item.class_name}` : ""}
+                        </td>
+
+                        <td className="is-center is-nowrap">
+                          <div className="action-buttons" style={{ justifyContent: "center" }}>
+                            <button
+                              className="edit-button"
+                              onClick={() => openEditModal(item)}
+                              title="Edit"
+                            >
+                              <IconEdit size={16} />
+                            </button>
+
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(item)}
+                              title="Hapus"
+                            >
+                              <IconTrash size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredStudents.length}
+              pageSize={STUDENTS_PER_PAGE}
+              itemLabel="siswa"
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 
