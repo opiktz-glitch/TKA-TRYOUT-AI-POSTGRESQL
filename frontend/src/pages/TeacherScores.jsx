@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import StatCard from "../components/StatCard";
@@ -11,82 +11,46 @@ import {
   IconUsers,
 } from "../components/Icons";
 
-import { getTeacherScores, getTryouts } from "../services/api";
+import { getTeacherScores } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { readPageCache, writePageCache } from "../services/pageCache";
 
 
 // =====================================================
 // CACHE — kunci (lihat services/pageCache.js)
-// Rekap nilai di-cache per FILTER TRYOUT yang dikirim ke server.
+// Rekap nilai di-cache satu kali per guru (tidak ada lagi filter
+// tryout yang dikirim ke server).
 // =====================================================
 
-const TRYOUT_OPTIONS_CACHE_KEY = "teacher-scores-options";
-
-function scoresCacheKey(tryoutId) {
-  return `teacher-scores:${tryoutId}`;
-}
+const SCORES_CACHE_KEY = "teacher-scores";
 
 
 function TeacherScores() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  // Data dari kunjungan sebelumnya di sesi ini. Filter tryout selalu
-  // mulai dari "semua" saat halaman dibuka, jadi yang dipakai di awal
-  // adalah cache untuk filter kosong. Kalau ada, langsung tampil (tanpa
-  // "Memuat rekap nilai...") lalu diperbarui diam-diam.
-  const cachedScores = readPageCache(user?.id, scoresCacheKey(""));
-  const cachedTryoutOptions = readPageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY);
-
-  // Kunci filter yang hasilnya sedang ditunggu. Dipakai untuk mengabaikan
-  // respons yang sudah usang (filter keburu diganti).
-  const latestScoresKeyRef = useRef(null);
+  // Data dari kunjungan sebelumnya di sesi ini. Kalau ada, langsung
+  // tampil (tanpa "Memuat rekap nilai...") lalu diperbarui diam-diam.
+  const cachedScores = readPageCache(user?.id, SCORES_CACHE_KEY);
 
   const [scores, setScores] = useState(() => cachedScores ?? []);
-  const [tryoutOptions, setTryoutOptions] = useState(
-    () => cachedTryoutOptions ?? []
-  );
 
   const [loading, setLoading] = useState(() => !cachedScores);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const [selectedTryoutId, setSelectedTryoutId] = useState("");
 
   // Filter status hanya di sisi browser (tidak dikirim ke server),
   // jadi tidak ikut kunci cache.
   const [selectedStatus, setSelectedStatus] = useState("");
 
 
-  const loadTryoutOptions = useCallback(async () => {
-    try {
-      const data = await getTryouts();
-
-      // Hanya tryout yang dibuat oleh guru yang sedang login
-      // yang muncul di dropdown filter.
-      const mine = user
-        ? data.filter((t) => t.created_by === user.id)
-        : data;
-
-      setTryoutOptions(mine);
-      writePageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY, mine);
-    } catch (err) {
-      console.error("LOAD TRYOUT OPTIONS ERROR:", err);
-    }
-  }, [user]);
-
-
   const loadScores = useCallback(async () => {
-    const cacheKey = scoresCacheKey(selectedTryoutId);
-
-    const cachedData = readPageCache(user?.id, cacheKey);
-
-    latestScoresKeyRef.current = cacheKey;
+    const cachedData = readPageCache(user?.id, SCORES_CACHE_KEY);
 
     if (cachedData) {
-      // Filter ini pernah dimuat: tampilkan langsung, lalu perbarui
-      // diam-diam (tanpa loading; kalau gagal, data lama dibiarkan).
+      // Pernah dimuat: tampilkan langsung, lalu perbarui diam-diam
+      // (tanpa loading; kalau gagal, data lama dibiarkan).
       setScores(cachedData);
       setLoading(false);
     } else {
@@ -96,31 +60,21 @@ function TeacherScores() {
     setError("");
 
     try {
-      const data = await getTeacherScores(selectedTryoutId || undefined);
+      const data = await getTeacherScores();
 
-      writePageCache(user?.id, cacheKey, data);
-
-      // Abaikan hasil kalau filter sudah berganti selama menunggu.
-      if (latestScoresKeyRef.current === cacheKey) {
-        setScores(data);
-      }
+      writePageCache(user?.id, SCORES_CACHE_KEY, data);
+      setScores(data);
     } catch (err) {
       console.error("LOAD SCORES ERROR:", err);
 
-      if (!cachedData && latestScoresKeyRef.current === cacheKey) {
+      if (!cachedData) {
         setError(err.message || "Gagal memuat rekap nilai");
       }
     } finally {
-      if (latestScoresKeyRef.current === cacheKey) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [selectedTryoutId, user?.id]);
+  }, [user?.id]);
 
-
-  useEffect(() => {
-    loadTryoutOptions();
-  }, [loadTryoutOptions]);
 
   useEffect(() => {
     loadScores();
@@ -145,13 +99,10 @@ function TeacherScores() {
   });
 
 
-  const hasActiveFilter = Boolean(
-    search.trim() || selectedTryoutId || selectedStatus
-  );
+  const hasActiveFilter = Boolean(search.trim() || selectedStatus);
 
   function resetFilters() {
     setSearch("");
-    setSelectedTryoutId("");
     setSelectedStatus("");
   }
 
@@ -251,21 +202,6 @@ function TeacherScores() {
           </label>
 
           <select
-            className={`score-select is-wide${selectedTryoutId ? " is-active" : ""}`}
-            aria-label="Filter tryout"
-            value={selectedTryoutId}
-            onChange={(e) => setSelectedTryoutId(e.target.value)}
-          >
-            <option value="">Semua Tryout</option>
-
-            {tryoutOptions.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-              </option>
-            ))}
-          </select>
-
-          <select
             className={`score-select${selectedStatus ? " is-active" : ""}`}
             aria-label="Filter status kelulusan"
             value={selectedStatus}
@@ -286,11 +222,7 @@ function TeacherScores() {
         {!loading && !error && (
           <ScoreTable
             rows={filteredScores}
-            resetKey={[
-              search.trim(),
-              selectedTryoutId,
-              selectedStatus,
-            ].join("|")}
+            resetKey={[search.trim(), selectedStatus].join("|")}
             hasActiveFilter={hasActiveFilter}
             onReset={resetFilters}
             emptyMessage={

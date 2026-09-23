@@ -1,13 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from database import get_db
 from dependencies import require_role
+from attempt_utils import compute_attempt_numbers
+from schemas import TeacherProfileUpdate
 from models import (
     User,
     Attempt,
     Student,
+    Teacher,
     Tryout,
     Subject,
     Result,
@@ -21,6 +25,174 @@ router = APIRouter(
     prefix="/api/teacher",
     tags=["Teacher"],
 )
+
+
+# ============================================================
+# HELPER
+# ============================================================
+
+def get_teacher(
+    current_user: User,
+    db: Session,
+):
+    """
+    Mengambil data t_teacher berdasarkan user yang sedang login.
+
+    Baris t_teacher biasanya sudah dibuat admin lewat menu Data
+    Guru saat akun GURU dibuat. Tapi supaya menu "Profil" tetap
+    jalan walau baris itu entah kenapa belum ada (mis. akun lama),
+    dibuat otomatis di sini alih-alih mengembalikan 404 -- sama
+    seperti pola get_student() di routers/student.py.
+    """
+
+    if current_user.role != "GURU":
+        raise HTTPException(
+            status_code=403,
+            detail="Endpoint ini hanya untuk guru",
+        )
+
+    teacher = (
+        db.query(Teacher)
+        .filter(Teacher.user_id == current_user.id)
+        .first()
+    )
+
+    if teacher:
+        return teacher
+
+    # -----------------------------------------------------
+    # Buat profil guru otomatis
+    #
+    # teacher_code di sini cuma placeholder, dikasih prefix
+    # "AUTO-" yang jelas beda dari kode yang diketik manual
+    # admin lewat menu "Tambah Guru", supaya tidak diam-diam
+    # bentrok.
+    # -----------------------------------------------------
+
+    base_code = f"AUTO-{current_user.id:06d}"
+    teacher_code = base_code
+
+    attempt_suffix = 1
+
+    while (
+        db.query(Teacher)
+        .filter(Teacher.teacher_code == teacher_code)
+        .first()
+    ):
+        attempt_suffix += 1
+        teacher_code = f"{base_code}-{attempt_suffix}"
+
+        if attempt_suffix > 20:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "Gagal membuat profil guru otomatis "
+                    "(kode guru terus bentrok). Hubungi admin "
+                    "untuk membuat profil guru secara manual."
+                ),
+            )
+
+    teacher = Teacher(
+        user_id=current_user.id,
+        teacher_code=teacher_code,
+        full_name=current_user.full_name or current_user.username,
+    )
+
+    db.add(teacher)
+
+    try:
+        db.commit()
+
+    except IntegrityError:
+
+        # Race condition: request lain berhasil insert duluan.
+        # Ambil ulang baris yang sudah ada alih-alih 500 ke user.
+
+        db.rollback()
+
+        teacher = (
+            db.query(Teacher)
+            .filter(Teacher.user_id == current_user.id)
+            .first()
+        )
+
+        if not teacher:
+            raise
+
+        return teacher
+
+    db.refresh(teacher)
+
+    return teacher
+
+
+# ============================================================
+# GET PROFIL GURU (SELF-SERVICE)
+# ============================================================
+
+@router.get("/profile")
+def get_my_teacher_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("GURU")),
+):
+    """
+    Mengambil data profil guru yang sedang login, untuk menu
+    "Profil" -- tampilannya disamakan dengan tab "Profil Saya"
+    milik admin.
+    """
+
+    teacher = get_teacher(current_user, db)
+
+    return {
+        "teacher_id": teacher.id,
+        "teacher_code": teacher.teacher_code,
+        "full_name": teacher.full_name,
+        "school_name": teacher.school_name,
+
+        "username": current_user.username,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at,
+    }
+
+
+# ============================================================
+# UPDATE PROFIL GURU (SELF-SERVICE)
+# ============================================================
+
+@router.put("/profile")
+def update_my_teacher_profile(
+    profile_data: TeacherProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("GURU")),
+):
+    """
+    Guru mengubah data profilnya sendiri.
+
+    Catatan: kode guru (teacher_code) sengaja TIDAK bisa diubah
+    dari sini karena itu identitas resmi yang dikelola admin
+    lewat menu Data Guru, bukan oleh guru sendiri -- sama seperti
+    NIS di profil siswa.
+    """
+
+    teacher = get_teacher(current_user, db)
+
+    teacher.full_name = profile_data.full_name
+    teacher.school_name = profile_data.school_name
+
+    db.commit()
+    db.refresh(teacher)
+
+    return {
+        "success": True,
+        "message": "Profil berhasil diperbarui",
+        "data": {
+            "teacher_id": teacher.id,
+            "teacher_code": teacher.teacher_code,
+            "full_name": teacher.full_name,
+            "school_name": teacher.school_name,
+        },
+    }
 
 
 # ============================================================
@@ -173,9 +345,21 @@ def get_teacher_scores(
         .all()
     )
 
+    # Nomor percobaan ("Percobaan ke-2 dari 3") dihitung dari baris
+    # yang sudah ketarik di atas. Ini tetap akurat walau ada filter
+    # (mapel/guru/tryout) karena filter-filter itu bekerja di level
+    # TRYOUT, bukan level attempt -- jadi kalau satu attempt suatu
+    # tryout lolos filter, seluruh attempt tryout itu (siswa manapun)
+    # ikut lolos juga, tidak ada yang "kepotong sebagian".
+    attempt_numbers = compute_attempt_numbers(row[0] for row in rows)
+
     result = []
 
     for attempt, tryout, student, subject, creator, attempt_result in rows:
+
+        attempt_number, attempt_total = attempt_numbers.get(
+            attempt.id, (1, 1)
+        )
 
         result.append({
             "attempt_id": attempt.id,
@@ -192,6 +376,9 @@ def get_teacher_scores(
             "teacher_name": creator.full_name if creator else None,
 
             "finished_at": attempt.finished_at,
+
+            "attempt_number": attempt_number,
+            "attempt_total": attempt_total,
 
             "score": (
                 attempt_result.score if attempt_result else attempt.score

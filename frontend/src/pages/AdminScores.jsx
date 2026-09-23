@@ -14,7 +14,7 @@ import {
   getAdminScores,
   getScoreCreators,
   getSubjects,
-  getTryouts,
+  deleteAttempt,
 } from "../services/api";
 import { useAuth } from "../auth/AuthContext";
 import { readPageCache, writePageCache } from "../services/pageCache";
@@ -27,8 +27,8 @@ import { readPageCache, writePageCache } from "../services/pageCache";
 
 const SCORE_OPTIONS_CACHE_KEY = "admin-scores-options";
 
-function scoresCacheKey(subjectId, teacherId, tryoutId) {
-  return `admin-scores:${subjectId}|${teacherId}|${tryoutId}`;
+function scoresCacheKey(subjectId, teacherId) {
+  return `admin-scores:${subjectId}|${teacherId}`;
 }
 
 
@@ -39,7 +39,7 @@ function AdminScores() {
   // "semua" saat halaman dibuka, jadi yang dipakai di awal adalah cache
   // untuk kombinasi filter kosong. Kalau ada, langsung tampil (tanpa
   // "Memuat rekap nilai...") lalu diperbarui diam-diam.
-  const cachedScores = readPageCache(user?.id, scoresCacheKey("", "", ""));
+  const cachedScores = readPageCache(user?.id, scoresCacheKey("", ""));
   const cachedOptions = readPageCache(user?.id, SCORE_OPTIONS_CACHE_KEY);
 
   // Kombinasi filter yang hasilnya sedang ditunggu. Dipakai untuk
@@ -53,17 +53,16 @@ function AdminScores() {
   const [teacherOptions, setTeacherOptions] = useState(
     () => cachedOptions?.teachers ?? []
   );
-  const [tryoutOptions, setTryoutOptions] = useState(
-    () => cachedOptions?.tryouts ?? []
-  );
 
   const [loading, setLoading] = useState(() => !cachedScores);
   const [error, setError] = useState("");
 
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+
   const [search, setSearch] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
-  const [selectedTryoutId, setSelectedTryoutId] = useState("");
 
   // Filter status hanya di sisi browser (tidak dikirim ke server),
   // jadi tidak ikut kunci cache.
@@ -77,25 +76,22 @@ function AdminScores() {
   useEffect(() => {
     loadScores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSubjectId, selectedTeacherId, selectedTryoutId]);
+  }, [selectedSubjectId, selectedTeacherId]);
 
 
   async function loadFilterOptions() {
     try {
-      const [subjects, teachers, tryouts] = await Promise.all([
+      const [subjects, teachers] = await Promise.all([
         getSubjects(),
         getScoreCreators(),
-        getTryouts(),
       ]);
 
       setSubjectOptions(subjects);
       setTeacherOptions(teachers);
-      setTryoutOptions(tryouts);
 
       writePageCache(user?.id, SCORE_OPTIONS_CACHE_KEY, {
         subjects,
         teachers,
-        tryouts,
       });
     } catch (err) {
       console.error("LOAD FILTER OPTIONS ERROR:", err);
@@ -104,11 +100,7 @@ function AdminScores() {
 
 
   async function loadScores() {
-    const cacheKey = scoresCacheKey(
-      selectedSubjectId,
-      selectedTeacherId,
-      selectedTryoutId
-    );
+    const cacheKey = scoresCacheKey(selectedSubjectId, selectedTeacherId);
 
     const cachedData = readPageCache(user?.id, cacheKey);
 
@@ -129,7 +121,6 @@ function AdminScores() {
       const data = await getAdminScores({
         subjectId: selectedSubjectId || undefined,
         teacherId: selectedTeacherId || undefined,
-        tryoutId: selectedTryoutId || undefined,
       });
 
       writePageCache(user?.id, cacheKey, data);
@@ -148,6 +139,49 @@ function AdminScores() {
       if (latestScoresKeyRef.current === cacheKey) {
         setLoading(false);
       }
+    }
+  }
+
+
+  // Hapus satu baris nilai (attempt). Khusus admin -- lihat
+  // routers/attempts.py. Dipakai untuk membersihkan satu attempt
+  // yang salah (mis. data uji coba, siswa salah pilih tryout)
+  // tanpa harus menghapus seluruh paket tryout.
+  async function handleDeleteAttempt(item) {
+    const attemptLabel =
+      item.attempt_total > 1
+        ? ` (percobaan ke-${item.attempt_number} dari ${item.attempt_total})`
+        : "";
+
+    const confirmed = window.confirm(
+      `Hapus nilai "${item.student_name || "-"}" untuk tryout "${item.tryout_title || "-"}"${attemptLabel}? Tindakan ini tidak bisa dibatalkan.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setActionError("");
+      setActionSuccess("");
+
+      await deleteAttempt(item.attempt_id);
+
+      setActionSuccess(
+        `Nilai "${item.student_name || "-"}" untuk tryout "${item.tryout_title || "-"}"${attemptLabel} berhasil dihapus`
+      );
+
+      // Muat ulang dari server (bukan sekadar hapus di state lokal)
+      // supaya ringkasan di atas (rata-rata, tingkat lulus, dst) dan
+      // cache halaman ini ikut konsisten dengan data terbaru.
+      await loadScores();
+
+      setTimeout(() => {
+        setActionSuccess("");
+      }, 2500);
+    } catch (err) {
+      console.error("DELETE ATTEMPT ERROR:", err);
+      setActionError(err.message || "Gagal menghapus nilai");
     }
   }
 
@@ -175,7 +209,6 @@ function AdminScores() {
     search.trim() ||
       selectedSubjectId ||
       selectedTeacherId ||
-      selectedTryoutId ||
       selectedStatus
   );
 
@@ -183,10 +216,19 @@ function AdminScores() {
     setSearch("");
     setSelectedSubjectId("");
     setSelectedTeacherId("");
-    setSelectedTryoutId("");
     setSelectedStatus("");
   }
 
+  // Toggle cepat "Guru Saya" -- setara memilih nama sendiri di dropdown
+  // Guru Pembuat, tapi tidak perlu scroll cari nama sendiri di daftar
+  // yang bisa panjang. Sama seperti "Soal Saya" di Bank Soal.
+  const isOwnTeacherFilter = Boolean(user) && String(selectedTeacherId) === String(user.id);
+
+  function toggleOwnTeacherFilter() {
+    setSelectedTeacherId((prev) =>
+      String(prev) === String(user?.id) ? "" : String(user.id)
+    );
+  }
 
   const summary = useMemo(() => {
     if (scores.length === 0) {
@@ -288,7 +330,7 @@ function AdminScores() {
             value={selectedSubjectId}
             onChange={(e) => setSelectedSubjectId(e.target.value)}
           >
-            <option value="">Semua Mapel</option>
+            <option value="">Semua Mata Pelajaran</option>
 
             {subjectOptions.map((s) => (
               <option key={s.id} value={s.id}>
@@ -313,21 +355,6 @@ function AdminScores() {
           </select>
 
           <select
-            className={`score-select is-wide${selectedTryoutId ? " is-active" : ""}`}
-            aria-label="Filter tryout"
-            value={selectedTryoutId}
-            onChange={(e) => setSelectedTryoutId(e.target.value)}
-          >
-            <option value="">Semua Tryout</option>
-
-            {tryoutOptions.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-              </option>
-            ))}
-          </select>
-
-          <select
             className={`score-select${selectedStatus ? " is-active" : ""}`}
             aria-label="Filter status kelulusan"
             value={selectedStatus}
@@ -345,6 +372,19 @@ function AdminScores() {
 
         {error && <div className="error-message">{error}</div>}
 
+        {actionError && (
+          <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
+            {actionError}
+          </div>
+        )}
+
+        {actionSuccess && (
+          <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
+            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
+            {actionSuccess}
+          </div>
+        )}
+
         {!loading && !error && (
           <ScoreTable
             rows={filteredScores}
@@ -353,11 +393,23 @@ function AdminScores() {
               search.trim(),
               selectedSubjectId,
               selectedTeacherId,
-              selectedTryoutId,
               selectedStatus,
             ].join("|")}
             hasActiveFilter={hasActiveFilter}
             onReset={resetFilters}
+            onDeleteAttempt={handleDeleteAttempt}
+            toggle={
+              user && (
+                <button
+                  type="button"
+                  className={`filter-toggle${isOwnTeacherFilter ? " is-active" : ""}`}
+                  onClick={toggleOwnTeacherFilter}
+                  aria-pressed={isOwnTeacherFilter}
+                >
+                  Guru Saya
+                </button>
+              )
+            }
             emptyMessage={
               hasActiveFilter
                 ? "Tidak ada hasil yang cocok."

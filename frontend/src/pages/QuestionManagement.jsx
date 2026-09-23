@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import Pagination from "../components/Pagination";
+import "../components/ScoreTable.css";
 import { IconEdit, IconTrash, IconCheck, IconBook, IconEye } from "../components/Icons";
 import PanduanSoalModal from "../components/PanduanSoalModal";
 import QuestionImage from "../components/QuestionImage";
@@ -188,6 +189,23 @@ function QuestionManagement() {
   const [difficultyFilter, setDifficultyFilter] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Kelengkapan pembahasan: "" | "COMPLETE" | "INCOMPLETE" -- cocok
+  // dengan badge Lengkap/Tidak Lengkap yang sudah tampil di kolom
+  // Status, cuma sebelumnya belum bisa difilter.
+  const [explanationFilter, setExplanationFilter] = useState("");
+
+  // Toggle cepat "Soal Saya" -- true berarti hanya tampilkan soal
+  // dengan created_by === user yang login. Backend GET /api/questions
+  // mengembalikan soal SEMUA guru ke siapa saja (tidak dibatasi role),
+  // jadi ini murni filter di frontend.
+  const [onlyMine, setOnlyMine] = useState(false);
+
+  // Ada gambar / tanpa gambar: "" | "WITH_IMAGE" | "WITHOUT_IMAGE" --
+  // cocok dengan has_image dari backend (lihat QuestionResponse di
+  // schemas.py). Berguna buat QA setelah impor dokumen/gambar,
+  // mengecek soal mana yang kebawa gambar.
+  const [hasImageFilter, setHasImageFilter] = useState("");
 
   // ======================================================
   // PAGINATION (Bank Soal)
@@ -1075,16 +1093,55 @@ function QuestionManagement() {
       const matchesStatus =
         !statusFilter || (statusFilter === "ACTIVE" ? question.is_active : !question.is_active);
 
-      return matchesSearch && matchesSubject && matchesDifficulty && matchesStatus;
+      const hasExplanation = Boolean((question.explanation || "").trim());
+
+      const matchesExplanation =
+        !explanationFilter ||
+        (explanationFilter === "COMPLETE" ? hasExplanation : !hasExplanation);
+
+      const matchesMine = !onlyMine || (user && question.created_by === user.id);
+
+      const matchesHasImage =
+        !hasImageFilter ||
+        (hasImageFilter === "WITH_IMAGE" ? question.has_image : !question.has_image);
+
+      return (
+        matchesSearch &&
+        matchesSubject &&
+        matchesDifficulty &&
+        matchesStatus &&
+        matchesExplanation &&
+        matchesMine &&
+        matchesHasImage
+      );
     });
-  }, [questions, subjects, search, subjectFilter, difficultyFilter, statusFilter]);
+  }, [
+    questions,
+    subjects,
+    search,
+    subjectFilter,
+    difficultyFilter,
+    statusFilter,
+    explanationFilter,
+    onlyMine,
+    hasImageFilter,
+    user,
+  ]);
 
   // Reset ke halaman 1 setiap kali pencarian/filter berubah, supaya
   // tidak "nyangkut" di halaman 5 misalnya padahal hasil filter
   // barunya cuma ada 1 halaman.
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, subjectFilter, difficultyFilter, statusFilter]);
+  }, [
+    search,
+    subjectFilter,
+    difficultyFilter,
+    statusFilter,
+    explanationFilter,
+    onlyMine,
+    hasImageFilter,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE));
 
@@ -1101,6 +1158,26 @@ function QuestionManagement() {
     const start = (currentPage - 1) * QUESTIONS_PER_PAGE;
     return filteredQuestions.slice(start, start + QUESTIONS_PER_PAGE);
   }, [filteredQuestions, currentPage]);
+
+  const hasActiveQuestionFilter = Boolean(
+    search ||
+      subjectFilter ||
+      difficultyFilter ||
+      statusFilter ||
+      explanationFilter ||
+      onlyMine ||
+      hasImageFilter
+  );
+
+  const resetQuestionFilters = () => {
+    setSearch("");
+    setSubjectFilter("");
+    setDifficultyFilter("");
+    setStatusFilter("");
+    setExplanationFilter("");
+    setOnlyMine(false);
+    setHasImageFilter("");
+  };
 
   // ======================================================
   // RENDER
@@ -1180,7 +1257,11 @@ function QuestionManagement() {
               FILTER & TABLE CARD
               ============================================ */}
 
-          <div className="dashboard-card">
+          <div className="score-card">
+            {/* Filter dibiarkan seperti semula dulu (belum diseragamkan
+                dengan score-toolbar milik Paket Tryout) -- lihat
+                permintaan TZ. Hanya kartu & tabel di bawah ini yang
+                disamakan gayanya. */}
             <div className="question-filter">
               <div className="filter-group">
                 <input
@@ -1237,6 +1318,34 @@ function QuestionManagement() {
                   <option value="INACTIVE">Tidak Aktif</option>
                 </select>
               </div>
+
+              <div className="filter-group">
+                <select
+                  value={explanationFilter}
+                  onChange={(e) => setExplanationFilter(e.target.value)}
+                  className="search-input"
+                >
+                  <option value="">Semua Pembahasan</option>
+
+                  <option value="COMPLETE">Pembahasan Lengkap</option>
+
+                  <option value="INCOMPLETE">Pembahasan Belum Lengkap</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <select
+                  value={hasImageFilter}
+                  onChange={(e) => setHasImageFilter(e.target.value)}
+                  className="search-input"
+                >
+                  <option value="">Semua Gambar</option>
+
+                  <option value="WITH_IMAGE">Ada Gambar</option>
+
+                  <option value="WITHOUT_IMAGE">Tanpa Gambar</option>
+                </select>
+              </div>
             </div>
 
             {loading && questions.length === 0 && (
@@ -1246,13 +1355,13 @@ function QuestionManagement() {
             {loadError && !showModal && <div className="error-message">{loadError}</div>}
 
             {actionError && (
-              <div className="form-error-message" style={{ marginBottom: "15px" }}>
+              <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
                 {actionError}
               </div>
             )}
 
             {actionSuccess && (
-              <div className="success-message" style={{ marginBottom: "15px" }}>
+              <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
                 <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
                 {actionSuccess}
               </div>
@@ -1262,93 +1371,140 @@ function QuestionManagement() {
                 selama sudah ada data -- supaya tidak berkedip & posisi scroll
                 tidak hilang. Spinner cuma muncul saat pemuatan pertama. */}
             {(!loading || questions.length > 0) && (
-              <div className="table-container">
-                <table className="user-table question-bank-table">
-                  <thead>
-                    <tr>
-                      <th className="align-center">No</th>
-                      <th className="align-center">ID</th>
-                      <th className="align-center">Mata Pelajaran</th>
-                      <th className="align-center">Pertanyaan</th>
-                      <th className="align-center">Tingkat</th>
-                      <th className="align-center">Bobot</th>
-                      <th className="align-center">Status</th>
-                      <th className="align-center sticky-col">Aksi</th>
-                    </tr>
-                  </thead>
+              <>
+                <div className="score-meta">
+                  <div className="score-meta-left">
+                    <span>{filteredQuestions.length} soal</span>
 
-                  <tbody>
-                    {paginatedQuestions.map((question, index) => (
-                      <tr key={question.id}>
-                        <td className="align-center">
-                          {(currentPage - 1) * QUESTIONS_PER_PAGE + index + 1}
-                        </td>
+                    {user && (
+                      <button
+                        type="button"
+                        className={`filter-toggle${onlyMine ? " is-active" : ""}`}
+                        onClick={() => setOnlyMine((prev) => !prev)}
+                        aria-pressed={onlyMine}
+                      >
+                        Soal Saya
+                      </button>
+                    )}
+                  </div>
 
-                        <td className="align-center">{question.id}</td>
+                  {hasActiveQuestionFilter && (
+                    <button type="button" className="score-reset" onClick={resetQuestionFilters}>
+                      Reset filter
+                    </button>
+                  )}
+                </div>
 
-                        <td className="align-left">
-                          <strong>{getSubjectName(question.subject_id)}</strong>
-                        </td>
-
-                        <td className="align-left">
-                          <div className="question-preview">{question.question_text}</div>
-                        </td>
-
-                        <td className="align-center">
-                          <span
-                            className={
-                              `difficulty-badge ` + (question.difficulty || "").toLowerCase()
-                            }
-                          >
-                            {getDifficultyLabel(question.difficulty)}
-                          </span>
-                        </td>
-
-                        <td className="align-center">{question.points}</td>
-
-                        <td className="align-center">
-                          {question.is_active ? (
-                            <span className="status-active">Aktif</span>
-                          ) : (
-                            <span className="status-inactive">Nonaktif</span>
-                          )}
-                        </td>
-
-                        <td className="align-center sticky-col">
-                          <div className="action-buttons">
-                            <button
-                              className="review-button"
-                              title="Preview Soal"
-                              onClick={() => openPreviewModal(question)}
-                            >
-                              <IconEye size={16} />
-                            </button>
-
-                            <button className="edit-button" onClick={() => openEditModal(question)}>
-                              <IconEdit size={16} />
-                            </button>
-
-                            {canDeleteQuestion(question) && (
-                              <button
-                                className="delete-button"
-                                onClick={() => handleDelete(question)}
-                                disabled={deletingId === question.id}
-                              >
-                                <IconTrash size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredQuestions.length === 0 && (
+                {filteredQuestions.length === 0 ? (
                   <div className="empty-message">
-                    {search || subjectFilter || difficultyFilter || statusFilter
+                    {hasActiveQuestionFilter
                       ? "Soal tidak ditemukan."
                       : "Belum ada soal."}
+                  </div>
+                ) : (
+                  <div className="table-container">
+                    <table className="score-table">
+                      <colgroup>
+                        <col style={{ width: "44%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "10%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "18%" }} />
+                      </colgroup>
+
+                      <thead>
+                        <tr>
+                          <th className="is-left">Soal</th>
+                          <th>Tingkat</th>
+                          <th>Bobot</th>
+                          <th>Status</th>
+                          <th>Aksi</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {paginatedQuestions.map((question) => (
+                          <tr key={question.id}>
+                            <td>
+                              <div
+                                className="score-primary is-strong score-ellipsis"
+                                title={question.question_text}
+                              >
+                                {question.question_text}
+                              </div>
+                              <div className="score-secondary score-ellipsis">
+                                #{question.id} · {getSubjectName(question.subject_id)}
+                              </div>
+
+                              {question.has_image && (
+                                <span className="score-badge is-image" style={{ marginTop: "4px" }}>
+                                  Bergambar
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="is-center is-nowrap">
+                              <span
+                                className={`score-badge is-${(question.difficulty || "").toLowerCase()}`}
+                              >
+                                {getDifficultyLabel(question.difficulty)}
+                              </span>
+                            </td>
+
+                            <td className="is-center is-nowrap">
+                              <span className="score-value">{question.points}</span>
+                            </td>
+
+                            <td className="is-center">
+                              {question.is_active ? (
+                                <span className="score-badge is-pass">Aktif</span>
+                              ) : (
+                                <span className="score-badge is-fail">Nonaktif</span>
+                              )}
+
+                              <div className="score-secondary" style={{ marginTop: "4px" }}>
+                                {(question.explanation || "").trim() ? (
+                                  <span className="score-badge is-complete">Lengkap</span>
+                                ) : (
+                                  <span className="score-badge is-incomplete">Tidak Lengkap</span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="is-center is-nowrap">
+                              <div className="action-buttons" style={{ justifyContent: "center" }}>
+                                <button
+                                  className="review-button"
+                                  title="Preview Soal"
+                                  onClick={() => openPreviewModal(question)}
+                                >
+                                  <IconEye size={16} />
+                                </button>
+
+                                <button
+                                  className="edit-button"
+                                  onClick={() => openEditModal(question)}
+                                  title="Edit"
+                                >
+                                  <IconEdit size={16} />
+                                </button>
+
+                                {canDeleteQuestion(question) && (
+                                  <button
+                                    className="delete-button"
+                                    onClick={() => handleDelete(question)}
+                                    disabled={deletingId === question.id}
+                                    title="Hapus"
+                                  >
+                                    <IconTrash size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
 
@@ -1360,7 +1516,7 @@ function QuestionManagement() {
                   itemLabel="soal"
                   onPageChange={setCurrentPage}
                 />
-              </div>
+              </>
             )}
           </div>
         </div>

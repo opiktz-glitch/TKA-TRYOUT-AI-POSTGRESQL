@@ -2341,6 +2341,16 @@ button {
 }
 
 
+.edit-button:disabled,
+.delete-button:disabled,
+.review-button:disabled {
+
+  opacity: 0.4;
+
+  cursor: not-allowed;
+}
+
+
 .edit-button {
 
   background: var(--accent-soft);
@@ -2377,7 +2387,7 @@ button {
 }
 
 
-.delete-button:hover {
+.delete-button:hover:not(:disabled) {
 
   background: #fee2e2;
 }
@@ -2823,7 +2833,7 @@ button {
 .question-filter {
   display: grid;
   grid-template-columns:
-    2fr 1.5fr 1fr 1fr;
+    2fr 1.2fr 1fr 1fr 1fr 1fr;
   gap: 15px;
 }
 
@@ -2848,6 +2858,41 @@ button {
   border-radius: 7px;
   background: white;
   box-sizing: border-box;
+}
+
+/* Tombol toggle "Soal Saya" di baris score-meta (Bank Soal) --
+   dibuat MIRIP score-reset (ukuran & font sama) supaya sejajar,
+   tapi punya state aktif (border & warna berubah) karena ini
+   toggle on/off, bukan tombol aksi sekali klik seperti reset. */
+.filter-toggle {
+  padding: 6px 12px;
+  border: 1px solid #d5d9df;
+  border-radius: 999px;
+  background: white;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-toggle:hover {
+  border-color: var(--accent);
+}
+
+.filter-toggle.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft-strong);
+  color: var(--accent);
+}
+
+/* Bungkus kiri dari .score-meta (dipakai Bank Soal): jumlah soal +
+   toggle "Soal Saya" berdekatan, TANPA mengubah .score-meta sendiri
+   (dipakai bersama halaman Nilai & lainnya yang cuma punya 2 anak
+   dengan justify-content: space-between). */
+.score-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* ==========================================

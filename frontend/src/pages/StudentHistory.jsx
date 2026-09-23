@@ -1,7 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { IconBarChart, IconCheck, IconTrophy } from "../components/Icons";
+import StatCard from "../components/StatCard";
+import ScoreTable from "../components/ScoreTable";
 import QuestionImage from "../components/QuestionImage";
+import {
+  IconCheck,
+  IconClipboard,
+  IconSearch,
+  IconTarget,
+  IconTrophy,
+} from "../components/Icons";
+import "../components/ScoreTable.css";
 
 import {
   getAttemptHistory,
@@ -37,6 +46,19 @@ function formatDate(value) {
 }
 
 
+// =====================================================
+// RIWAYAT & HASIL TRYOUT (SISWA)
+//
+// Daftar riwayat di bawah ini UI-nya disamakan dengan
+// halaman "Nilai" (TeacherScores.jsx / AdminScores.jsx):
+// ringkasan stat-grid + score-card berisi toolbar
+// cari & filter status + ScoreTable yang sama, hanya
+// kolom "Siswa" disembunyikan (lihat prop hideStudentColumn
+// di components/ScoreTable.jsx) dan tombol Aksi memakai
+// onViewDetail alih-alih onDeleteAttempt. Modal pembahasan
+// per-soal tetap dipertahankan seperti sebelumnya.
+// =====================================================
+
 function StudentHistory() {
 
   const [attempts, setAttempts] = useState([]);
@@ -44,6 +66,7 @@ function StudentHistory() {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -63,7 +86,16 @@ function StudentHistory() {
 
       const data = await getAttemptHistory();
 
-      setAttempts(data);
+      // ScoreTable (dipakai bersama Nilai admin/guru) memakai nama
+      // field "tryout_title", sedangkan endpoint riwayat siswa
+      // mengirim "title" -- disamakan di sini saja, tanpa mengubah
+      // response backend.
+      setAttempts(
+        data.map((item) => ({
+          ...item,
+          tryout_title: item.title,
+        }))
+      );
     } catch (err) {
       console.error("LOAD HISTORY ERROR:", err);
       setError(err.message || "Gagal memuat riwayat tryout");
@@ -111,13 +143,63 @@ function StudentHistory() {
 
 
   const filteredAttempts = attempts.filter((item) => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
 
-    return (
+    const matchesSearch =
+      !keyword ||
       item.title?.toLowerCase().includes(keyword) ||
-      item.subject_name?.toLowerCase().includes(keyword)
-    );
+      item.subject_name?.toLowerCase().includes(keyword);
+
+    const matchesStatus =
+      !selectedStatus ||
+      (selectedStatus === "PASSED" && item.passed === true) ||
+      (selectedStatus === "FAILED" && item.passed === false);
+
+    return matchesSearch && matchesStatus;
   });
+
+
+  const hasActiveFilter = Boolean(search.trim() || selectedStatus);
+
+  function resetFilters() {
+    setSearch("");
+    setSelectedStatus("");
+  }
+
+
+  const summary = useMemo(() => {
+    if (attempts.length === 0) {
+      return {
+        totalAttempts: 0,
+        averageScore: 0,
+        passRate: 0,
+        totalTryouts: 0,
+      };
+    }
+
+    const totalAttempts = attempts.length;
+
+    const validScores = attempts.filter(
+      (a) => a.score !== null && a.score !== undefined
+    );
+
+    const averageScore =
+      validScores.length > 0
+        ? validScores.reduce((sum, a) => sum + a.score, 0) / validScores.length
+        : 0;
+
+    const passedCount = attempts.filter((a) => a.passed === true).length;
+    const passRate = (passedCount / totalAttempts) * 100;
+
+    const totalTryouts = new Set(attempts.map((a) => a.tryout_id)).size;
+
+    return {
+      totalAttempts,
+      averageScore: Math.round(averageScore * 10) / 10,
+      passRate: Math.round(passRate),
+      totalTryouts,
+    };
+  }, [attempts]);
 
 
   return (
@@ -131,16 +213,64 @@ function StudentHistory() {
         </div>
       </div>
 
-      <div className="dashboard-card">
+      {/* RINGKASAN */}
 
-        <div className="user-toolbar">
-          <input
-            type="text"
-            placeholder="Cari judul tryout / mata pelajaran..."
-            className="search-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="stat-grid">
+        <StatCard
+          icon={<IconClipboard />}
+          title="Tryout Diselesaikan"
+          value={summary.totalAttempts}
+          description="Attempt selesai"
+        />
+
+        <StatCard
+          icon={<IconTarget />}
+          title="Rata-rata Skor"
+          value={summary.averageScore}
+          description="Dari semua attempt-mu"
+        />
+
+        <StatCard
+          icon={<IconCheck />}
+          title="Tingkat Lulus"
+          value={`${summary.passRate}%`}
+          description="Dari attempt yang selesai"
+        />
+
+        <StatCard
+          icon={<IconTrophy />}
+          title="Paket Tryout"
+          value={summary.totalTryouts}
+          description="Sudah kamu ikuti"
+        />
+      </div>
+
+      {/* TABLE */}
+
+      <div className="score-card">
+
+        <div className="score-toolbar">
+          <label className="score-search">
+            <IconSearch size={16} />
+            <input
+              type="text"
+              placeholder="Cari judul tryout / mata pelajaran"
+              aria-label="Cari riwayat"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+
+          <select
+            className={`score-select${selectedStatus ? " is-active" : ""}`}
+            aria-label="Filter status kelulusan"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="">Semua Status</option>
+            <option value="PASSED">Lulus</option>
+            <option value="FAILED">Tidak lulus</option>
+          </select>
         </div>
 
         {loading && (
@@ -150,96 +280,19 @@ function StudentHistory() {
         {error && <div className="error-message">{error}</div>}
 
         {!loading && !error && (
-          <div className="table-container">
-            <table className="user-table">
-              <thead>
-                <tr>
-                  <th>Judul Tryout</th>
-                  <th>Mata Pelajaran</th>
-                  <th>Selesai</th>
-                  <th>Skor</th>
-                  <th>Benar / Salah / Kosong</th>
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredAttempts.map((item) => (
-                  <tr key={item.attempt_id}>
-                    <td>
-                      <strong>{item.title}</strong>
-                    </td>
-
-                    <td>{item.subject_name || "-"}</td>
-
-                    <td>{formatDate(item.finished_at)}</td>
-
-                    <td>
-                      <strong>
-                        {item.score !== null && item.score !== undefined
-                          ? Math.round(item.score * 100) / 100
-                          : "-"}
-                      </strong>
-                      {item.max_score ? ` / ${item.max_score}` : ""}
-                    </td>
-
-                    <td>
-                      <span style={{ color: "var(--success, #3F7D58)" }}>
-                        {item.correct_count ?? 0}
-                      </span>
-                      {" / "}
-                      <span style={{ color: "#dc2626" }}>
-                        {item.wrong_count ?? 0}
-                      </span>
-                      {" / "}
-                      <span style={{ color: "#9ca3af" }}>
-                        {item.unanswered_count ?? 0}
-                      </span>
-                    </td>
-
-                    <td>
-                      {item.passed === true && (
-                        <span className="status-active">
-                          <IconCheck size={13} style={{ verticalAlign: "-2px" }} /> Lulus
-                        </span>
-                      )}
-
-                      {item.passed === false && (
-                        <span className="status-inactive">
-                          Tidak Lulus
-                        </span>
-                      )}
-
-                      {item.passed === null && (
-                        <span className="status-inactive">
-                          {item.status}
-                        </span>
-                      )}
-                    </td>
-
-                    <td>
-                      <button
-                        className="secondary-button"
-                        onClick={() => openDetail(item)}
-                      >
-                        <IconBarChart size={15} />
-                        Lihat Detail
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredAttempts.length === 0 && (
-              <div className="empty-message">
-                {search
-                  ? "Riwayat tidak ditemukan."
-                  : "Belum ada tryout yang kamu selesaikan."}
-              </div>
-            )}
-          </div>
+          <ScoreTable
+            rows={filteredAttempts}
+            hideStudentColumn
+            resetKey={[search.trim(), selectedStatus].join("|")}
+            hasActiveFilter={hasActiveFilter}
+            onReset={resetFilters}
+            onViewDetail={openDetail}
+            emptyMessage={
+              hasActiveFilter
+                ? "Tidak ada hasil yang cocok."
+                : "Belum ada tryout yang kamu selesaikan."
+            }
+          />
         )}
       </div>
 

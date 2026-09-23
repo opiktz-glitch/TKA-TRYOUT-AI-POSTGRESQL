@@ -23,6 +23,7 @@ import TryoutManagement from "./pages/TryoutManagement";
 import TeacherScores from "./pages/TeacherScores";
 import TeacherReport from "./pages/TeacherReport";
 import TeacherStudents from "./pages/TeacherStudents";
+import TeacherProfile from "./pages/TeacherProfile";
 import StudentTryoutList from "./pages/StudentTryoutList";
 import StudentMyTryouts from "./pages/StudentMyTryouts";
 import StudentHistory from "./pages/StudentHistory";
@@ -223,6 +224,19 @@ function AppRoutes() {
               allowedRoles={["ADMIN", "GURU"]}
             >
               <TeacherReport />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =================================================
+            PENGATURAN (profil akun guru)
+            Hanya GURU
+            ================================================= */}
+        <Route
+          path="/teacher/profile"
+          element={
+            <ProtectedRoute allowedRoles={["GURU"]}>
+              <TeacherProfile />
             </ProtectedRoute>
           }
         />

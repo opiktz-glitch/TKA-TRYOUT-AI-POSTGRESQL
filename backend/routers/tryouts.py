@@ -141,6 +141,17 @@ def get_tryouts(
             for c in creators
         }
 
+    # Satu query GROUP BY untuk jumlah peserta (attempt) per tryout --
+    # bukan query per baris. Dipakai frontend untuk menampilkan info
+    # "sudah ada peserta" dan menonaktifkan tombol Hapus, karena
+    # backend memang menolak hapus tryout yang sudah dikerjakan siswa
+    # (lihat delete_tryout di bawah).
+    participant_counts = dict(
+        db.query(Attempt.tryout_id, func.count(Attempt.id))
+        .group_by(Attempt.tryout_id)
+        .all()
+    )
+
     result = []
 
     for tryout in tryouts:
@@ -169,6 +180,7 @@ def get_tryouts(
             "created_by": tryout.created_by,
             "created_by_name": creator_names.get(tryout.created_by, "-"),
             "is_active": tryout.is_active,
+            "participant_count": participant_counts.get(tryout.id, 0),
             "questions": questions
         })
 

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Pagination from "./Pagination";
+import { IconTrash, IconEye } from "./Icons";
 import "./ScoreTable.css";
 
 
 // =====================================================
-// TABEL NILAI (dipakai AdminScores & TeacherScores)
+// TABEL NILAI (dipakai AdminScores, TeacherScores & StudentHistory)
 //
 // Tampilan: 6 kolom dengan sel dua baris
 //   Siswa (nama / NIS) · Tryout (judul / mapel · guru) ·
@@ -19,13 +20,30 @@ import "./ScoreTable.css";
 //   rows             baris yang SUDAH difilter oleh halaman
 //   showTeacher      true = baris kedua kolom Tryout ditambah nama
 //                    guru pembuat (untuk admin)
+//   hideStudentColumn true = kolom "Siswa" disembunyikan (dipakai
+//                    StudentHistory -- siswa melihat riwayatnya
+//                    sendiri, jadi nama/NIS-nya sendiri tidak perlu
+//                    ditampilkan lagi)
 //   resetKey         string gabungan semua filter. Saat berubah,
 //                    pagination kembali ke halaman 1. Sengaja bukan
 //                    "rows" supaya refresh data di background tidak
 //                    melempar user kembali ke halaman 1.
 //   hasActiveFilter  true = tombol "Reset filter" ditampilkan
 //   onReset          dipanggil saat "Reset filter" diklik
+//   toggle           opsional -- node tombol toggle (mis. "Guru
+//                     Saya") ditaruh sejajar jumlah hasil, sama
+//                     seperti toggle "Soal Saya" di Bank Soal
 //   emptyMessage     pesan saat rows kosong
+//   onDeleteAttempt  opsional -- dipanggil dengan satu baris (item)
+//                     saat tombol Hapus di baris itu diklik (dipakai
+//                     AdminScores)
+//   onViewDetail     opsional -- dipanggil dengan satu baris (item)
+//                     saat tombol Lihat Detail diklik (dipakai
+//                     StudentHistory). onDeleteAttempt dan
+//                     onViewDetail tidak pernah dikirim bersamaan
+//                     oleh satu halaman; kalau keduanya TIDAK
+//                     dikirim, kolom Aksi tidak dirender sama
+//                     sekali (dipakai TeacherScores)
 // =====================================================
 
 const PAGE_SIZE = 10;
@@ -71,11 +89,19 @@ function StatusBadge({ passed }) {
 function ScoreTable({
   rows,
   showTeacher = false,
+  hideStudentColumn = false,
   resetKey = "",
   hasActiveFilter = false,
   onReset,
+  toggle = null,
   emptyMessage = "Belum ada data nilai.",
+  onDeleteAttempt = null,
+  onViewDetail = null,
 }) {
+  const showDeleteAction = typeof onDeleteAttempt === "function";
+  const showViewAction = typeof onViewDetail === "function";
+  const showActions = showDeleteAction || showViewAction;
+
   const [page, setPage] = useState(1);
   const [lastResetKey, setLastResetKey] = useState(resetKey);
 
@@ -103,7 +129,10 @@ function ScoreTable({
     <>
       {showMeta && (
         <div className="score-meta">
-          <span>{total} hasil</span>
+          <div className="score-meta-left">
+            <span>{total} hasil</span>
+            {toggle}
+          </div>
 
           {hasActiveFilter && (
             <button type="button" className="score-reset" onClick={onReset}>
@@ -119,22 +148,26 @@ function ScoreTable({
         <div className="table-container">
           <table className="score-table">
             <colgroup>
-              <col style={{ width: "22%" }} />
-              <col style={{ width: "26%" }} />
-              <col style={{ width: "11%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "13%" }} />
-              <col style={{ width: "14%" }} />
+              {!hideStudentColumn && (
+                <col style={{ width: showActions ? "20%" : "22%" }} />
+              )}
+              <col style={{ width: hideStudentColumn ? (showActions ? "38%" : "42%") : (showActions ? "24%" : "26%") }} />
+              <col style={{ width: hideStudentColumn ? (showActions ? "12%" : "13%") : (showActions ? "10%" : "11%") }} />
+              <col style={{ width: hideStudentColumn ? (showActions ? "14%" : "15%") : (showActions ? "13%" : "14%") }} />
+              <col style={{ width: hideStudentColumn ? (showActions ? "13%" : "14%") : (showActions ? "12%" : "13%") }} />
+              <col style={{ width: hideStudentColumn ? (showActions ? "14%" : "16%") : (showActions ? "13%" : "14%") }} />
+              {showActions && <col style={{ width: "9%" }} />}
             </colgroup>
 
             <thead>
               <tr>
-                <th className="is-left">Siswa</th>
+                {!hideStudentColumn && <th className="is-left">Siswa</th>}
                 <th className="is-left">Tryout</th>
                 <th>Skor</th>
                 <th title="Benar / Salah / Kosong">B / S / K</th>
                 <th>Status</th>
                 <th className="is-left">Selesai</th>
+                {showActions && <th>Aksi</th>}
               </tr>
             </thead>
 
@@ -153,17 +186,19 @@ function ScoreTable({
 
                 return (
                   <tr key={item.attempt_id}>
-                    <td>
-                      <div
-                        className="score-primary is-strong score-ellipsis"
-                        title={studentName}
-                      >
-                        {studentName}
-                      </div>
-                      <div className="score-secondary score-ellipsis">
-                        {item.student_code || "-"}
-                      </div>
-                    </td>
+                    {!hideStudentColumn && (
+                      <td>
+                        <div
+                          className="score-primary is-strong score-ellipsis"
+                          title={studentName}
+                        >
+                          {studentName}
+                        </div>
+                        <div className="score-secondary score-ellipsis">
+                          {item.student_code || "-"}
+                        </div>
+                      </td>
+                    )}
 
                     <td>
                       <div
@@ -178,6 +213,11 @@ function ScoreTable({
                       >
                         {tryoutMeta || "-"}
                       </div>
+                      {item.attempt_total > 1 && (
+                        <span className="score-badge is-attempt">
+                          Percobaan ke-{item.attempt_number} dari {item.attempt_total}
+                        </span>
+                      )}
                     </td>
 
                     <td className="is-center is-nowrap">
@@ -224,6 +264,34 @@ function ScoreTable({
                           : ""}
                       </div>
                     </td>
+
+                    {showActions && (
+                      <td className="is-center is-nowrap">
+                        <div className="action-buttons" style={{ justifyContent: "center" }}>
+                          {showViewAction && (
+                            <button
+                              type="button"
+                              className="review-button"
+                              onClick={() => onViewDetail(item)}
+                              title="Lihat Detail"
+                            >
+                              <IconEye size={16} />
+                            </button>
+                          )}
+
+                          {showDeleteAction && (
+                            <button
+                              type="button"
+                              className="delete-button"
+                              onClick={() => onDeleteAttempt(item)}
+                              title="Hapus nilai ini"
+                            >
+                              <IconTrash size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

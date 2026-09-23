@@ -88,8 +88,9 @@ function TryoutManagement() {
 
   const [search, setSearch] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
-  // "" = Semua soal, "mine" = hanya tryout buatan user yang login
-  const [creatorFilter, setCreatorFilter] = useState("");
+  // true = hanya tampilkan tryout buatan user yang login. Sama
+  // seperti toggle "Soal Saya" di Bank Soal.
+  const [onlyMine, setOnlyMine] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
 
   // =====================================================
@@ -597,9 +598,7 @@ function TryoutManagement() {
         !subjectFilter || String(tryout.subject_id) === String(subjectFilter);
 
       const matchesCreator =
-        !creatorFilter ||
-        (creatorFilter === "mine" &&
-          Number(tryout.created_by) === Number(user?.id));
+        !onlyMine || Number(tryout.created_by) === Number(user?.id);
 
       const matchesStatus =
         !statusFilter ||
@@ -609,13 +608,13 @@ function TryoutManagement() {
         matchesSearch && matchesSubject && matchesCreator && matchesStatus
       );
     });
-  }, [tryouts, subjects, search, subjectFilter, creatorFilter, statusFilter, user]);
+  }, [tryouts, subjects, search, subjectFilter, onlyMine, statusFilter, user]);
 
   // Reset ke halaman 1 setiap kali pencarian/filter berubah, supaya
   // tidak "nyangkut" di halaman yang sudah tidak relevan.
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, subjectFilter, creatorFilter, statusFilter]);
+  }, [search, subjectFilter, onlyMine, statusFilter]);
 
   const totalPages = Math.max(
     1,
@@ -632,19 +631,13 @@ function TryoutManagement() {
   }, [currentPage, totalPages]);
 
   const hasActiveTryoutFilter = Boolean(
-    search || subjectFilter || creatorFilter || statusFilter
+    search || subjectFilter || onlyMine || statusFilter
   );
-
-  // Label opsi "mine" di filter Guru Pembuat: tampilkan nama guru yang
-  // sedang login supaya jelas ini bukan sekadar teks generik.
-  const myTryoutOptionLabel = (user?.full_name || user?.username)
-    ? `Punya saya (${user.full_name || user.username})`
-    : "Guru yang login saja";
 
   const resetTryoutFilters = () => {
     setSearch("");
     setSubjectFilter("");
-    setCreatorFilter("");
+    setOnlyMine(false);
     setStatusFilter("");
   };
 
@@ -738,16 +731,6 @@ function TryoutManagement() {
               </select>
 
               <select
-                className={`score-select${creatorFilter ? " is-active" : ""}`}
-                aria-label="Filter guru pembuat"
-                value={creatorFilter}
-                onChange={(e) => setCreatorFilter(e.target.value)}
-              >
-                <option value="">Semua Tryout</option>
-                <option value="mine">{myTryoutOptionLabel}</option>
-              </select>
-
-              <select
                 className={`score-select${statusFilter ? " is-active" : ""}`}
                 aria-label="Filter status"
                 value={statusFilter}
@@ -783,7 +766,20 @@ function TryoutManagement() {
             {!loading && (
               <>
                 <div className="score-meta">
-                  <span>{filteredTryouts.length} tryout</span>
+                  <div className="score-meta-left">
+                    <span>{filteredTryouts.length} tryout</span>
+
+                    {user && (
+                      <button
+                        type="button"
+                        className={`filter-toggle${onlyMine ? " is-active" : ""}`}
+                        onClick={() => setOnlyMine((prev) => !prev)}
+                        aria-pressed={onlyMine}
+                      >
+                        Tryout Saya
+                      </button>
+                    )}
+                  </div>
 
                   {hasActiveTryoutFilter && (
                     <button type="button" className="score-reset" onClick={resetTryoutFilters}>
@@ -823,9 +819,15 @@ function TryoutManagement() {
 
                       <tbody>
                         {paginatedTryouts.map((tryout) => {
+                          const participantCount = tryout.participant_count ?? 0;
+                          const hasParticipants = participantCount > 0;
+
                           const meta = [
                             getSubjectName(tryout.subject_id),
                             tryout.grade ? `Kelas ${tryout.grade}` : null,
+                            hasParticipants
+                              ? `${participantCount} peserta`
+                              : "Belum ada peserta",
                           ]
                             .filter(Boolean)
                             .join(" · ");
@@ -890,8 +892,14 @@ function TryoutManagement() {
                                   <button
                                     className="delete-button"
                                     onClick={() => handleDelete(tryout)}
-                                    disabled={deletingId === tryout.id}
-                                    title="Hapus"
+                                    disabled={
+                                      deletingId === tryout.id || hasParticipants
+                                    }
+                                    title={
+                                      hasParticipants
+                                        ? "Tidak bisa dihapus — sudah ada peserta"
+                                        : "Hapus"
+                                    }
                                   >
                                     <IconTrash size={16} />
                                   </button>

@@ -24,6 +24,7 @@ from routers import admin
 from routers import subjects
 from routers import questions
 from routers import tryouts
+from routers import attempts
 from routers import student
 from routers import students
 from routers import teachers
@@ -267,6 +268,10 @@ app.include_router(
 app.include_router(
     tryouts.router 
 ) 
+
+app.include_router(
+    attempts.router
+)
 
 app.include_router(
     student.router                  

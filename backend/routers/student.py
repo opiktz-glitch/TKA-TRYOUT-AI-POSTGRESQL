@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from database import get_db
 from dependencies import get_current_user
 from schemas import StudentProfileUpdate
+from attempt_utils import compute_attempt_numbers
 from models import (
     User,
     Student,
@@ -1257,6 +1258,8 @@ def get_attempt_history(
         .all()
     )
 
+    attempt_numbers = compute_attempt_numbers(attempts)
+
     result = []
 
     for attempt in attempts:
@@ -1282,6 +1285,10 @@ def get_attempt_history(
             .first()
         )
 
+        attempt_number, attempt_total = attempt_numbers.get(
+            attempt.id, (1, 1)
+        )
+
         result.append({
             "attempt_id": attempt.id,
             "tryout_id": tryout.id,
@@ -1293,6 +1300,9 @@ def get_attempt_history(
             "finished_at": attempt.finished_at,
 
             "status": attempt.status,
+
+            "attempt_number": attempt_number,
+            "attempt_total": attempt_total,
 
             "total_questions": (
                 attempt_result.total_questions

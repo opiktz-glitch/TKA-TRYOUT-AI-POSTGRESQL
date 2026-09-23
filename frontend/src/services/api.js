@@ -870,6 +870,13 @@ export async function getScoreCreators() {
   return apiFetch("/api/teacher/creators");
 }
 
+// Hapus satu attempt/nilai (khusus Admin) -- lihat routers/attempts.py.
+export async function deleteAttempt(attemptId) {
+  return apiFetch(`/api/attempts/${attemptId}`, {
+    method: "DELETE",
+  });
+}
+
 
 // =========================================================
 // ADMIN - LAPORAN (ANALITIK SISTEM)
@@ -899,6 +906,22 @@ export async function getMyProfile() {
 
 export async function updateMyProfile(profileData) {
   return apiFetch("/api/student/profile", {
+    method: "PUT",
+    body: profileData,
+  });
+}
+
+
+// =========================================================
+// TEACHER - PROFIL SAYA
+// =========================================================
+
+export async function getMyTeacherProfile() {
+  return apiFetch("/api/teacher/profile");
+}
+
+export async function updateMyTeacherProfile(profileData) {
+  return apiFetch("/api/teacher/profile", {
     method: "PUT",
     body: profileData,
   });

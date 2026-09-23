@@ -671,6 +671,17 @@ class StudentProfileUpdate(BaseModel):
 
 
 # ==========================================
+# TEACHER SELF-SERVICE PROFILE (t_teacher)
+# ==========================================
+
+class TeacherProfileUpdate(BaseModel):
+
+    full_name: str = Field(min_length=1, max_length=150)
+
+    school_name: str | None = None
+
+
+# ==========================================
 # ACCOUNT SELF-SERVICE PROFILE (t_user)
 #
 # Untuk update nama tampilan akun sendiri

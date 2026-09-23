@@ -553,6 +553,36 @@ function Sidebar() {
             </NavLink>
 
 
+            {/* =================================================
+                AKUN
+                ================================================= */}
+
+            <div className="menu-section">
+              AKUN
+            </div>
+
+
+            {/* Profil */}
+
+            <NavLink
+              to="/teacher/profile"
+              className={menuClass}
+              data-tooltip="Profil"
+              onMouseEnter={handleTooltipEnter}
+              onMouseLeave={handleTooltipLeave}
+            >
+
+              <span className="menu-icon">
+                <IconUser />
+              </span>
+
+              <span>
+                Profil
+              </span>
+
+            </NavLink>
+
+
           </>
 
         )}

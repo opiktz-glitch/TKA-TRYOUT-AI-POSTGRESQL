@@ -260,3 +260,55 @@
   color: #6b7280;
 }
 
+/* Kelengkapan pembahasan soal (Bank Soal) -- sengaja BUKAN
+   hijau/merah spt is-pass/is-fail, supaya beda kesan visual dari
+   badge Aktif/Nonaktif di atasnya walau sama-sama di kolom Status. */
+.score-badge.is-complete {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.score-badge.is-incomplete {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Tingkat kesulitan soal (Bank Soal) -- warna sama dengan
+   .difficulty-badge lama, dibungkus jadi pill spt score-badge lain
+   supaya konsisten dengan tabel Paket Tryout. */
+.score-badge.is-easy {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.score-badge.is-medium {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.score-badge.is-hard {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Penanda soal bergambar (Bank Soal) -- muncul di kolom Soal, di
+   bawah baris "#id · mapel", hanya kalau question.has_image true.
+   Warna teal sengaja beda dari badge lain di kolom yang sama supaya
+   gampang dipindai sekilas tanpa baca teks soal. */
+.score-badge.is-image {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+/* Nomor percobaan ("Percobaan ke-2 dari 3") -- hanya muncul kalau
+   siswa mengulang (retake) tryout yang sama, di tabel Nilai
+   (Admin/Guru) maupun Riwayat siswa. Sengaja warna netral (bukan
+   hijau/merah/biru seperti badge lain), karena ini murni info
+   urutan, bukan status baik/buruk. */
+.score-badge.is-attempt {
+  background: #ede9fe;
+  color: #6d28d9;
+  margin-top: 4px;
+}
+
+
