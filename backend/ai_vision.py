@@ -263,20 +263,24 @@ async def call_ollama_vision(
             }
         ],
         "format": "json",
-        "stream": False,
+        "stream": True,
         "keep_alive": "30m",
         "think": False,
         "options": {
             "num_predict": MAX_OUTPUT_TOKENS,
             "num_ctx": OLLAMA_VISION_NUM_CTX,
+            # temperature 0: membaca/menyalin soal dari gambar harus
+            # setia pada isinya, bukan bervariasi antar percobaan.
+            "temperature": 0,
         },
     }
 
     try:
         async with httpx.AsyncClient(timeout=OLLAMA_VISION_TIMEOUT_SECONDS) as client:
-            response = await client.post(f"{base_url}/api/chat", json=payload)
-
-        response.raise_for_status()
+            # Streaming: lihat ai_providers._collect_ollama_stream.
+            content = await ai_providers._collect_ollama_stream(
+                client, f"{base_url}/api/chat", payload
+            )
 
     except httpx.ConnectError:
         raise HTTPException(
@@ -298,15 +302,39 @@ async def call_ollama_vision(
             ),
         )
 
+    # Sama seperti di ai_providers.call_ollama_provider() -- koneksi
+    # terputus paksa di tengah jalan (mis. tunnel Cloudflare Quick
+    # Tunnel/ngrok menutup koneksi lama secara sepihak), bukan gagal
+    # connect di awal maupun timeout habis dari sisi kita.
+    except (httpx.RemoteProtocolError, httpx.ReadError):
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Koneksi ke Ollama di {base_url} terputus di tengah "
+                "proses membaca gambar, sebelum jawabannya selesai "
+                "diterima. Sering terjadi kalau memakai tunnel gratis "
+                "(mis. Cloudflare Quick Tunnel/ngrok) untuk permintaan "
+                "yang makan waktu lama. Coba lagi, gunakan model "
+                "vision yang lebih ringan, atau pakai tunnel yang "
+                "lebih stabil."
+            ),
+        )
+
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Gagal berkomunikasi dengan Ollama di {base_url}: "
+                f"{exc.__class__.__name__}. Periksa koneksi/alamat "
+                "Ollama-nya, lalu coba lagi."
+            ),
+        )
+
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
             detail="Ollama mengembalikan error: " + exc.response.text[:200],
         )
-
-    data = response.json()
-
-    content = data.get("message", {}).get("content", "")
 
     # Pengaman TAMBAHAN di luar "/no_think" + "think": False di atas
     # -- kalau TETAP ada blok <think> yang lolos (mis. tag model lain

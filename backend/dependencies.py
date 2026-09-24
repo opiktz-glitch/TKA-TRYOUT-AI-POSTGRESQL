@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from sqlalchemy.orm import Session
 
-from jose import JWTError, jwt
+import jwt
 
 from database import get_db
 
@@ -55,13 +55,17 @@ def get_current_user(
             raise credentials_exception
 
 
-    except (JWTError, RuntimeError):
+    except (jwt.PyJWTError, RuntimeError):
 
         # RuntimeError di sini berarti get_active_secret_key() tidak
         # menemukan SECRET_KEY sama sekali (harusnya tidak pernah
         # terjadi setelah bootstrap saat startup) — tetap dibalas
         # sebagai 401 biasa, bukan 500, supaya tidak membocorkan
         # detail internal ke client.
+        # jwt.PyJWTError adalah kelas dasar SEMUA error decode PyJWT
+        # (token expired, signature salah, format rusak, dll) — sama
+        # seperti JWTError di python-jose dulu, jadi perilakunya tidak
+        # berubah: semua kegagalan tetap dibalas 401 di sini.
         raise credentials_exception
 
 

@@ -2,8 +2,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
+import jwt
 from fastapi import HTTPException
-from jose import jwt
 from sqlalchemy.orm import Session
 
 import config

@@ -589,6 +589,70 @@ def _parse_ai_json(content: str, provider_name: str) -> dict:
     )
 
 
+async def _collect_ollama_stream(
+    client: httpx.AsyncClient, url: str, payload: dict
+) -> str:
+    """
+    Kirim request /api/chat ke Ollama dengan stream=True, kumpulkan
+    potongan teks (message.content) sampai selesai, lalu kembalikan
+    sebagai SATU string -- sama persis dengan hasil
+    response.json()["message"]["content"] pada versi non-streaming,
+    jadi kode parsing sesudahnya tidak berubah.
+
+    Kenapa streaming: Ollama mengirim potongan token begitu tersedia,
+    sehingga jalur koneksi (tunnel/proxy seperti Cloudflare Quick
+    Tunnel) tidak "diam" lama menunggu jawaban penuh -- penyebab umum
+    koneksi diputus sepihak di tengah proses. Kecepatan generate itu
+    sendiri TIDAK berubah; yang membaik adalah kestabilan koneksi.
+
+    Jenis error yang dilempar (httpx.ConnectError, TimeoutException,
+    ReadError, dst) SAMA dengan versi sebelumnya, jadi blok except di
+    pemanggil tetap berlaku. Catatan: timeout "read" httpx pada
+    streaming berarti "berapa lama boleh TANPA data masuk", bukan
+    total durasi request.
+    """
+
+    parts: list[str] = []
+
+    async with client.stream(
+        "POST", url, json={**payload, "stream": True}
+    ) as response:
+
+        # Pada respons streaming, body error belum dibaca. Baca dulu
+        # supaya exc.response.text di blok HTTPStatusError pemanggil
+        # tidak melempar ResponseNotRead.
+        if response.status_code >= 400:
+            await response.aread()
+
+        response.raise_for_status()
+
+        async for line in response.aiter_lines():
+
+            if not line.strip():
+                continue
+
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            # Ollama bisa mengirim error di tengah stream sebagai
+            # {"error": "..."} dengan status HTTP tetap 200.
+            if chunk.get("error"):
+                raise HTTPException(
+                    status_code=502,
+                    detail="Ollama mengembalikan error: "
+                    + str(chunk["error"])[:200],
+                )
+
+            parts.append(chunk.get("message", {}).get("content", ""))
+
+            if chunk.get("done"):
+                break
+
+    return "".join(parts)
+
+
 async def call_ollama_provider(
     prompt: str, db: Session, larger_output: bool = False
 ) -> dict:
@@ -629,7 +693,7 @@ async def call_ollama_provider(
             {"role": "user", "content": prompt}
         ],
         "format": "json",
-        "stream": False,
+        "stream": True,
         # Ollama otomatis melepas model dari memori setelah idle
         # (default 5 menit). keep_alive membuat model tetap di
         # memori lebih lama supaya generate berikutnya tidak perlu
@@ -655,6 +719,14 @@ async def call_ollama_provider(
         },
     }
 
+    # temperature 0 (greedy) KHUSUS impor dokumen (larger_output=True):
+    # tugasnya menyalin soal APA ADANYA, bukan berkreasi. Tanpa ini
+    # Ollama memakai temperature bawaan model (umumnya ~0.8) yang bikin
+    # teks soal bisa berubah dan JSON lebih sering meleset. Generate
+    # soal baru (larger_output=False) SENGAJA tidak diubah.
+    if larger_output:
+        payload["options"]["temperature"] = 0
+
     # num_ctx yang lebih besar butuh lebih banyak waktu komputasi
     # (terutama di laptop tanpa GPU khusus, atau Ollama yang diakses
     # dari komputer lain lewat jaringan), jadi timeout HTTP ikut
@@ -671,12 +743,10 @@ async def call_ollama_provider(
 
         async with httpx.AsyncClient(timeout=request_timeout) as client:
 
-            response = await client.post(
-                f"{base_url}/api/chat",
-                json=payload
+            # Streaming: lihat penjelasan di _collect_ollama_stream.
+            content = await _collect_ollama_stream(
+                client, f"{base_url}/api/chat", payload
             )
-
-        response.raise_for_status()
 
     except httpx.ConnectError:
 
@@ -704,16 +774,62 @@ async def call_ollama_provider(
             )
         )
 
+    # -----------------------------------------------------------
+    # KONEKSI TERPUTUS DI TENGAH JALAN (bukan gagal connect di awal,
+    # bukan timeout habis dari sisi kita) -- request SUDAH terkirim
+    # dan sempat diterima, tapi koneksinya diputus paksa sebelum
+    # respons selesai diterima. Paling sering terjadi kalau base_url
+    # lewat tunnel (Cloudflare Quick Tunnel, ngrok, dll) yang
+    # menutup koneksi idle/panjang secara sepihak -- gejalanya di
+    # log cloudflared muncul sebagai "context canceled".
+    #
+    # SENGAJA ditangani terpisah dari except Exception generik di
+    # process_document_chunk (routers/questions.py): tanpa ini,
+    # error jenis ini lolos sampai ke sana dan HANYA membuat chunk
+    # dilewati diam-diam (skipped_count) tanpa guru tahu SAMA SEKALI
+    # kenapa soalnya hilang -- padahal akar masalahnya jelas & bisa
+    # ditindaklanjuti (bukan sekadar "AI ngaco sekali", yang memang
+    # wajar di-retry otomatis).
+    # -----------------------------------------------------------
+
+    except (httpx.RemoteProtocolError, httpx.ReadError):
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Koneksi ke Ollama di {base_url} terputus di tengah "
+                "proses, sebelum jawabannya selesai diterima. Server "
+                "Ollama kemungkinan masih memproses dengan normal -- "
+                "yang putus adalah JALUR KONEKSINYA, sering terjadi "
+                "kalau memakai tunnel gratis (mis. Cloudflare Quick "
+                "Tunnel/ngrok) untuk permintaan yang makan waktu lama. "
+                "Coba lagi, gunakan model yang lebih ringan/cepat "
+                "supaya prosesnya lebih singkat, atau pakai tunnel "
+                "yang lebih stabil (mis. Cloudflare Named Tunnel)."
+            )
+        )
+
+    # Fallback terakhir untuk error jaringan httpx lain yang belum
+    # ditangani secara spesifik di atas (mis. ProxyError,
+    # WriteError) -- supaya TIDAK ADA kegagalan koneksi yang lolos
+    # sampai jadi "chunk dilewati tanpa pesan" di layer router.
+    except httpx.RequestError as exc:
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Gagal berkomunikasi dengan Ollama di {base_url}: "
+                f"{exc.__class__.__name__}. Periksa koneksi/alamat "
+                "Ollama-nya, lalu coba lagi."
+            )
+        )
+
     except httpx.HTTPStatusError as exc:
 
         raise HTTPException(
             status_code=502,
             detail="Ollama mengembalikan error: " + exc.response.text[:200]
         )
-
-    data = response.json()
-
-    content = data.get("message", {}).get("content", "")
 
     return _parse_ai_json(content, "Ollama")
 
