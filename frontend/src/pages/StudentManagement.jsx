@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { IconEdit, IconTrash, IconCheck, IconSearch } from "../components/Icons";
 import Pagination from "../components/Pagination";
@@ -88,6 +89,32 @@ function StudentManagement() {
   function handleChange(event) {
     const { name, value } = event.target;
 
+    // Saat akun dipilih, isi Nama Lengkap otomatis dari nama akun.
+    // Hanya menimpa jika kolom masih kosong atau masih berisi nama
+    // hasil isi otomatis dari akun sebelumnya — ketikan manual admin
+    // tidak pernah ditimpa.
+    if (name === "user_id" && !editingStudent) {
+      const prevAccount = availableUsers.find(
+        (user) => String(user.id) === String(form.user_id)
+      );
+      const nextAccount = availableUsers.find(
+        (user) => String(user.id) === String(value)
+      );
+
+      const isUntouched =
+        !form.full_name || form.full_name === (prevAccount?.full_name || "");
+
+      setForm({
+        ...form,
+        user_id: value,
+        full_name: isUntouched
+          ? (nextAccount?.full_name || "")
+          : form.full_name,
+      });
+
+      return;
+    }
+
     setForm({
       ...form,
       [name]: value,
@@ -125,6 +152,12 @@ function StudentManagement() {
 
     setShowModal(true);
   }
+
+
+  // Akun SISWA yang sedang dipilih di dropdown (untuk preview status)
+  const selectedAccount = availableUsers.find(
+    (user) => String(user.id) === String(form.user_id)
+  );
 
 
   function closeModal() {
@@ -457,7 +490,7 @@ function StudentManagement() {
                 </p>
               </div>
 
-              <button className="modal-close" onClick={closeModal}>
+              <button className="modal-close" onClick={closeModal} disabled={saving}>
                 ×
               </button>
             </div>
@@ -470,25 +503,41 @@ function StudentManagement() {
                 <div className="form-group">
                   <label>Akun Login (User SISWA)</label>
 
-                  <select
-                    name="user_id"
-                    value={form.user_id}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">-- Pilih akun siswa --</option>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <select
+                      name="user_id"
+                      value={form.user_id}
+                      onChange={handleChange}
+                      disabled={saving}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">-- Pilih akun siswa --</option>
 
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.username} {user.full_name ? `(${user.full_name})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                      {availableUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.username} {user.full_name ? `(${user.full_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Preview status akun terpilih — class sama dengan badge Status di tabel Kelola User */}
+                    {selectedAccount && (
+                      <span
+                        className={`score-badge ${selectedAccount.is_active ? "is-pass" : "is-fail"}`}
+                      >
+                        {selectedAccount.is_active ? "Aktif" : "Nonaktif"}
+                      </span>
+                    )}
+                  </div>
 
                   {availableUsers.length === 0 && (
-                    <small style={{ color: "#9ca3af" }}>
+                    <small style={{ fontSize: "13px", lineHeight: 1.5, color: "#6b7280" }}>
                       Semua user SISWA sudah punya profil, atau belum ada user
-                      dengan role SISWA. Buat dulu akunnya lewat Kelola User.
+                      dengan role SISWA. Buat dulu akunnya lewat{" "}
+                      <Link to="/users" style={{ color: "var(--accent-hover)", fontWeight: 600, fontSize: "inherit" }}>
+                        Kelola User
+                      </Link>.
                     </small>
                   )}
                 </div>
@@ -503,6 +552,7 @@ function StudentManagement() {
                   name="student_code"
                   value={form.student_code}
                   onChange={handleChange}
+                  disabled={saving}
                   placeholder="Masukkan NIS"
                   required
                 />
@@ -517,6 +567,7 @@ function StudentManagement() {
                   name="full_name"
                   value={form.full_name}
                   onChange={handleChange}
+                  disabled={saving}
                   placeholder="Masukkan nama lengkap"
                   required
                 />
@@ -531,6 +582,7 @@ function StudentManagement() {
                   name="school_name"
                   value={form.school_name}
                   onChange={handleChange}
+                  disabled={saving}
                   placeholder="Masukkan nama sekolah"
                 />
               </div>
@@ -545,6 +597,7 @@ function StudentManagement() {
                     name="grade"
                     value={form.grade}
                     onChange={handleChange}
+                    disabled={saving}
                     placeholder="Contoh: XII"
                   />
                 </div>
@@ -556,6 +609,7 @@ function StudentManagement() {
                     name="class_name"
                     value={form.class_name}
                     onChange={handleChange}
+                    disabled={saving}
                     placeholder="Contoh: IPA 1"
                   />
                 </div>

@@ -67,6 +67,13 @@ function UserManagement() {
     is_active: true
   });
 
+  // Field khusus form Tambah User (tidak ikut dikirim ke API)
+  const [formConfirmPassword, setFormConfirmPassword] = useState("");
+
+  const [showFormPassword, setShowFormPassword] = useState(false);
+
+  const [showFormConfirm, setShowFormConfirm] = useState(false);
+
 
   // --------------------------------------------------------
   // STATE MODAL RESET PASSWORD
@@ -135,9 +142,18 @@ function UserManagement() {
   }
 
 
+  function resetFormPasswordFields() {
+    setFormConfirmPassword("");
+    setShowFormPassword(false);
+    setShowFormConfirm(false);
+  }
+
+
   function openModal() {
 
     setEditingUser(null);
+
+    resetFormPasswordFields();
 
     setForm({
       username: "",
@@ -163,6 +179,8 @@ function UserManagement() {
 
     setShowModal(false);
 
+    resetFormPasswordFields();
+
     setFormError("");
     setFormSuccess("");
 
@@ -172,6 +190,8 @@ function UserManagement() {
   function openEditModal(user) {
 
     setEditingUser(user);
+
+    resetFormPasswordFields();
 
     setForm({
       username: user.username,
@@ -241,6 +261,21 @@ function UserManagement() {
       return;
     }
 
+    if (!editingUser && form.password.length < 6) {
+      setFormError("Password minimal 6 karakter");
+      return;
+    }
+
+    if (!editingUser && !formConfirmPassword) {
+      setFormError("Konfirmasi password wajib diisi");
+      return;
+    }
+
+    if (!editingUser && form.password !== formConfirmPassword) {
+      setFormError("Konfirmasi password tidak sama");
+      return;
+    }
+
     try {
 
       setSaving(true);
@@ -280,6 +315,7 @@ function UserManagement() {
         setShowModal(false);
         setEditingUser(null);
         setFormSuccess("");
+        resetFormPasswordFields();
       }, 900);
 
     } catch (err) {
@@ -856,29 +892,110 @@ function UserManagement() {
               </div>
 
 
-              {/* PASSWORD */}
+              {/* PASSWORD + KONFIRMASI (hanya saat tambah user) */}
 
               {!editingUser && (
 
-                <div className="form-group">
+                <>
 
-                  <label>
-                    Password
-                  </label>
+                  <div className="form-group">
 
-                  <input
-                    type="password"
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="Masukkan password"
-                    disabled={saving}
-                    required
-                   />
+                    <label>
+                      Password
+                    </label>
 
-                </div>
+                    <div className="password-input-wrapper">
 
-                )}
+                      <input
+                        type={showFormPassword ? "text" : "password"}
+                        name="password"
+                        value={form.password}
+                        onChange={handleChange}
+                        placeholder="Minimal 6 karakter"
+                        autoComplete="new-password"
+                        disabled={saving}
+                        required
+                      />
+
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowFormPassword(!showFormPassword)}
+                        disabled={saving}
+                        tabIndex="-1"
+                      >
+                        {showFormPassword
+                          ? <IconEyeOff size={17} />
+                          : <IconEye size={17} />}
+                      </button>
+
+                    </div>
+
+                  </div>
+
+
+                  <div className="form-group">
+
+                    <label>
+                      Konfirmasi Password
+                    </label>
+
+                    <div className="password-input-wrapper">
+
+                      <input
+                        type={showFormConfirm ? "text" : "password"}
+                        value={formConfirmPassword}
+                        onChange={(e) => setFormConfirmPassword(e.target.value)}
+                        placeholder="Ulangi password"
+                        autoComplete="new-password"
+                        disabled={saving}
+                        required
+                      />
+
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setShowFormConfirm(!showFormConfirm)}
+                        disabled={saving}
+                        tabIndex="-1"
+                      >
+                        {showFormConfirm
+                          ? <IconEyeOff size={17} />
+                          : <IconEye size={17} />}
+                      </button>
+
+                    </div>
+
+                  </div>
+
+
+                  <div className="password-rules">
+
+                    <div className={form.password.length >= 6 ? "rule-valid" : "rule-invalid"}>
+                      {form.password.length >= 6
+                        ? <IconCheck size={13} style={{ verticalAlign: "-2px" }} />
+                        : "○"}{" "}
+                      Minimal 6 karakter
+                    </div>
+
+                    <div
+                      className={
+                        formConfirmPassword && form.password === formConfirmPassword
+                          ? "rule-valid"
+                          : "rule-invalid"
+                      }
+                    >
+                      {formConfirmPassword && form.password === formConfirmPassword
+                        ? <IconCheck size={13} style={{ verticalAlign: "-2px" }} />
+                        : "○"}{" "}
+                      Password cocok
+                    </div>
+
+                  </div>
+
+                </>
+
+              )}
 
 
               {/* NAMA */}
@@ -909,11 +1026,14 @@ function UserManagement() {
                   Role
                 </label>
 
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+
                 <select
                   name="role"
                   value={form.role}
                   onChange={handleChange}
                   disabled={saving}
+                  style={{ flex: 1 }}
                 >
 
                   <option value="ADMIN">
@@ -929,6 +1049,12 @@ function UserManagement() {
                   </option>
 
                 </select>
+
+                <span className={`role-badge role-${form.role.toLowerCase()}`}>
+                  {form.role}
+                </span>
+
+                </div>
 
               </div>
 
@@ -949,6 +1075,14 @@ function UserManagement() {
                 <label htmlFor="is_active">
                   User aktif
                 </label>
+
+                {/* Preview: pakai class yang sama dengan badge Status di tabel */}
+                <span
+                  className={`score-badge ${form.is_active ? "is-pass" : "is-fail"}`}
+                  style={{ marginLeft: "auto" }}
+                >
+                  {form.is_active ? "Aktif" : "Nonaktif"}
+                </span>
 
               </div>
 

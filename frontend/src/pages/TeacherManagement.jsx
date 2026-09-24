@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { IconEdit, IconTrash, IconCheck, IconSearch } from "../components/Icons";
 import Pagination from "../components/Pagination";
@@ -86,6 +87,32 @@ function TeacherManagement() {
   function handleChange(event) {
     const { name, value } = event.target;
 
+    // Saat akun dipilih, isi Nama Lengkap otomatis dari nama akun.
+    // Hanya menimpa jika kolom masih kosong atau masih berisi nama
+    // hasil isi otomatis dari akun sebelumnya — ketikan manual admin
+    // tidak pernah ditimpa.
+    if (name === "user_id" && !editingTeacher) {
+      const prevAccount = availableUsers.find(
+        (user) => String(user.id) === String(form.user_id)
+      );
+      const nextAccount = availableUsers.find(
+        (user) => String(user.id) === String(value)
+      );
+
+      const isUntouched =
+        !form.full_name || form.full_name === (prevAccount?.full_name || "");
+
+      setForm({
+        ...form,
+        user_id: value,
+        full_name: isUntouched
+          ? (nextAccount?.full_name || "")
+          : form.full_name,
+      });
+
+      return;
+    }
+
     setForm({
       ...form,
       [name]: value,
@@ -121,6 +148,12 @@ function TeacherManagement() {
 
     setShowModal(true);
   }
+
+
+  // Akun GURU yang sedang dipilih di dropdown (untuk preview status)
+  const selectedAccount = availableUsers.find(
+    (user) => String(user.id) === String(form.user_id)
+  );
 
 
   function closeModal() {
@@ -442,7 +475,7 @@ function TeacherManagement() {
                 </p>
               </div>
 
-              <button className="modal-close" onClick={closeModal}>
+              <button className="modal-close" onClick={closeModal} disabled={saving}>
                 ×
               </button>
             </div>
@@ -455,25 +488,41 @@ function TeacherManagement() {
                 <div className="form-group">
                   <label>Akun Login (User GURU)</label>
 
-                  <select
-                    name="user_id"
-                    value={form.user_id}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">-- Pilih akun guru --</option>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <select
+                      name="user_id"
+                      value={form.user_id}
+                      onChange={handleChange}
+                      disabled={saving}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">-- Pilih akun guru --</option>
 
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.username} {user.full_name ? `(${user.full_name})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                      {availableUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.username} {user.full_name ? `(${user.full_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Preview status akun terpilih — class sama dengan badge Status di tabel Kelola User */}
+                    {selectedAccount && (
+                      <span
+                        className={`score-badge ${selectedAccount.is_active ? "is-pass" : "is-fail"}`}
+                      >
+                        {selectedAccount.is_active ? "Aktif" : "Nonaktif"}
+                      </span>
+                    )}
+                  </div>
 
                   {availableUsers.length === 0 && (
-                    <small style={{ color: "#9ca3af" }}>
+                    <small style={{ fontSize: "13px", lineHeight: 1.5, color: "#6b7280" }}>
                       Semua user GURU sudah punya profil, atau belum ada user
-                      dengan role GURU. Buat dulu akunnya lewat Kelola User.
+                      dengan role GURU. Buat dulu akunnya lewat{" "}
+                      <Link to="/users" style={{ color: "var(--accent-hover)", fontWeight: 600, fontSize: "inherit" }}>
+                        Kelola User
+                      </Link>.
                     </small>
                   )}
                 </div>
@@ -488,6 +537,7 @@ function TeacherManagement() {
                   name="teacher_code"
                   value={form.teacher_code}
                   onChange={handleChange}
+                  disabled={saving}
                   placeholder="Masukkan NIP"
                   required
                 />
@@ -502,6 +552,7 @@ function TeacherManagement() {
                   name="full_name"
                   value={form.full_name}
                   onChange={handleChange}
+                  disabled={saving}
                   placeholder="Masukkan nama lengkap"
                   required
                 />
@@ -516,6 +567,7 @@ function TeacherManagement() {
                   name="school_name"
                   value={form.school_name}
                   onChange={handleChange}
+                  disabled={saving}
                   placeholder="Masukkan nama sekolah"
                 />
               </div>

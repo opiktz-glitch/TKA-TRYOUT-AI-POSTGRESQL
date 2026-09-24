@@ -14,7 +14,6 @@ import {
   IconTrendingUp,
   IconSettings,
   IconLogOut,
-  IconTarget,
   IconUser,
   IconChevronDown,
 } from "./Icons";
@@ -620,27 +619,6 @@ function Sidebar() {
             </NavLink>
             
             
-            {/* Tryout Saya */}
-
-            <NavLink
-              to="/student/my-tryouts"
-              className={menuClass}
-              data-tooltip="Tryout Saya"
-              onMouseEnter={handleTooltipEnter}
-              onMouseLeave={handleTooltipLeave}
-            >
-
-              <span className="menu-icon">
-                <IconTarget />
-              </span>
-
-              <span>
-                Tryout Saya
-              </span>
-
-            </NavLink>
-
-
             {/* Riwayat & Hasil Tryout */}
 
             <NavLink

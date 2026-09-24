@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import StatCard from "../components/StatCard";
 import { readDashboardCache, writeDashboardCache } from "../services/dashboardCache";
 import { parseUtcDate } from "../utils/date";
+import "../components/ScoreTable.css";
 import {
   IconGraduationCap,
   IconNotebook,
@@ -108,6 +109,26 @@ function timeAgo(dateString) {
 
 
 // =====================================================
+// HELPER — format tanggal singkat ("21 Sep") untuk label
+// sumbu grafik "Tren Nilai" (dashboard Siswa), beda dari
+// timeAgo() yang untuk teks relatif di kartu lain.
+// =====================================================
+
+function shortDate(dateString) {
+  const date = parseUtcDate(dateString);
+
+  if (!date) {
+    return "-";
+  }
+
+  return date.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+
+// =====================================================
 // KOMPOSISI BANK SOAL (widget dashboard admin)
 //
 // Sel dengan jumlah soal di bawah batas ini diberi warna supaya
@@ -175,6 +196,79 @@ function attentionBadgeStyle(tone) {
   }
 
   return { ...ATTENTION_BADGE_BASE, background: "#f3f4f6", color: "#374151" };
+}
+
+
+// =====================================================
+// TINGKAT NILAI (dashboard Siswa) -- dipakai bareng oleh
+// kartu "Nilai per Mata Pelajaran" (badge + bar) dan kartu
+// "Tren Nilai" (warna titik di grafik), supaya ambang batas
+// hijau/kuning/merahnya konsisten di kedua tempat.
+// =====================================================
+
+function scoreTier(score) {
+  if (score >= 75) {
+    return "is-pass";
+  }
+
+  if (score >= 60) {
+    return "is-medium";
+  }
+
+  return "is-fail";
+}
+
+
+// =====================================================
+// TITIK GRAFIK "TREN NILAI" (dashboard Siswa)
+//
+// Ubah daftar {score, ...} jadi koordinat SVG. Asumsi skala
+// nilai 0-100 (sama seperti scoreTier() di atas dan bar di
+// kartu "Nilai per Mata Pelajaran"). Nilai di-clamp ke 0-100
+// supaya data yang di luar dugaan tidak menggambar titik di
+// luar area grafik.
+//
+// Padding atas/bawah SENGAJA tidak simetris: atas perlu ruang
+// lebih supaya angka nilai yang ditulis di atas tiap titik
+// (lihat render-nya di JSX) tidak kepotong kalau nilainya
+// mendekati 100, bawah cukup untuk sumbu tanggal.
+// =====================================================
+
+const TREND_WIDTH = 320;
+const TREND_HEIGHT = 110;
+const TREND_PADDING_X = 20;
+const TREND_PADDING_TOP = 26;
+const TREND_PADDING_BOTTOM = 14;
+
+// Garis bantu skala nilai (bukan cuma dekorasi kosong) --
+// ditandai di 0/50/100 supaya posisi titik di grafik punya
+// acuan angka, bukan cuma naik/turun relatif tanpa skala.
+const TREND_GRID_VALUES = [0, 50, 100];
+
+function trendValueToY(value) {
+  const usableHeight = TREND_HEIGHT - TREND_PADDING_TOP - TREND_PADDING_BOTTOM;
+  const clamped = Math.max(0, Math.min(100, value));
+
+  return TREND_PADDING_TOP + usableHeight - (clamped / 100) * usableHeight;
+}
+
+function buildTrendPoints(scores) {
+  const n = scores.length;
+
+  if (n === 0) {
+    return [];
+  }
+
+  const usableWidth = TREND_WIDTH - TREND_PADDING_X * 2;
+
+  return scores.map((score, i) => {
+    const x =
+      n === 1
+        ? TREND_WIDTH / 2
+        : TREND_PADDING_X + (i * usableWidth) / (n - 1);
+
+    return { x, y: trendValueToY(score) };
+  });
 }
 
 
@@ -302,6 +396,14 @@ function Dashboard() {
 
   const [studentTryoutsPreview, setStudentTryoutsPreview] = useState(
     () => cached.student?.preview ?? []
+  );
+
+  const [studentSubjectBreakdown, setStudentSubjectBreakdown] = useState(
+    () => cached.student?.subjectBreakdown ?? []
+  );
+
+  const [studentScoreTrend, setStudentScoreTrend] = useState(
+    () => cached.student?.scoreTrend ?? []
   );
 
   // INFORMASI SISTEM (API, Database, Auth, AI/Ollama)
@@ -582,13 +684,29 @@ function Dashboard() {
 
     setStudentStats(nextStats);
     setStudentTryoutsPreview(data.preview);
+    setStudentSubjectBreakdown(data.subject_breakdown ?? []);
+    setStudentScoreTrend(data.score_trend ?? []);
 
     writeDashboardCache(currentUser.id, "student", {
       stats: nextStats,
       preview: data.preview,
+      subjectBreakdown: data.subject_breakdown ?? [],
+      scoreTrend: data.score_trend ?? [],
     });
   }
 
+
+  // Tryout "Sedang Dikerjakan" ditonjolkan ke urutan pertama di
+  // kartu "Tryout Terbaru" -- itu yang paling mendesak buat siswa
+  // (kemungkinan ada deadline berjalan), jangan sampai ketimbun
+  // rata di antara tryout lain yang belum/sudah dikerjakan.
+  // Pakai .slice() + sort stabil supaya urutan asli antar tryout
+  // dengan status sama tidak berubah.
+  const sortedStudentPreview = [...studentTryoutsPreview].sort(
+    (a, b) =>
+      (b.attempt_status === "IN_PROGRESS" ? 1 : 0) -
+      (a.attempt_status === "IN_PROGRESS" ? 1 : 0)
+  );
 
   // Jika masih proses memuat data user dari token
   if (loading) {
@@ -1083,6 +1201,8 @@ function Dashboard() {
               title="Peserta"
               value={show(teacherStats.totalPeserta)}
               description="Peserta tryout"
+              linkLabel="Lihat semua →"
+              onLinkClick={() => navigate("/teacher/scores")}
             />
 
             <StatCard
@@ -1090,6 +1210,8 @@ function Dashboard() {
               title="Hasil"
               value={show(teacherStats.totalHasil)}
               description="Hasil pengerjaan"
+              linkLabel="Lihat semua →"
+              onLinkClick={() => navigate("/teacher/scores")}
             />
 
           </div>
@@ -1118,7 +1240,15 @@ function Dashboard() {
 
               <div className="activity-list">
 
-                <div className="activity-item">
+                <div
+                  className="activity-item activity-item-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate("/questions")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") navigate("/questions");
+                  }}
+                >
 
                   <div className="activity-icon">
                     <IconNotebook size={18} />
@@ -1143,10 +1273,31 @@ function Dashboard() {
 
                   </div>
 
+                  {!dashFailed && !teacherActivity.latestQuestion && (
+                    <button
+                      type="button"
+                      className="activity-cta"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("/questions");
+                      }}
+                    >
+                      + Tambah Soal
+                    </button>
+                  )}
+
                 </div>
 
 
-                <div className="activity-item">
+                <div
+                  className="activity-item activity-item-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate("/tryouts")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") navigate("/tryouts");
+                  }}
+                >
 
                   <div className="activity-icon">
                     <IconClipboard size={18} />
@@ -1167,6 +1318,19 @@ function Dashboard() {
                     </span>
 
                   </div>
+
+                  {!dashFailed && !teacherActivity.latestTryout && (
+                    <button
+                      type="button"
+                      className="activity-cta"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("/tryouts");
+                      }}
+                    >
+                      + Buat Tryout
+                    </button>
+                  )}
 
                 </div>
 
@@ -1313,6 +1477,8 @@ function Dashboard() {
                     ? timeAgo(studentStats.lastAttemptDate)
                     : "Belum ada nilai"
               }
+              linkLabel="Lihat semua →"
+              onLinkClick={() => navigate("/student/history")}
             />
 
             <StatCard
@@ -1354,7 +1520,7 @@ function Dashboard() {
 
               <div className="activity-list">
 
-                {studentTryoutsPreview.length === 0 && (
+                {sortedStudentPreview.length === 0 && (
 
                   <div className="activity-item">
 
@@ -1380,35 +1546,86 @@ function Dashboard() {
 
                 )}
 
-                {studentTryoutsPreview.map((tryout) => (
+                {sortedStudentPreview.map((tryout) => {
 
-                  <div className="activity-item" key={tryout.id}>
+                  const isSubmitted = tryout.attempt_status === "SUBMITTED";
+                  const isInProgress = tryout.attempt_status === "IN_PROGRESS";
 
-                    <div className="activity-icon">
-                      <IconClipboard size={18} />
+                  // Selesai -> lihat hasilnya di Riwayat, belum
+                  // dikerjakan/sedang dikerjakan -> lanjut/mulai
+                  // dari Daftar Tryout (mengikuti alur yang sama
+                  // dengan tombol "Mulai Tryout" di Akses Cepat).
+                  const targetPath = isSubmitted
+                    ? "/student/history"
+                    : "/student/tryouts";
+
+                  return (
+
+                    <div
+                      className={`activity-item activity-item-clickable${
+                        isInProgress ? " activity-item-urgent" : ""
+                      }`}
+                      role="button"
+                      tabIndex={0}
+                      key={tryout.id}
+                      onClick={() => navigate(targetPath)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") navigate(targetPath);
+                      }}
+                    >
+
+                      <div className="activity-icon">
+                        <IconClipboard size={18} />
+                      </div>
+
+                      <div className="activity-content">
+
+                        <strong>
+                          {tryout.title}
+                        </strong>
+
+                        <span>
+                          {tryout.subject_name || "-"}
+                        </span>
+
+                      </div>
+
+                      {isSubmitted && (
+                        <span className="score-badge is-pass">
+                          Selesai ({tryout.score ?? "-"})
+                        </span>
+                      )}
+
+                      {isInProgress && (
+                        <span className="score-badge is-incomplete">
+                          Sedang dikerjakan
+                        </span>
+                      )}
+
+                      {!tryout.attempt_status && (
+                        <span className="score-badge is-none">
+                          Belum dikerjakan
+                        </span>
+                      )}
+
+                      {isInProgress && (
+                        <button
+                          type="button"
+                          className="activity-cta"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(targetPath);
+                          }}
+                        >
+                          Lanjutkan
+                        </button>
+                      )}
+
                     </div>
 
-                    <div className="activity-content">
+                  );
 
-                      <strong>
-                        {tryout.title}
-                      </strong>
-
-                      <span>
-                        {tryout.subject_name || "-"}
-                        {tryout.attempt_status === "SUBMITTED" &&
-                          ` · Selesai (${tryout.score ?? "-"})`}
-                        {tryout.attempt_status === "IN_PROGRESS" &&
-                          " · Sedang dikerjakan"}
-                        {!tryout.attempt_status &&
-                          " · Belum dikerjakan"}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                ))}
+                })}
 
               </div>
 
@@ -1472,35 +1689,11 @@ function Dashboard() {
                   <div>
 
                     <strong>
-                      Hasil Tryout
+                      Riwayat & Nilai
                     </strong>
 
                     <small>
-                      Lihat hasil
-                    </small>
-
-                  </div>
-
-                </button>
-
-
-                <button
-                  className="quick-menu-item"
-                  onClick={() => navigate("/student/history")}
-                >
-
-                  <span>
-                    <IconClock size={20} />
-                  </span>
-
-                  <div>
-
-                    <strong>
-                      Riwayat
-                    </strong>
-
-                    <small>
-                      Riwayat pengerjaan
+                      Hasil semua tryout
                     </small>
 
                   </div>
@@ -1510,6 +1703,345 @@ function Dashboard() {
               </div>
 
             </section>
+
+          </div>
+
+
+          <div className="dashboard-card">
+
+            <div className="card-header">
+
+              <div>
+
+                <h3>
+                  Tren Nilai
+                </h3>
+
+                <p>
+                  Perkembangan dari beberapa tryout terakhir
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div className="trend-chart-body">
+
+              {studentScoreTrend.length === 0 && (
+
+                <div className="activity-item">
+
+                  <div className="activity-icon">
+                    <IconTrendingUp size={18} />
+                  </div>
+
+                  <div className="activity-content">
+
+                    <strong>
+                      {dashFailed ? "Gagal memuat tren nilai" : "Belum ada tren nilai"}
+                    </strong>
+
+                    <span>
+                      {dashFailed
+                        ? "Klik \"Coba lagi\" di atas untuk memuat ulang"
+                        : "Selesaikan beberapa tryout untuk melihat grafiknya di sini"}
+                    </span>
+
+                  </div>
+
+                </div>
+
+              )}
+
+              {studentScoreTrend.length > 0 && (() => {
+
+                const scores = studentScoreTrend.map((item) => item.score);
+                const points = buildTrendPoints(scores);
+                const baselineY = TREND_HEIGHT - TREND_PADDING_BOTTOM;
+
+                const linePoints = points
+                  .map((p) => `${p.x},${p.y}`)
+                  .join(" ");
+
+                const areaPoints =
+                  points.length > 1
+                    ? `${points[0].x},${baselineY} ${linePoints} ${
+                        points[points.length - 1].x
+                      },${baselineY}`
+                    : "";
+
+                const lastScore = scores[scores.length - 1];
+                const prevScore =
+                  scores.length > 1 ? scores[scores.length - 2] : null;
+                const delta =
+                  prevScore !== null ? lastScore - prevScore : null;
+
+                return (
+
+                  <>
+
+                    <div className="trend-chart-top">
+
+                      <span className={`score-badge ${scoreTier(lastScore)}`}>
+                        Terakhir: {lastScore}
+                      </span>
+
+                      {delta !== null && delta !== 0 && (
+                        <span
+                          className={`trend-delta ${
+                            delta > 0 ? "is-up" : "is-down"
+                          }`}
+                        >
+                          {delta > 0
+                            ? `▲ Naik ${delta.toFixed(1)} poin`
+                            : `▼ Turun ${Math.abs(delta).toFixed(1)} poin`}
+                          {" "}dari tryout sebelumnya
+                        </span>
+                      )}
+
+                      {delta === 0 && (
+                        <span className="trend-delta is-flat">
+                          → Sama dengan tryout sebelumnya
+                        </span>
+                      )}
+
+                    </div>
+
+
+                    <svg
+                      className="trend-chart-svg"
+                      viewBox={`0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`}
+                      preserveAspectRatio="none"
+                    >
+
+                      {TREND_GRID_VALUES.map((value) => (
+                        <g key={value}>
+
+                          <line
+                            x1={TREND_PADDING_X}
+                            x2={TREND_WIDTH - TREND_PADDING_X}
+                            y1={trendValueToY(value)}
+                            y2={trendValueToY(value)}
+                            className="trend-chart-grid"
+                          />
+
+                          <text
+                            x={2}
+                            y={trendValueToY(value)}
+                            dy={value === 0 ? -2 : value === 100 ? 8 : 3}
+                            className="trend-chart-grid-label"
+                          >
+                            {value}
+                          </text>
+
+                        </g>
+                      ))}
+
+                      {areaPoints && (
+                        <polygon
+                          points={areaPoints}
+                          className="trend-chart-area"
+                        />
+                      )}
+
+                      {points.length > 1 && (
+                        <polyline
+                          points={linePoints}
+                          className="trend-chart-line"
+                        />
+                      )}
+
+                      {points.map((p, i) => (
+                        <g key={studentScoreTrend[i].attempt_id}>
+
+                          <text
+                            x={p.x}
+                            y={p.y}
+                            dy={-9}
+                            className="trend-chart-value-label"
+                          >
+                            {scores[i]}
+                          </text>
+
+                          <circle
+                            cx={p.x}
+                            cy={p.y}
+                            r={3.5}
+                            className={`trend-chart-dot ${scoreTier(scores[i])}`}
+                          >
+                            <title>
+                              {studentScoreTrend[i].tryout_title} — {scores[i]}
+                              {" "}({shortDate(studentScoreTrend[i].finished_at)})
+                            </title>
+                          </circle>
+
+                        </g>
+                      ))}
+
+                    </svg>
+
+
+                    <div className="trend-chart-axis">
+
+                      {studentScoreTrend.length <= 5
+                        ? points.map((p, i) => (
+                            <span
+                              key={studentScoreTrend[i].attempt_id}
+                              style={{
+                                position: "absolute",
+                                left: `${(p.x / TREND_WIDTH) * 100}%`,
+                                transform: "translateX(-50%)",
+                              }}
+                            >
+                              {shortDate(studentScoreTrend[i].finished_at)}
+                            </span>
+                          ))
+                        : (
+                          <>
+                            <span>
+                              {shortDate(studentScoreTrend[0].finished_at)}
+                            </span>
+
+                            <span>
+                              {shortDate(
+                                studentScoreTrend[studentScoreTrend.length - 1]
+                                  .finished_at
+                              )}
+                            </span>
+                          </>
+                        )}
+
+                    </div>
+
+                    <div className="trend-chart-legend">
+
+                      <span className="trend-chart-legend-item">
+                        <span className="trend-chart-legend-dot is-pass" />
+                        Baik (≥75)
+                      </span>
+
+                      <span className="trend-chart-legend-item">
+                        <span className="trend-chart-legend-dot is-medium" />
+                        Cukup (60–74)
+                      </span>
+
+                      <span className="trend-chart-legend-item">
+                        <span className="trend-chart-legend-dot is-fail" />
+                        Perlu ditingkatkan (&lt;60)
+                      </span>
+
+                    </div>
+
+                    {studentScoreTrend.length === 1 && (
+                      <p className="trend-chart-hint">
+                        Kerjakan tryout lain untuk mulai melihat tren naik/turun.
+                      </p>
+                    )}
+
+                  </>
+
+                );
+
+              })()}
+
+            </div>
+
+          </div>
+
+
+          <div className="dashboard-card">
+
+            <div className="card-header">
+
+              <div>
+
+                <h3>
+                  Nilai per Mata Pelajaran
+                </h3>
+
+                <p>
+                  Rata-rata dari percobaan terakhir tiap tryout, diurutkan dari yang paling lemah
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div className="activity-list">
+
+              {studentSubjectBreakdown.length === 0 && (
+
+                <div className="activity-item">
+
+                  <div className="activity-icon">
+                    <IconBarChart size={18} />
+                  </div>
+
+                  <div className="activity-content">
+
+                    <strong>
+                      {dashFailed ? "Gagal memuat nilai" : "Belum ada nilai"}
+                    </strong>
+
+                    <span>
+                      {dashFailed
+                        ? "Klik \"Coba lagi\" di atas untuk memuat ulang"
+                        : "Kerjakan tryout untuk melihat breakdown nilai per mata pelajaran"}
+                    </span>
+
+                  </div>
+
+                </div>
+
+              )}
+
+              {studentSubjectBreakdown.map((subject, index) => {
+
+                const badgeClass = scoreTier(subject.avg_score);
+
+                return (
+
+                  <div className="subject-breakdown-row" key={subject.subject_id}>
+
+                    <div className="subject-breakdown-head">
+
+                      <span className="subject-breakdown-name">
+                        {subject.subject_name}
+                        {index === 0 && studentSubjectBreakdown.length > 1 && (
+                          <span className="subject-breakdown-flag">
+                            Paling lemah
+                          </span>
+                        )}
+                      </span>
+
+                      <span className={`score-badge ${badgeClass}`}>
+                        {subject.avg_score}
+                      </span>
+
+                    </div>
+
+                    <div className="subject-breakdown-track">
+                      <div
+                        className={`subject-breakdown-fill ${badgeClass}`}
+                        style={{
+                          width: `${Math.max(0, Math.min(100, subject.avg_score))}%`,
+                        }}
+                      />
+                    </div>
+
+                    <span className="subject-breakdown-meta">
+                      Dari {subject.attempt_count} tryout
+                    </span>
+
+                  </div>
+
+                );
+
+              })}
+
+            </div>
 
           </div>
 

@@ -507,6 +507,14 @@ def get_admin_report_overview(
 
     subject_scores = defaultdict(list)
 
+    # Persen dari skor maksimal tiap tryout. max_score bisa berbeda antar
+    # tryout (default 100, tapi bisa diubah guru), jadi rata-rata skor
+    # mentah lintas tryout bisa bercampur skala. Rata-rata persen aman
+    # dibandingkan antar mapel/tryout.
+    all_percentages = []
+
+    subject_percentages = defaultdict(list)
+
     for attempt in completed_attempts:
 
         tryout = tryout_map.get(attempt.tryout_id)
@@ -528,9 +536,21 @@ def get_admin_report_overview(
         all_scores.append(score)
         subject_scores[tryout.subject_id].append(score)
 
+        max_score = tryout.max_score or 100
+        percentage = score / max_score * 100
+
+        all_percentages.append(percentage)
+        subject_percentages[tryout.subject_id].append(percentage)
+
     average_score_overall = (
         round(sum(all_scores) / len(all_scores), 1)
         if all_scores
+        else None
+    )
+
+    average_percentage_overall = (
+        round(sum(all_percentages) / len(all_percentages), 1)
+        if all_percentages
         else None
     )
 
@@ -544,11 +564,18 @@ def get_admin_report_overview(
             "subject_id": subject_id,
             "subject_name": subject.name if subject else "-",
             "average_score": round(sum(scores) / len(scores), 1),
+            "average_percentage": round(
+                sum(subject_percentages[subject_id])
+                / len(subject_percentages[subject_id]),
+                1,
+            ),
             "total_attempts": len(scores),
         })
 
+    # Urut berdasarkan persen (bukan skor mentah) supaya adil antar
+    # tryout dengan skor maksimal berbeda.
     average_score_per_subject.sort(
-        key=lambda s: s["average_score"],
+        key=lambda s: s["average_percentage"],
         reverse=True,
     )
 
@@ -718,6 +745,7 @@ def get_admin_report_overview(
         "total_tryouts": total_tryouts,
         "total_attempts": total_attempts,
         "average_score_overall": average_score_overall,
+        "average_percentage_overall": average_percentage_overall,
         "average_score_per_subject": average_score_per_subject,
         "attempts_trend": attempts_trend,
         "top_teachers": top_teachers,

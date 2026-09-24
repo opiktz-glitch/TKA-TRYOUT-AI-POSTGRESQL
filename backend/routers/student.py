@@ -569,6 +569,17 @@ def get_student_dashboard_summary(
     sebelum baru dicek detailnya satu per satu -- jadi jumlah
     query tidak lagi ikut membengkak seiring bertambahnya jumlah
     tryout/soal di sistem.
+
+    Ditambah "subject_breakdown": rata-rata nilai per mata
+    pelajaran (dari attempt terakhir tiap tryout yang sudah
+    selesai), diurutkan dari yang paling rendah -- biar siswa
+    langsung lihat pelajaran mana yang paling lemah tanpa harus
+    buka Riwayat dan hitung manual.
+
+    Ditambah juga "score_trend": nilai 8 attempt terakhir siswa
+    (kronologis lama -> baru) untuk grafik tren kecil di
+    dashboard -- biar siswa lihat gambaran naik/turun, bukan
+    cuma satu angka "rata-rata" yang statis.
     """
 
     student = get_student(current_user, db)
@@ -638,6 +649,97 @@ def get_student_dashboard_summary(
 
         last_attempt_date = latest_attempt.finished_at
 
+    # --- Breakdown nilai rata-rata per mata pelajaran ---
+    #
+    # "Rata-rata" gabungan (di atas) tidak menunjukkan pelajaran
+    # mana yang lemah -- di sini nilai attempt yang sudah selesai
+    # (bukan IN_PROGRESS) di-rata-rata per subject_id lewat
+    # GROUP BY di database, lalu digabung dengan nama mata
+    # pelajaran. Dihitung dari attempt TERAKHIR per (student,
+    # tryout) saja -- kalau siswa retake tryout yang sama
+    # berkali-kali, hanya percobaan terakhirnya yang dipakai,
+    # supaya rata-rata per mapel tidak bias ke pelajaran yang
+    # sering diulang.
+
+    latest_attempt_per_tryout = (
+        db.query(
+            Attempt.tryout_id,
+            func.max(Attempt.id).label("latest_attempt_id"),
+        )
+        .filter(Attempt.student_id == student.id)
+        .filter(Attempt.status != "IN_PROGRESS")
+        .group_by(Attempt.tryout_id)
+        .subquery()
+    )
+
+    subject_rows = (
+        db.query(
+            Subject.id,
+            Subject.name,
+            func.avg(score_expr).label("avg_score"),
+            func.count(Attempt.id).label("attempt_count"),
+        )
+        .select_from(latest_attempt_per_tryout)
+        .join(
+            Attempt,
+            Attempt.id == latest_attempt_per_tryout.c.latest_attempt_id,
+        )
+        .outerjoin(Result, Result.attempt_id == Attempt.id)
+        .join(Tryout, Tryout.id == Attempt.tryout_id)
+        .join(Subject, Subject.id == Tryout.subject_id)
+        .filter(score_expr.isnot(None))
+        .group_by(Subject.id, Subject.name)
+        .order_by(func.avg(score_expr).asc())
+        .all()
+    )
+
+    subject_breakdown = [
+        {
+            "subject_id": row.id,
+            "subject_name": row.name,
+            "avg_score": round(row.avg_score, 1),
+            "attempt_count": row.attempt_count,
+        }
+        for row in subject_rows
+    ]
+
+    # --- Tren nilai: 8 attempt terakhir (kronologis) ---
+    #
+    # Beda dari subject_breakdown di atas (yang di-agregasi per
+    # mapel), ini baris mentah per attempt -- diambil 8 TERBARU
+    # lewat ORDER BY ... DESC LIMIT 8, lalu dibalik jadi urutan
+    # kronologis (lama -> baru) supaya grafik di frontend tinggal
+    # digambar kiri ke kanan tanpa perlu sort ulang di sana.
+
+    trend_rows = (
+        db.query(Attempt, Result, Tryout)
+        .outerjoin(Result, Result.attempt_id == Attempt.id)
+        .join(Tryout, Tryout.id == Attempt.tryout_id)
+        .filter(Attempt.student_id == student.id)
+        .filter(Attempt.status != "IN_PROGRESS")
+        .filter(score_expr.isnot(None))
+        .order_by(
+            Attempt.finished_at.desc(),
+            Attempt.created_at.desc(),
+        )
+        .limit(8)
+        .all()
+    )
+
+    score_trend = [
+        {
+            "attempt_id": attempt.id,
+            "tryout_title": tryout.title,
+            "score": (
+                result.score
+                if result and result.score is not None
+                else attempt.score
+            ),
+            "finished_at": attempt.finished_at,
+        }
+        for attempt, result, tryout in reversed(trend_rows)
+    ]
+
     # --- Preview 3 tryout terbaru (bukan semua tryout aktif) ---
 
     preview_tryouts = (
@@ -691,6 +793,10 @@ def get_student_dashboard_summary(
             ),
             "last_attempt_date": last_attempt_date,
         },
+
+        "subject_breakdown": subject_breakdown,
+
+        "score_trend": score_trend,
 
         "preview": preview,
 

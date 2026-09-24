@@ -291,3 +291,14 @@ export function IconKey(props) {
     </Svg>
   );
 }
+
+export function IconPrinter(props) {
+  return (
+    <Svg {...props}>
+      <path d="M6 9V3h12v6" />
+      <rect x="3.5" y="9" width="17" height="8" rx="1.5" />
+      <path d="M6 14h12v7H6z" />
+      <path d="M7 12.2h1.2" />
+    </Svg>
+  );
+}

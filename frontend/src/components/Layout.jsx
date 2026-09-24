@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import OngoingAttemptBanner from "./OngoingAttemptBanner";
 
 
 // =====================================================
@@ -54,6 +55,7 @@ function Layout() {
 
       <main className="main-content">
         <Header />
+        <OngoingAttemptBanner />
 
         <div className="content" ref={contentRef}>
           <Outlet />

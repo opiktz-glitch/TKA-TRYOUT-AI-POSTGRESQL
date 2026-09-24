@@ -25,7 +25,6 @@ import TeacherReport from "./pages/TeacherReport";
 import TeacherStudents from "./pages/TeacherStudents";
 import TeacherProfile from "./pages/TeacherProfile";
 import StudentTryoutList from "./pages/StudentTryoutList";
-import StudentMyTryouts from "./pages/StudentMyTryouts";
 import StudentHistory from "./pages/StudentHistory";
 import StudentProfile from "./pages/StudentProfile";
 import StudentTryoutAttempt from "./pages/StudentTryoutAttempt";
@@ -181,19 +180,6 @@ function AppRoutes() {
               allowedRoles={["ADMIN", "GURU"]}
             >
               <TeacherStudents />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* =================================================
-            TRYOUT SAYA (attempt yang sedang berjalan)
-            Hanya SISWA
-            ================================================= */}
-        <Route
-          path="/student/my-tryouts"
-          element={
-            <ProtectedRoute allowedRoles={["SISWA"]}>
-              <StudentMyTryouts />
             </ProtectedRoute>
           }
         />

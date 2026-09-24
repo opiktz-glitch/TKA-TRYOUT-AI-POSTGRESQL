@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import StatCard from "../components/StatCard";
+import HardestQuestionList from "../components/HardestQuestionList";
 import {
   IconGraduationCap,
   IconUser,
@@ -10,6 +11,7 @@ import {
 } from "../components/Icons";
 
 import { getAdminReportOverview } from "../services/api";
+import "../components/ScoreTable.css";
 import "./Report.css";
 import { useAuth } from "../auth/AuthContext";
 import { readPageCache, writePageCache } from "../services/pageCache";
@@ -30,23 +32,6 @@ function formatShortDate(isoDate) {
     day: "numeric",
     month: "short",
   });
-}
-
-
-// =====================================================
-// HELPER — warna badge berdasarkan tingkat kesalahan
-// =====================================================
-
-function wrongBadgeStyle(percentage) {
-  if (percentage >= 60) {
-    return { background: "#fef2f2", color: "#dc2626" };
-  }
-
-  if (percentage >= 30) {
-    return { background: "#fffbeb", color: "#b45309" };
-  }
-
-  return { background: "var(--accent-soft, #E2F4F1)", color: "var(--success, #3F7D58)" };
 }
 
 
@@ -99,13 +84,40 @@ function AdminReport() {
   }
 
 
-  const maxSubjectAverage = report
-    ? Math.max(1, ...report.average_score_per_subject.map((s) => s.average_score))
-    : 1;
+  // Rata-rata per mapel dalam PERSEN dari skor maksimal tiap tryout
+  // (dihitung backend), jadi aman walau skor maksimal antar tryout beda.
+  // Fallback ke skor mentah untuk data cache lama yang belum punya field
+  // persen (cache halaman dari sesi sebelum pembaruan ini).
+  function subjectPercentage(subject) {
+    return subject.average_percentage ?? subject.average_score;
+  }
+
+  const overallPercentage =
+    report?.average_percentage_overall ?? report?.average_score_overall ?? null;
+
+  // Bar memakai skala tetap 0-100 (bukan dinormalisasi ke mapel tertinggi),
+  // supaya panjang bar mencerminkan persentase sebenarnya.
+  function scoreBarWidth(percentage) {
+    return Math.min(100, Math.max(0, percentage));
+  }
 
   const maxTrendCount = report
     ? Math.max(1, ...report.attempts_trend.map((d) => d.count))
     : 1;
+
+  // Ringkasan tren: total attempt, hari tersibuk, dan lama periode.
+  const trendDays = report ? report.attempts_trend.length : 0;
+
+  const trendTotal = report
+    ? report.attempts_trend.reduce((sum, d) => sum + d.count, 0)
+    : 0;
+
+  const busiestDay = report
+    ? report.attempts_trend.reduce(
+        (best, d) => (d.count > (best?.count ?? 0) ? d : best),
+        null
+      )
+    : null;
 
 
   return (
@@ -155,8 +167,8 @@ function AdminReport() {
             <StatCard
               icon={<IconTarget />}
               title="Rata-rata Skor Sistem"
-              value={report.average_score_overall ?? "-"}
-              description="Dari semua tryout"
+              value={overallPercentage !== null ? `${overallPercentage}%` : "-"}
+              description="Persen dari skor maksimal, semua tryout"
             />
           </div>
 
@@ -167,7 +179,7 @@ function AdminReport() {
             <div className="card-header">
               <div>
                 <h3>Rata-rata Skor per Mata Pelajaran</h3>
-                <p>Dihitung dari seluruh tryout yang sudah diselesaikan siswa</p>
+                <p>Persen dari skor maksimal tiap tryout, dihitung dari seluruh tryout yang sudah diselesaikan siswa</p>
               </div>
             </div>
 
@@ -188,12 +200,14 @@ function AdminReport() {
                     <div
                       className="dist-bar-fill"
                       style={{
-                        width: `${(subject.average_score / maxSubjectAverage) * 100}%`,
+                        width: `${scoreBarWidth(subjectPercentage(subject))}%`,
                       }}
                     />
                   </div>
 
-                  <div className="dist-bar-count">{subject.average_score}</div>
+                  <div className="dist-bar-count is-wide">
+                    {subjectPercentage(subject)}%
+                  </div>
 
                 </div>
               ))}
@@ -213,27 +227,53 @@ function AdminReport() {
               </div>
             </div>
 
-            <div className="trend-chart">
-
-              {report.attempts_trend.map((day) => (
-                <div className="trend-bar-col" key={day.date}>
-
-                  <div
-                    className="trend-bar"
-                    style={{
-                      height: `${(day.count / maxTrendCount) * 100}%`,
-                    }}
-                    title={`${formatShortDate(day.date)}: ${day.count} attempt`}
-                  />
-
-                  <div className="trend-bar-date">
-                    {formatShortDate(day.date)}
-                  </div>
-
-                </div>
-              ))}
-
+            <div className="trend-summary">
+              {trendTotal === 0
+                ? `Belum ada attempt dalam ${trendDays} hari terakhir.`
+                : `Total ${trendTotal} attempt dalam ${trendDays} hari terakhir` +
+                  (busiestDay
+                    ? ` · tersibuk ${formatShortDate(busiestDay.date)} (${busiestDay.count})`
+                    : "")}
             </div>
+
+            {trendTotal > 0 && (
+              <div className="trend-chart">
+
+                {report.attempts_trend.map((day, index) => {
+                  // Label tanggal selang-seling agar tidak berdesakan;
+                  // hari terakhir (terbaru) selalu tampil.
+                  const showDate =
+                    (report.attempts_trend.length - 1 - index) % 2 === 0;
+
+                  return (
+                    <div className="trend-bar-col" key={day.date}>
+
+                      {day.count > 0 && (
+                        <div className="trend-bar-value">{day.count}</div>
+                      )}
+
+                      <div
+                        className="trend-bar"
+                        style={{
+                          // maks 80% tinggi kolom, sisanya untuk angka di atas bar
+                          height: `${(day.count / maxTrendCount) * 80}%`,
+                        }}
+                        title={`${formatShortDate(day.date)}: ${day.count} attempt`}
+                      />
+
+                      <div
+                        className="trend-bar-date"
+                        style={showDate ? undefined : { visibility: "hidden" }}
+                      >
+                        {formatShortDate(day.date)}
+                      </div>
+
+                    </div>
+                  );
+                })}
+
+              </div>
+            )}
 
           </div>
 
@@ -244,42 +284,50 @@ function AdminReport() {
             <div className="card-header">
               <div>
                 <h3>Guru Paling Aktif</h3>
-                <p>Berdasarkan jumlah attempt siswa pada tryout yang dibuat</p>
+                <p>5 guru teratas berdasarkan jumlah attempt siswa pada tryout yang dibuat</p>
               </div>
             </div>
 
-            <div className="table-container">
-              <table className="user-table">
-                <thead>
-                  <tr>
-                    <th>Guru</th>
-                    <th>Jumlah Tryout</th>
-                    <th>Jumlah Attempt</th>
-                    <th>Jangkauan Siswa</th>
-                  </tr>
-                </thead>
+            {report.top_teachers.length === 0 ? (
+              <div className="empty-message">
+                Belum ada guru yang membuat tryout.
+              </div>
+            ) : (
+              <>
+                <div className="table-container">
+                  {/* Gaya tabel sama dengan halaman Nilai (score-table) */}
+                  <table className="score-table is-compact">
+                    <thead>
+                      <tr>
+                        <th className="is-left">Guru</th>
+                        <th title="Jumlah tryout yang dibuat guru ini">Jumlah Tryout</th>
+                        <th title="Jumlah tryout yang sudah diselesaikan siswa">Jumlah Attempt</th>
+                        <th title="Jumlah siswa berbeda yang pernah menyelesaikan tryout guru ini">Jangkauan Siswa</th>
+                      </tr>
+                    </thead>
 
-                <tbody>
-                  {report.top_teachers.map((t, index) => (
-                    <tr key={t.teacher_id}>
-                      <td>
-                        <span className="teacher-rank-badge">{index + 1}</span>
-                        <strong>{t.teacher_name}</strong>
-                      </td>
-                      <td>{t.tryout_count}</td>
-                      <td>{t.total_attempts}</td>
-                      <td>{t.student_reach}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {report.top_teachers.length === 0 && (
-                <div className="empty-message">
-                  Belum ada guru yang membuat tryout.
+                    <tbody>
+                      {report.top_teachers.map((t, index) => (
+                        <tr key={t.teacher_id}>
+                          <td>
+                            <span className="teacher-rank-badge">{index + 1}</span>
+                            <span className="score-primary is-strong">{t.teacher_name}</span>
+                          </td>
+                          <td className="is-center">{t.tryout_count}</td>
+                          <td className="is-center">{t.total_attempts}</td>
+                          <td className="is-center">{t.student_reach}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
+
+                <div className="report-table-note">
+                  Jangkauan siswa = jumlah siswa berbeda yang pernah menyelesaikan
+                  tryout guru tersebut (satu siswa dihitung sekali).
+                </div>
+              </>
+            )}
 
           </div>
 
@@ -298,46 +346,14 @@ function AdminReport() {
               </span>
             </div>
 
-            <div style={{ padding: "4px 18px 10px" }}>
-
-              {report.hardest_questions.length === 0 && (
-                <div className="empty-message">
-                  Belum cukup data jawaban untuk ditampilkan.
-                </div>
-              )}
-
-              {report.hardest_questions.map((q, index) => (
-                <div className="hardest-question-item" key={q.question_id}>
-
-                  <div className="hardest-question-body">
-
-                    <div className="hardest-question-rank">
-                      {index + 1}
-                    </div>
-
-                    <div>
-                      <div className="hardest-question-text">
-                        {q.question_text}
-                      </div>
-
-                      <div className="hardest-question-meta">
-                        {q.subject_name} &middot; dijawab {q.total_answered} kali
-                      </div>
-                    </div>
-
-                  </div>
-
-                  <span
-                    className="wrong-badge"
-                    style={wrongBadgeStyle(q.wrong_percentage)}
-                  >
-                    {q.wrong_percentage}% salah
-                  </span>
-
-                </div>
-              ))}
-
-            </div>
+            <HardestQuestionList
+              questions={report.hardest_questions}
+              getSubjectName={(q) => q.subject_name || "-"}
+              getMeta={(q) =>
+                `${q.subject_name} · dijawab ${q.total_answered} kali`
+              }
+              emptyMessage="Belum cukup data jawaban untuk ditampilkan."
+            />
 
           </div>
 

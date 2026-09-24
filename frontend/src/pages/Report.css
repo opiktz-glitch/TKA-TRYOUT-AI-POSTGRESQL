@@ -77,6 +77,99 @@
 }
 
 
+/* Warna bar menurut posisi terhadap batas lulus (lihat bucketPassState) */
+.dist-bar-fill.is-below {
+
+  background: #f59e0b;
+}
+
+.dist-bar-fill.is-mixed {
+
+  background: repeating-linear-gradient(
+    45deg,
+    #f59e0b 0,
+    #f59e0b 6px,
+    var(--accent) 6px,
+    var(--accent) 12px
+  );
+}
+
+
+.dist-legend {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px 16px;
+
+  margin-top: 10px;
+
+  font-size: 12px;
+
+  color: #6b7280;
+}
+
+.dist-legend > span {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+}
+
+.dist-swatch {
+
+  display: inline-block;
+
+  width: 12px;
+
+  height: 12px;
+
+  border-radius: 3px;
+}
+
+.dist-swatch.is-below {
+
+  background: #f59e0b;
+}
+
+.dist-swatch.is-pass {
+
+  background: var(--accent);
+}
+
+.dist-swatch.is-mixed {
+
+  background: repeating-linear-gradient(
+    45deg,
+    #f59e0b 0,
+    #f59e0b 3px,
+    var(--accent) 3px,
+    var(--accent) 6px
+  );
+}
+
+
+/* Varian untuk "jumlah + persen" (mis. 3 15%) */
+.dist-bar-count.is-wide {
+
+  width: 76px;
+}
+
+.dist-bar-percent {
+
+  margin-left: 6px;
+
+  font-size: 11.5px;
+
+  font-weight: 500;
+
+  color: #9ca3af;
+}
+
+
 .dist-bar-count {
 
   width: 34px;
@@ -158,6 +251,53 @@
   color: var(--ink);
 
   line-height: 1.5;
+
+  /* Maksimal 2 baris, sisanya "…" (isi lengkap ada di preview soal) */
+  display: -webkit-box;
+
+  -webkit-line-clamp: 2;
+
+  -webkit-box-orient: vertical;
+
+  overflow: hidden;
+}
+
+/* Kolom teks harus boleh menyusut agar line-clamp bekerja di dalam flex */
+.hardest-question-body > div:last-child {
+
+  min-width: 0;
+}
+
+.hardest-question-item.is-clickable {
+
+  margin: 0 -8px;
+
+  padding-left: 8px;
+
+  padding-right: 8px;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+}
+
+.hardest-question-item.is-clickable:hover {
+
+  background: #fafafa;
+}
+
+.hardest-question-item.is-clickable:focus-visible {
+
+  outline: 2px solid var(--accent);
+
+  outline-offset: -2px;
+}
+
+.hardest-question-item.is-loading {
+
+  opacity: 0.6;
+
+  cursor: progress;
 }
 
 
@@ -184,6 +324,58 @@
   font-weight: 700;
 
   white-space: nowrap;
+}
+
+/* Warna menurut tingkat kesalahan soal.
+   Ambang persennya ada di utils/report.js (wrongBadgeClass). */
+.wrong-badge.is-legend {
+
+  padding: 2px 8px;
+
+  font-size: 11px;
+}
+
+.wrong-legend {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 8px 16px;
+}
+
+.wrong-legend-items {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+}
+
+.wrong-badge.is-high {
+
+  background: #fef2f2;
+
+  color: #dc2626;
+}
+
+.wrong-badge.is-medium {
+
+  background: #fffbeb;
+
+  color: #b45309;
+}
+
+.wrong-badge.is-low {
+
+  background: var(--accent-soft, #E2F4F1);
+
+  color: var(--success, #3F7D58);
 }
 
 
@@ -248,6 +440,129 @@
   border-radius: 4px 4px 0 0;
 
   min-height: 2px;
+}
+
+
+.report-insight {
+
+  margin-bottom: 14px;
+
+  padding: 12px 16px;
+
+  background: var(--accent-soft, #E2F4F1);
+
+  border: 1px solid var(--accent-soft-strong, #BFE7E1);
+
+  border-radius: 10px;
+
+  font-size: 13.5px;
+
+  line-height: 1.6;
+
+  color: #1f2937;
+}
+
+
+/* Varian .score-table untuk tabel kecil di laporan: tanpa lebar minimum
+   840px dan lebar kolom mengikuti isi (bukan fixed). */
+.score-table.is-compact {
+
+  min-width: 0;
+
+  table-layout: auto;
+}
+
+
+.report-table-note {
+
+  padding: 8px 18px 14px;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+
+  color: #6b7280;
+}
+
+
+/* Info singkat tryout terpilih di bawah dropdown (Laporan Guru) */
+.report-tryout-info {
+
+  margin-top: 10px;
+
+  font-size: 12.5px;
+
+  line-height: 1.5;
+
+  color: #6b7280;
+}
+
+.report-tryout-links {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px 18px;
+
+  margin-top: 8px;
+
+  font-size: 12.5px;
+
+  font-weight: 600;
+}
+
+.report-tryout-links a {
+
+  color: var(--accent-hover);
+
+  text-decoration: none;
+}
+
+.report-tryout-links a:hover {
+
+  text-decoration: underline;
+}
+
+.report-tryout-flag {
+
+  margin-left: 8px;
+
+  padding: 1px 8px;
+
+  border-radius: 999px;
+
+  background: #fffbeb;
+
+  color: #b45309;
+
+  font-size: 11px;
+
+  font-weight: 600;
+}
+
+
+.trend-summary {
+
+  padding: 0 18px;
+
+  font-size: 13px;
+
+  color: #6b7280;
+}
+
+
+.trend-bar-value {
+
+  margin-bottom: 3px;
+
+  font-size: 10.5px;
+
+  font-weight: 600;
+
+  color: #374151;
+
+  line-height: 1;
 }
 
 

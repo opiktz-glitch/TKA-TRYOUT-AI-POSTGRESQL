@@ -2,7 +2,9 @@ function StatCard({
   icon,
   title,
   value,
-  description
+  description,
+  linkLabel,
+  onLinkClick
 }) {
 
   return (
@@ -31,6 +33,17 @@ function StatCard({
       <div className="stat-description">
         {description}
       </div>
+
+
+      {linkLabel && (
+        <button
+          type="button"
+          className="stat-card-link"
+          onClick={onLinkClick}
+        >
+          {linkLabel}
+        </button>
+      )}
 
     </div>
 

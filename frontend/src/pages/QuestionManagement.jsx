@@ -207,6 +207,12 @@ function QuestionManagement() {
   // mengecek soal mana yang kebawa gambar.
   const [hasImageFilter, setHasImageFilter] = useState("");
 
+  // Cuma dipakai di mobile (lihat CSS @media max-width:600px) --
+  // menyembunyikan baris filter lanjutan (Tingkat/Status/Pembahasan/
+  // Gambar) di balik tombol, biar filter tidak makan tempat sebelum
+  // tabel. Di desktop/tablet diabaikan, baris lanjutan selalu tampil.
+  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+
   // ======================================================
   // PAGINATION (Bank Soal)
   // ======================================================
@@ -1263,88 +1269,110 @@ function QuestionManagement() {
                 permintaan TZ. Hanya kartu & tabel di bawah ini yang
                 disamakan gayanya. */}
             <div className="question-filter">
-              <div className="filter-group">
-                <input
-                  type="text"
-                  placeholder="Cari pertanyaan..."
-                  className="search-input"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+              <div className="question-filter-row question-filter-row-primary">
+                <div className="filter-group">
+                  <label>Cari Soal</label>
+                  <input
+                    type="text"
+                    placeholder="Cari pertanyaan..."
+                    className="search-input"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="filter-group">
+                  <label>Mata Pelajaran</label>
+                  <select
+                    value={subjectFilter}
+                    onChange={(e) => setSubjectFilter(e.target.value)}
+                    className="search-input"
+                  >
+                    <option value="">Semua</option>
+
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.code} - {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="filter-group">
-                <select
-                  value={subjectFilter}
-                  onChange={(e) => setSubjectFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Mata Pelajaran</option>
+              <button
+                type="button"
+                className="filter-advanced-toggle"
+                onClick={() => setShowAdvancedFilter((prev) => !prev)}
+              >
+                Filter lanjutan {showAdvancedFilter ? "▴" : "▾"}
+              </button>
 
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.code} - {subject.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div
+                className={`question-filter-row question-filter-row-advanced${
+                  showAdvancedFilter ? " is-open" : ""
+                }`}
+              >
+                <div className="filter-group">
+                  <label>Tingkat</label>
+                  <select
+                    value={difficultyFilter}
+                    onChange={(e) => setDifficultyFilter(e.target.value)}
+                    className="search-input"
+                  >
+                    <option value="">Semua</option>
 
-              <div className="filter-group">
-                <select
-                  value={difficultyFilter}
-                  onChange={(e) => setDifficultyFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Tingkat Kesulitan</option>
+                    {DIFFICULTIES.map((difficulty) => (
+                      <option key={difficulty.value} value={difficulty.value}>
+                        {difficulty.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  {DIFFICULTIES.map((difficulty) => (
-                    <option key={difficulty.value} value={difficulty.value}>
-                      {difficulty.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="filter-group">
+                  <label>Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="search-input"
+                  >
+                    <option value="">Semua</option>
 
-              <div className="filter-group">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Status</option>
+                    <option value="ACTIVE">Aktif</option>
 
-                  <option value="ACTIVE">Aktif</option>
+                    <option value="INACTIVE">Tidak Aktif</option>
+                  </select>
+                </div>
 
-                  <option value="INACTIVE">Tidak Aktif</option>
-                </select>
-              </div>
+                <div className="filter-group">
+                  <label>Pembahasan</label>
+                  <select
+                    value={explanationFilter}
+                    onChange={(e) => setExplanationFilter(e.target.value)}
+                    className="search-input"
+                  >
+                    <option value="">Semua</option>
 
-              <div className="filter-group">
-                <select
-                  value={explanationFilter}
-                  onChange={(e) => setExplanationFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Pembahasan</option>
+                    <option value="COMPLETE">Lengkap</option>
 
-                  <option value="COMPLETE">Pembahasan Lengkap</option>
+                    <option value="INCOMPLETE">Belum Lengkap</option>
+                  </select>
+                </div>
 
-                  <option value="INCOMPLETE">Pembahasan Belum Lengkap</option>
-                </select>
-              </div>
+                <div className="filter-group">
+                  <label>Gambar</label>
+                  <select
+                    value={hasImageFilter}
+                    onChange={(e) => setHasImageFilter(e.target.value)}
+                    className="search-input"
+                  >
+                    <option value="">Semua</option>
 
-              <div className="filter-group">
-                <select
-                  value={hasImageFilter}
-                  onChange={(e) => setHasImageFilter(e.target.value)}
-                  className="search-input"
-                >
-                  <option value="">Semua Gambar</option>
+                    <option value="WITH_IMAGE">Ada Gambar</option>
 
-                  <option value="WITH_IMAGE">Ada Gambar</option>
-
-                  <option value="WITHOUT_IMAGE">Tanpa Gambar</option>
-                </select>
+                    <option value="WITHOUT_IMAGE">Tanpa Gambar</option>
+                  </select>
+                </div>
               </div>
             </div>
 

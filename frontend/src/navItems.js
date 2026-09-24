@@ -30,7 +30,6 @@ export const NAV_ITEMS = [
 
   // SISWA
   { path: "/student/tryouts", label: "Daftar Tryout", roles: ["SISWA"] },
-  { path: "/student/my-tryouts", label: "Tryout Saya", roles: ["SISWA"] },
   { path: "/student/history", label: "Riwayat & Hasil", roles: ["SISWA"] },
   { path: "/student/profile", label: "Profil", roles: ["SISWA"] },
 ];

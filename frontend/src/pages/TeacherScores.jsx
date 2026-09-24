@@ -40,9 +40,20 @@ function TeacherScores() {
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
 
+  // Filter dari tautan halaman Laporan (/teacher/scores?tryout=ID&status=FAILED).
+  // Filter tryout memakai ID (bukan pencarian judul) supaya tepat: judul
+  // "Try Out 1" tidak ikut menampilkan "Try Out 10".
+  const [tryoutFilterId, setTryoutFilterId] = useState(
+    searchParams.get("tryout") || ""
+  );
+
   // Filter status hanya di sisi browser (tidak dikirim ke server),
   // jadi tidak ikut kunci cache.
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState(() => {
+    const status = searchParams.get("status");
+
+    return status === "PASSED" || status === "FAILED" ? status : "";
+  });
 
 
   const loadScores = useCallback(async () => {
@@ -90,20 +101,31 @@ function TeacherScores() {
       item.student_code?.toLowerCase().includes(keyword) ||
       item.tryout_title?.toLowerCase().includes(keyword);
 
+    const matchesTryout =
+      !tryoutFilterId || String(item.tryout_id) === tryoutFilterId;
+
     const matchesStatus =
       !selectedStatus ||
       (selectedStatus === "PASSED" && item.passed === true) ||
       (selectedStatus === "FAILED" && item.passed === false);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesTryout && matchesStatus;
   });
 
 
-  const hasActiveFilter = Boolean(search.trim() || selectedStatus);
+  const hasActiveFilter = Boolean(
+    search.trim() || selectedStatus || tryoutFilterId
+  );
+
+  // Judul tryout untuk chip filter (dicari dari data nilai yang sudah ada).
+  const tryoutFilterTitle = tryoutFilterId
+    ? scores.find((s) => String(s.tryout_id) === tryoutFilterId)?.tryout_title
+    : null;
 
   function resetFilters() {
     setSearch("");
     setSelectedStatus("");
+    setTryoutFilterId("");
   }
 
 
@@ -211,6 +233,17 @@ function TeacherScores() {
             <option value="PASSED">Lulus</option>
             <option value="FAILED">Tidak lulus</option>
           </select>
+
+          {tryoutFilterId && (
+            <button
+              type="button"
+              className="score-filter-chip"
+              onClick={() => setTryoutFilterId("")}
+              title="Hapus filter tryout"
+            >
+              Tryout: {tryoutFilterTitle || "terpilih"} ×
+            </button>
+          )}
         </div>
 
         {loading && (
@@ -222,7 +255,7 @@ function TeacherScores() {
         {!loading && !error && (
           <ScoreTable
             rows={filteredScores}
-            resetKey={[search.trim(), selectedStatus].join("|")}
+            resetKey={[search.trim(), selectedStatus, tryoutFilterId].join("|")}
             hasActiveFilter={hasActiveFilter}
             onReset={resetFilters}
             emptyMessage={

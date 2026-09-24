@@ -43,7 +43,6 @@ const PAGE_TITLES = {
   "/teacher/reports": "Laporan",
 
   "/student/tryouts": "Daftar Tryout",
-  "/student/my-tryouts": "Tryout Saya",
   "/student/history": "Riwayat & Hasil",
   "/student/profile": "Profil",
 };
