@@ -50,37 +50,27 @@
 
 
 .dist-bar-track {
-
   flex: 1;
-
-  height: 14px;
-
-  background: var(--paper);
-
-  border: 1px solid var(--line);
-
-  border-radius: 7px;
-
+  height: 16px;
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  border-radius: 8px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
 
-
 .dist-bar-fill {
-
   height: 100%;
-
-  background: var(--accent);
-
-  border-radius: 7px 0 0 7px;
-
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--accent), #5eead4);
+  border-radius: 8px;
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 
 /* Warna bar menurut posisi terhadap batas lulus (lihat bucketPassState) */
 .dist-bar-fill.is-below {
-
-  background: #f59e0b;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
 }
 
 .dist-bar-fill.is-mixed {
@@ -430,16 +420,20 @@
 
 
 .trend-bar {
-
   width: 100%;
+  max-width: 24px;
+  background: linear-gradient(0deg, var(--accent), #34d399);
+  border-radius: 6px 6px 0 0;
+  min-height: 4px;
+  transition: height 1s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease;
+  transform-origin: bottom;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
 
-  max-width: 22px;
-
-  background: var(--accent);
-
-  border-radius: 4px 4px 0 0;
-
-  min-height: 2px;
+.trend-bar:hover {
+  filter: brightness(1.15);
+  transform: scaleY(1.03);
 }
 
 

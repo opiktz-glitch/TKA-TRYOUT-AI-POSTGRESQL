@@ -157,6 +157,19 @@ GEMINI_BASE_URL = os.getenv(
     "https://generativelanguage.googleapis.com/v1beta"
 )
 
+# Model CADANGAN (opsional). Dipakai otomatis HANYA kalau model utama
+# terus-menerus membalas error sementara dari Google (503 "high
+# demand", 500, 502, 504) walau sudah dicoba ulang beberapa kali --
+# lihat ai_providers.gemini_post_with_retry(). Kosong = tidak ada
+# model cadangan (hanya retry ke model utama). Bisa juga di-override
+# lewat t_app_setting (key "ai_provider:GEMINI:fallback_model").
+# Model cadangan HARUS mendukung fitur yang sama dengan model utama
+# (mis. input gambar kalau dipakai untuk Impor Soal dari Gambar).
+GEMINI_FALLBACK_MODEL = os.getenv(
+    "GEMINI_FALLBACK_MODEL",
+    ""
+).strip()
+
 # Provider AI yang aktif secara default ("OLLAMA" atau "GEMINI").
 # Sama seperti di atas, ini cuma fallback awal — nilai yang
 # sebenarnya dipakai runtime disimpan di t_app_setting supaya bisa

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 
 function LoginForm({
@@ -15,24 +16,15 @@ function LoginForm({
   const [loading, setLoading] =
     useState(false);
 
-  const [formError, setFormError] =
-    useState("");
-
-
   const handleSubmit = async (
     event
   ) => {
 
     event.preventDefault();
 
-    setFormError("");
-
-
     if (!username || !password) {
 
-      setFormError(
-        "Username dan password harus diisi"
-      );
+      toast.error("Username dan password harus diisi");
 
       return;
 
@@ -53,10 +45,8 @@ function LoginForm({
 
       if (!result.success) {
 
-        setFormError(
-          result.message ||
-          "Username atau password salah"
-        );
+        toast.error(result.message ||
+          "Username atau password salah");
 
       }
 
@@ -68,10 +58,8 @@ function LoginForm({
 
       console.error(error);
 
-      setFormError(
-        error.message ||
-        "Tidak dapat terhubung ke server"
-      );
+      toast.error(error.message ||
+        "Tidak dapat terhubung ke server");
 
     } finally {
 
@@ -170,18 +158,6 @@ function LoginForm({
 
 
           {/* ERROR — inline, mengikuti pola UserManagement.jsx */}
-
-          {formError && (
-
-            <div
-              className="form-error-message"
-              style={{ marginBottom: "15px" }}
-            >
-              {formError}
-            </div>
-
-          )}
-
 
           <button
             type="submit"

@@ -1,8 +1,11 @@
+import asyncio
 import base64
 import hashlib
 import json
 import logging
+import random
 import re
+import time
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
@@ -15,6 +18,7 @@ from config import (
     OLLAMA_VISION_MODEL,
     GEMINI_API_KEY,
     GEMINI_MODEL,
+    GEMINI_FALLBACK_MODEL,
     GEMINI_BASE_URL,
     AI_PROVIDER,
 )
@@ -932,6 +936,179 @@ async def check_gemini_key(api_key: str) -> tuple[bool, str | None]:
         return False, "Gagal menghubungi Gemini"
 
 
+# =========================================================
+# RETRY OTOMATIS UNTUK ERROR SEMENTARA GEMINI
+#
+# LATAR BELAKANG: Gemini kadang membalas HTTP 503 UNAVAILABLE
+# ("This model is currently experiencing high demand. Spikes in
+# demand are usually temporary") -- server Google sedang penuh,
+# BUKAN salah API key / prompt / kode aplikasi. Google sendiri
+# menyarankan coba lagi. Sebelumnya satu kali 503 langsung dianggap
+# gagal permanen -> proses impor dokumen/gambar berhenti total.
+#
+# Sekarang: error 500/502/503/504 dicoba ulang otomatis dengan jeda
+# bertambah (+ jitter, hormati header Retry-After kalau ada). Kalau
+# model utama tetap gagal DAN admin mengisi model cadangan
+# (GEMINI_FALLBACK_MODEL / setting "fallback_model"), model cadangan
+# dicoba beberapa kali juga.
+#
+# SENGAJA TIDAK di-retry: 400/401/403 (key/permintaan salah -- pasti
+# gagal lagi), 429 (kuota habis -- retry singkat percuma & malah
+# memperparah), dan timeout (satu percobaan saja sudah memakan
+# waktu panjang; retry akan melewati batas timeout frontend).
+# =========================================================
+
+GEMINI_RETRYABLE_STATUS = frozenset({500, 502, 503, 504})
+
+# Jeda (detik) sebelum percobaan ke-2, ke-3, ke-4 pada model utama
+# (total 4 percobaan), dan sebelum percobaan ke-2 pada model cadangan.
+GEMINI_RETRY_DELAYS = (3.0, 8.0, 15.0)
+GEMINI_FALLBACK_RETRY_DELAYS = (4.0,)
+
+# Setelah total waktu lewat batas ini, TIDAK memulai retry baru.
+GEMINI_RETRY_BUDGET_SECONDS = 200.0
+
+# Batas keras satu panggilan (termasuk semua retry). Sengaja di
+# bawah timeout frontend processDocumentChunk (280 detik) supaya
+# backend sempat mengirim pesan error yang jelas duluan.
+GEMINI_HARD_LIMIT_SECONDS = 250.0
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+
+    raw = response.headers.get("retry-after")
+
+    if not raw:
+        return None
+
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return None
+
+
+async def gemini_post_with_retry(
+    model: str,
+    api_key: str,
+    payload: dict,
+    timeout: float,
+    fallback_model: str = "",
+) -> httpx.Response:
+    """
+    POST ke :generateContent Gemini dengan retry otomatis untuk
+    error sementara (lihat penjelasan di atas). Mengembalikan
+    response sukses (2xx). Kalau semua percobaan gagal, melempar
+    httpx.HTTPStatusError TERAKHIR (jadi blok except pemanggil tetap
+    berlaku). httpx.ConnectError / TimeoutException diteruskan apa
+    adanya tanpa retry.
+    """
+
+    started = time.monotonic()
+
+    models = [model]
+
+    if fallback_model and fallback_model != model:
+        models.append(fallback_model)
+
+    last_error: httpx.HTTPStatusError | None = None
+
+    for index, current_model in enumerate(models):
+
+        delays = GEMINI_RETRY_DELAYS if index == 0 else GEMINI_FALLBACK_RETRY_DELAYS
+
+        for attempt in range(len(delays) + 1):
+
+            elapsed = time.monotonic() - started
+
+            if last_error is not None and elapsed >= GEMINI_RETRY_BUDGET_SECONDS:
+                raise last_error
+
+            attempt_timeout = min(
+                timeout, max(20.0, GEMINI_HARD_LIMIT_SECONDS - elapsed)
+            )
+
+            try:
+
+                async with httpx.AsyncClient(timeout=attempt_timeout) as client:
+
+                    response = await client.post(
+                        f"{GEMINI_BASE_URL}/models/{current_model}:generateContent",
+                        headers={"x-goog-api-key": api_key},
+                        json=payload,
+                    )
+
+                response.raise_for_status()
+
+                if index > 0:
+                    logger.warning(
+                        "Gemini: model utama '%s' sibuk, berhasil memakai "
+                        "model cadangan '%s'.", model, current_model,
+                    )
+
+                return response
+
+            except httpx.HTTPStatusError as exc:
+
+                if exc.response.status_code not in GEMINI_RETRYABLE_STATUS:
+                    raise
+
+                last_error = exc
+
+                logger.warning(
+                    "Gemini model '%s' membalas HTTP %s (percobaan %s/%s).",
+                    current_model,
+                    exc.response.status_code,
+                    attempt + 1,
+                    len(delays) + 1,
+                )
+
+                if attempt >= len(delays):
+                    break  # jatah model ini habis -> model cadangan / menyerah
+
+                delay = _retry_after_seconds(exc.response)
+
+                if delay is None:
+                    delay = delays[attempt]
+
+                delay = min(delay, 20.0) + random.uniform(0.0, 1.5)
+
+                if (time.monotonic() - started) + delay >= GEMINI_RETRY_BUDGET_SECONDS:
+                    break
+
+                await asyncio.sleep(delay)
+
+    assert last_error is not None
+    raise last_error
+
+
+def gemini_error_detail(status_code: int) -> str | None:
+    """
+    Pesan error ramah (bahasa Indonesia) untuk status Gemini yang
+    sering terjadi tapi tidak dijelaskan oleh JSON mentah dari
+    Google. Mengembalikan None untuk status lain (pemanggil pakai
+    pesan bawaannya sendiri).
+    """
+
+    if status_code in GEMINI_RETRYABLE_STATUS:
+        return (
+            f"Server Gemini sedang sibuk/kelebihan permintaan (HTTP "
+            f"{status_code}). Sudah dicoba ulang otomatis beberapa kali "
+            "tapi belum berhasil -- ini masalah di sisi Google, bukan di "
+            "dokumen/aplikasi. Tunggu beberapa menit lalu coba lagi, atau "
+            "ganti model Gemini / provider di Pengaturan > AI."
+        )
+
+    if status_code == 429:
+        return (
+            "Batas permintaan/kuota Gemini terlampaui (terlalu banyak "
+            "permintaan dalam waktu singkat, atau kuota harian habis). "
+            "Tunggu beberapa menit lalu coba lagi, atau periksa kuota API "
+            "key di Google AI Studio."
+        )
+
+    return None
+
+
 async def call_gemini_provider(
     prompt: str, db: Session, larger_output: bool = False
 ) -> dict:
@@ -979,17 +1156,21 @@ async def call_gemini_provider(
     # jadi timeout HTTP ikut dilonggarkan.
     request_timeout = 150.0 if larger_output else 60.0
 
+    fallback_model = get_provider_config(
+        db, "GEMINI", "fallback_model", default=GEMINI_FALLBACK_MODEL
+    )
+
     try:
 
-        async with httpx.AsyncClient(timeout=request_timeout) as client:
-
-            response = await client.post(
-                f"{GEMINI_BASE_URL}/models/{model}:generateContent",
-                headers={"x-goog-api-key": api_key},
-                json=payload,
-            )
-
-        response.raise_for_status()
+        # Retry otomatis untuk 500/502/503/504 (+ model cadangan kalau
+        # diisi) -- lihat gemini_post_with_retry().
+        response = await gemini_post_with_retry(
+            model=model,
+            api_key=api_key,
+            payload=payload,
+            timeout=request_timeout,
+            fallback_model=fallback_model,
+        )
 
     except httpx.ConnectError:
 
@@ -1021,9 +1202,12 @@ async def call_gemini_provider(
                 )
             )
 
+        friendly = gemini_error_detail(exc.response.status_code)
+
         raise HTTPException(
             status_code=502,
-            detail="Gemini mengembalikan error: " + exc.response.text[:200]
+            detail=friendly
+            or "Gemini mengembalikan error: " + exc.response.text[:200]
         )
 
     data = response.json()

@@ -192,8 +192,10 @@ function TryoutQuestionPicker({
 
     const seq = ++requestSeq.current;
 
-    setLoading(true);
-    setLoadError("");
+    setTimeout(() => {
+      setLoading(true);
+      setLoadError("");
+    }, 0);
 
     getAvailableQuestions(subjectId, {
       difficulty: query.difficulty,

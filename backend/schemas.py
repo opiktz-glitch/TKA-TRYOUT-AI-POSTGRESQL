@@ -499,6 +499,11 @@ class QuestionResponse(BaseModel):
         from_attributes = True
 
 
+class QuestionListResponse(BaseModel):
+    data: list[QuestionResponse]
+    total: int
+
+
 # ==========================================
 # TRYOUT
 # ==========================================

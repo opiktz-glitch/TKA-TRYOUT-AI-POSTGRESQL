@@ -4,47 +4,48 @@
    components/settings/ProfileTab.jsx & NetworkTab.jsx
    ===================================================== */
 
-/* ---------- Tab ----------
-   Sebelumnya "position: sticky" (menempel di atas saat di-scroll),
-   tapi Chrome terus-menerus salah gambar ulang elemen ini pas
-   scroll -- baris/kartu di baliknya sempat "mengintip" tembus,
-   walau sudah dicoba dipisah dari overflow-x DAN dipaksa punya
-   compositing layer sendiri (will-change/transform). Daripada terus
-   kejar bug rendering yang keras kepala, sticky-nya DICOPOT --
-   sekarang baris tab ikut scroll biasa seperti konten lain. */
+/* ---------- Tab ---------- */
 .settings-tabs-sticky {
   background: var(--paper);
+  padding-bottom: 10px;
 }
 
 .settings-tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: none;
   overflow-x: auto;
+  background: #f3f4f6;
+  padding: 6px;
+  border-radius: 999px;
+  width: max-content;
+  max-width: 100%;
 }
 
 .settings-tab {
-  padding: 10px 18px;
+  padding: 8px 20px;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: 999px;
   background: transparent;
   color: #6b7280;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .settings-tab:hover {
   color: #374151;
+  background: #e5e7eb;
 }
 
 .settings-tab.is-active {
-  border-bottom-color: var(--accent);
+  background: #ffffff;
   color: var(--accent);
   font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
 
 
@@ -52,12 +53,11 @@
 
 .settings-grid {
   display: grid;
-  gap: 16px;
+  gap: 20px;
   align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
 }
 
-/* Tab Profil: kartu akun sempit di kiri, form di kanan */
 .settings-grid.is-profile {
   grid-template-columns: minmax(260px, 340px) 1fr;
 }
@@ -66,10 +66,9 @@
   grid-column: 1 / -1;
 }
 
-/* Kolom di DALAM satu kartu (mis. Rotasi | Isi Manual, Daftar | Import) */
 .settings-cols {
   display: grid;
-  gap: 16px;
+  gap: 20px;
   align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
 }
@@ -79,9 +78,18 @@
 }
 
 .settings-block {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  transition: all 0.3s ease;
+}
+
+.settings-block:hover {
+  background: #ffffff;
+  border-color: #d1d5db;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 
 @media (max-width: 900px) {
@@ -92,56 +100,83 @@
 }
 
 
-/* ---------- Isi kartu (lebih rapat dari default supaya tidak panjang) ---------- */
+/* ---------- Isi kartu (modern, shadow halus, rounded corners) ---------- */
 
 .settings-card {
-  padding: 20px;
-
-  /* Root memakai line-height 145% (=26px) yang ikut diwariskan ke semua
-     turunan; di sini dibuat relatif supaya teks kecil tidak melar. */
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   line-height: 1.45;
+  background: #ffffff;
+}
+
+.settings-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
 }
 
 .settings-card small {
   display: block;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
+  color: #6b7280;
 }
 
 .settings-card code {
-  font-size: 12px;
+  font-size: 13px;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ef4444;
 }
 
 .settings-card h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 4px;
-  font-size: 17px;
+  margin: 0 0 8px;
+  font-size: 18px;
   line-height: 1.25;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
+  color: #111827;
 }
 
 .settings-card .settings-desc {
-  margin: 0 0 14px;
+  margin: 0 0 18px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
 .settings-card .form-group {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .settings-card .form-group label {
   margin-bottom: 6px;
   line-height: 1.3;
+  font-weight: 500;
+  color: #374151;
 }
 
-.settings-card .form-group input:not([type="checkbox"]):not([type="radio"]) {
-  padding: 9px 12px;
+.settings-card .form-group input:not([type="checkbox"]):not([type="radio"]),
+.settings-card .form-group select {
+  padding: 10px 14px;
   font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.settings-card .form-group input:focus:not([type="checkbox"]):not([type="radio"]),
+.settings-card .form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .settings-card .primary-button,
@@ -149,15 +184,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.settings-card .primary-button:active,
+.settings-card .secondary-button:active {
+  transform: scale(0.97);
 }
 
 .settings-card .error-message {
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 12px 16px;
+  border-radius: 8px;
   background: #fef2f2;
+  color: #b91c1c;
   font-size: 13px;
   text-align: left;
+  border-left: 4px solid #ef4444;
 }
 
 .settings-full {
@@ -168,8 +214,8 @@
 .settings-account {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .settings-avatar {
@@ -177,11 +223,14 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%);
   color: white;
+  font-size: 20px;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
 }
 
 /* Pilihan provider AI: berdampingan kalau muat */
@@ -193,7 +242,23 @@
 
 .settings-options {
   display: grid;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 18px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+
+/* Animasi saat tab diganti */
+.settings-grid, .settings-cols {
+  animation: fadeSlideUp 0.4s ease-out;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -23,6 +23,7 @@ from schemas import (
     QuestionCreate,
     QuestionUpdate,
     QuestionResponse,
+    QuestionListResponse,
     AIQuestionGenerateRequest,
     AIQuestionGenerateResponse,
     AIPromptPreviewResponse,
@@ -185,54 +186,83 @@ def get_tryout_titles_using_question(
 # GET QUESTIONS
 # =========================================================
 
-@router.get("", response_model=list[QuestionResponse])
+@router.get("", response_model=QuestionListResponse)
 def get_questions(
+    page: int = 1,
+    limit: int = 10,
+    search: str | None = None,
+    subject_id: int | None = None,
+    difficulty: str | None = None,
+    is_active: bool | None = None,
+    explanation_status: str | None = None,
+    has_image: bool | None = None,
+    only_mine: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_role("ADMIN", "GURU")
     )
 ):
+    query = db.query(Question)
+
+    if search:
+        search_kw = f"%{search}%"
+        query = query.outerjoin(Subject, Question.subject_id == Subject.id).filter(
+            (Question.question_text.ilike(search_kw)) | 
+            (Subject.name.ilike(search_kw))
+        )
+
+    if subject_id is not None:
+        query = query.filter(Question.subject_id == subject_id)
+
+    if difficulty:
+        query = query.filter(Question.difficulty == difficulty)
+
+    if is_active is not None:
+        query = query.filter(Question.is_active == is_active)
+
+    if explanation_status:
+        if explanation_status == "COMPLETE":
+            query = query.filter(Question.explanation != None, Question.explanation != "")
+        elif explanation_status == "INCOMPLETE":
+            query = query.filter((Question.explanation == None) | (Question.explanation == ""))
+
+    if has_image is not None:
+        query = query.filter(Question.has_image == has_image)
+
+    if only_mine:
+        query = query.filter(Question.created_by == current_user.id)
+
+    total = query.count()
 
     questions = (
-        db.query(Question)
+        query
         .order_by(Question.id.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
         .all()
     )
-
-    # =====================================================
-    # AMBIL SEMUA OPTIONS DALAM 1 QUERY (BUKAN PER-SOAL)
-    #
-    # Sebelumnya: 1 query untuk daftar soal + 1 query TERPISAH per
-    # soal untuk options-nya (N+1 query). Di SQLite lokal ini nyaris
-    # tidak kerasa (round-trip ke disk hampir 0ms), tapi begitu
-    # DATABASE_URL mengarah ke Turso, SETIAP query itu jadi round-trip
-    # JARINGAN sungguhan — 100 soal = 101 round-trip = lambat sekali.
-    #
-    # Fix: ambil options utk SEMUA soal sekaligus pakai 1 query
-    # (question_id IN (...)), lalu kelompokkan per soal di Python.
-    # Total jadi 2 query saja, berapa pun jumlah soalnya.
-    # =====================================================
 
     question_ids = [q.id for q in questions]
 
-    all_options = (
-        db.query(QuestionOption)
-        .filter(QuestionOption.question_id.in_(question_ids))
-        .order_by(QuestionOption.option_code)
-        .all()
-    )
+    if question_ids:
+        all_options = (
+            db.query(QuestionOption)
+            .filter(QuestionOption.question_id.in_(question_ids))
+            .order_by(QuestionOption.option_code)
+            .all()
+        )
+        
+        options_by_question_id = {}
+        for opt in all_options:
+            options_by_question_id.setdefault(opt.question_id, []).append(opt)
 
-    options_by_question_id = {}
-    for opt in all_options:
-        options_by_question_id.setdefault(opt.question_id, []).append(opt)
+        for question in questions:
+            question.options = options_by_question_id.get(question.id, [])
 
-    result = []
-
-    for question in questions:
-        question.options = options_by_question_id.get(question.id, [])
-        result.append(question)
-
-    return result
+    return {
+        "data": questions,
+        "total": total
+    }
 
 
 # =========================================================

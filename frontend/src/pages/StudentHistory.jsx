@@ -82,12 +82,6 @@ function StudentHistory() {
   const [profile, setProfile] = useState(null);
 
 
-  useEffect(() => {
-    loadHistory();
-    getMyProfile().then(setProfile).catch(() => {});
-  }, []);
-
-
   async function loadHistory() {
     try {
       setLoading(true);
@@ -112,6 +106,13 @@ function StudentHistory() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadHistory();
+    getMyProfile().then(setProfile).catch(() => {});
+  }, []);
+
+
 
 
   async function openDetail(attempt) {

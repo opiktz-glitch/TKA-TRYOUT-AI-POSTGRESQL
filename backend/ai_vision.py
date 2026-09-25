@@ -30,6 +30,7 @@ import ai_providers
 from config import (
     GEMINI_API_KEY,
     GEMINI_BASE_URL,
+    GEMINI_FALLBACK_MODEL,
     GEMINI_MODEL,
     OLLAMA_BASE_URL,
     OLLAMA_VISION_MODEL,
@@ -105,15 +106,20 @@ async def _call_gemini_vision(
         },
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
-            response = await client.post(
-                f"{GEMINI_BASE_URL}/models/{model}:generateContent",
-                headers={"x-goog-api-key": api_key},
-                json=payload,
-            )
+    fallback_model = ai_providers.get_provider_config(
+        db, "GEMINI", "fallback_model", default=GEMINI_FALLBACK_MODEL
+    )
 
-        response.raise_for_status()
+    try:
+        # Retry otomatis untuk 500/502/503/504 (+ model cadangan kalau
+        # diisi) -- lihat ai_providers.gemini_post_with_retry().
+        response = await ai_providers.gemini_post_with_retry(
+            model=model,
+            api_key=api_key,
+            payload=payload,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            fallback_model=fallback_model,
+        )
 
     except httpx.ConnectError:
         raise HTTPException(
@@ -140,11 +146,10 @@ async def _call_gemini_vision(
                 ),
             )
 
-        if exc.response.status_code == 429:
-            raise HTTPException(
-                status_code=502,
-                detail="Kuota Gemini sedang habis / terlalu banyak permintaan. Coba lagi nanti.",
-            )
+        friendly = ai_providers.gemini_error_detail(exc.response.status_code)
+
+        if friendly:
+            raise HTTPException(status_code=502, detail=friendly)
 
         if exc.response.status_code == 400:
             # 400 bisa berarti API key salah ATAU model yang dipilih

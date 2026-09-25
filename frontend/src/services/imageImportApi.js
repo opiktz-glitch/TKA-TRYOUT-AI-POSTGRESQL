@@ -29,9 +29,14 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
-// Sedikit di atas timeout backend ke Gemini (120 detik), supaya
-// backend sempat membalas dengan pesan error yang jelas duluan.
-const EXTRACT_TIMEOUT_MS = 150000;
+// Harus lebih longgar dari timeout backend TERLAMA di antara semua
+// provider vision, bukan cuma Gemini -- Ollama LOKAL (sering dipakai
+// tanpa GPU khusus, mis. di laptop) butuh jauh lebih lama daripada
+// Gemini untuk satu gambar. Lihat OLLAMA_VISION_TIMEOUT_SECONDS (240
+// detik) di backend/ai_vision.py; +20 detik di sini supaya backend
+// SELALU sempat membalas duluan (baik hasil sukses maupun pesan error
+// timeout-nya sendiri) sebelum frontend menyerah.
+const EXTRACT_TIMEOUT_MS = 260000;
 
 // Error yang khusus SATU gambar (gambar rusak/terlalu besar/terlalu
 // kecil). Proses gambar berikutnya boleh lanjut. Status lain (400,
@@ -129,7 +134,11 @@ export async function extractQuestionsFromImage(subjectId, file, cancelSignal) {
   } catch (err) {
     if (err.name === "AbortError") {
       if (timedOut) {
-        throw new Error("AI terlalu lama membaca gambar ini (lebih dari 2,5 menit).");
+        throw new Error(
+          `Gambar ini butuh waktu lebih dari ${Math.round(
+            EXTRACT_TIMEOUT_MS / 60000
+          )} menit untuk dibaca AI, jadi dihentikan. Ini wajar kalau memakai Ollama secara lokal di laptop tanpa GPU, apalagi untuk gambar yang penuh teks. Coba lagi, pakai model vision yang lebih ringan, atau gunakan Gemini untuk sementara.`
+        );
       }
 
       const cancelled = new Error("Dibatalkan");

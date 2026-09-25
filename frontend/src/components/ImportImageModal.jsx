@@ -182,8 +182,10 @@ function ImportImageModal({ subjects, onClose, onImported }) {
   // dari pesan pertama -- supaya pesan "Hampir selesai..." dari gambar
   // sebelumnya tidak nyangkut ke awal gambar berikutnya.
   useEffect(() => {
-    setMessageIndex(0);
-    setImageElapsedSeconds(0);
+    setTimeout(() => {
+      setMessageIndex(0);
+      setImageElapsedSeconds(0);
+    }, 0);
   }, [finishedImages]);
 
   const pendingCount = items.filter((item) => item.selected && item.saveStatus !== "saved").length;
@@ -516,8 +518,8 @@ function ImportImageModal({ subjects, onClose, onImported }) {
         // hampir pasti terulang di gambar lain -- berhenti di sini.
         // Hasil gambar sebelumnya tetap ada di daftar review.
         setError(
-          `Berhenti di gambar ke-${i + 1} dari ${queue.length}: ${err.message}` +
-            " Soal yang sudah berhasil dibaca sebelumnya tetap ada di bawah.",
+          `Proses dihentikan di gambar ke-${i + 1} dari ${queue.length} — lihat detail ` +
+            "errornya di atas. Soal yang sudah berhasil dibaca sebelumnya tetap aman, ada di bawah.",
         );
 
         break;

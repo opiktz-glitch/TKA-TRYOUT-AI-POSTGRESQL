@@ -11,268 +11,32 @@ import {
   IconTrendingUp,
 } from "../components/Icons";
 
-import { getTeacherReport, getTryouts } from "../services/api";
 import "./Report.css";
-import { useAuth } from "../auth/AuthContext";
-import { readPageCache, writePageCache } from "../services/pageCache";
 import {
   WRONG_MEDIUM_PERCENT,
   PASS_THRESHOLD_PERCENT,
   bucketPassState,
 } from "../utils/report";
-
-
-// =====================================================
-// INSIGHT — kalimat ringkas di atas kartu laporan
-// =====================================================
-
-function buildInsights(report) {
-  if (!report || !report.total_attempts) {
-    return [];
-  }
-
-  const insights = [];
-  const total = report.total_attempts;
-
-  // --- Kelulusan ---
-  if (report.pass_rate !== null && report.pass_rate !== undefined) {
-    // pass_rate dibulatkan di backend, jadi jumlah pastinya hanya
-    // dihitung ulang saat kelasnya kecil (di bawah 100 peserta, hasil
-    // pembulatan masih akurat). Selain itu pakai persentase.
-    if (total < 100) {
-      const passed = Math.round((total * report.pass_rate) / 100);
-      const failed = total - passed;
-
-      insights.push(
-        failed === 0
-          ? `Semua ${total} peserta lulus (batas lulus ${PASS_THRESHOLD_PERCENT}%).`
-          : `${failed} dari ${total} peserta belum lulus (batas lulus ${PASS_THRESHOLD_PERCENT}%).`
-      );
-    } else {
-      insights.push(
-        `${100 - report.pass_rate}% peserta belum lulus (batas lulus ${PASS_THRESHOLD_PERCENT}%).`
-      );
-    }
-  }
-
-  // --- Soal tersulit ---
-  const hardest = report.hardest_questions?.[0];
-
-  if (hardest) {
-    insights.push(
-      hardest.wrong_percentage >= WRONG_MEDIUM_PERCENT
-        ? `Soal no. ${hardest.question_number} paling sulit: ${hardest.wrong_percentage}% peserta salah atau tidak menjawab.`
-        : `Tidak ada soal dengan tingkat salah di atas ${WRONG_MEDIUM_PERCENT}%.`
-    );
-  }
-
-  return insights;
-}
-
-
-// =====================================================
-// CACHE — kunci (lihat services/pageCache.js)
-// Daftar tryout di-cache satu kali; laporan di-cache PER TRYOUT.
-// =====================================================
-
-const TRYOUT_OPTIONS_CACHE_KEY = "teacher-report-options";
-
-function reportCacheKey(tryoutId) {
-  return `teacher-report:${tryoutId}`;
-}
-
-
+import { useTeacherReport } from "../hooks/useTeacherReport";
 function TeacherReport() {
-  const { user } = useAuth();
-
-  // Data dari kunjungan sebelumnya di sesi ini. Pilihan tryout selalu
-  // mulai dari tryout PERTAMA di daftar (seperti sebelumnya), jadi cache
-  // yang dipakai di awal adalah daftar tryout + laporan tryout pertama.
-  // Kalau ada, langsung tampil (tanpa "Memuat...") lalu diperbarui
-  // diam-diam.
-  const cachedOptions = readPageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY);
-
-  const initialTryoutId =
-    cachedOptions && cachedOptions.length > 0 ? String(cachedOptions[0].id) : "";
-
-  const cachedReport = initialTryoutId
-    ? readPageCache(user?.id, reportCacheKey(initialTryoutId))
-    : undefined;
-
-  // Tryout yang laporannya sedang ditunggu. Dipakai untuk mengabaikan
-  // respons yang sudah usang (pilihan keburu diganti).
-  const latestReportKeyRef = useRef(null);
-
-  const [tryoutOptions, setTryoutOptions] = useState(() => cachedOptions ?? []);
-  const [selectedTryoutId, setSelectedTryoutId] = useState(initialTryoutId);
-
-  const [report, setReport] = useState(() => cachedReport ?? null);
-
-  const [loadingOptions, setLoadingOptions] = useState(() => !cachedOptions);
-  const [loadingReport, setLoadingReport] = useState(false);
-  const [error, setError] = useState("");
-
-
-  useEffect(() => {
-    loadTryoutOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (selectedTryoutId) {
-      loadReport(selectedTryoutId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTryoutId]);
-
-
-  async function loadTryoutOptions() {
-    // Sudah ada daftar lama di layar -> perbarui diam-diam: tanpa
-    // "Memuat daftar tryout...", dan kalau gagal, daftar lama dibiarkan.
-    const hasCachedOptions = Boolean(
-      readPageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY)
-    );
-
-    try {
-      if (!hasCachedOptions) {
-        setLoadingOptions(true);
-      }
-
-      setError("");
-
-      const data = await getTryouts();
-
-      // Hanya tryout milik guru yang sedang login yang
-      // muncul di dropdown pemilihan laporan.
-      const mine = user
-        ? data.filter((t) => t.created_by === user.id)
-        : data;
-
-      setTryoutOptions(mine);
-      writePageCache(user?.id, TRYOUT_OPTIONS_CACHE_KEY, mine);
-
-      // Pilih tryout pertama kalau belum ada pilihan. Kalau user sudah
-      // memilih tryout lain selagi daftar diperbarui, pilihannya
-      // dipertahankan (selama tryout itu masih ada di daftar).
-      setSelectedTryoutId((current) => {
-        if (current && mine.some((t) => String(t.id) === current)) {
-          return current;
-        }
-
-        return mine.length > 0 ? String(mine[0].id) : "";
-      });
-
-      if (mine.length === 0) {
-        setReport(null);
-      }
-    } catch (err) {
-      console.error("LOAD TRYOUT OPTIONS ERROR:", err);
-
-      if (!hasCachedOptions) {
-        setError(err.message || "Gagal memuat daftar tryout");
-      }
-    } finally {
-      setLoadingOptions(false);
-    }
-  }
-
-
-  async function loadReport(tryoutId) {
-    const cacheKey = reportCacheKey(tryoutId);
-
-    const cachedData = readPageCache(user?.id, cacheKey);
-
-    latestReportKeyRef.current = cacheKey;
-
-    if (cachedData) {
-      // Tryout ini pernah dimuat: tampilkan langsung, lalu perbarui
-      // diam-diam (tanpa loading; kalau gagal, laporan lama dibiarkan).
-      setReport(cachedData);
-      setLoadingReport(false);
-    } else {
-      setLoadingReport(true);
-    }
-
-    setError("");
-
-    try {
-      const data = await getTeacherReport(tryoutId);
-
-      writePageCache(user?.id, cacheKey, data);
-
-      // Abaikan hasil kalau pilihan tryout sudah berganti selama menunggu.
-      if (latestReportKeyRef.current === cacheKey) {
-        setReport(data);
-      }
-    } catch (err) {
-      console.error("LOAD REPORT ERROR:", err);
-
-      if (!cachedData && latestReportKeyRef.current === cacheKey) {
-        setError(err.message || "Gagal memuat laporan");
-        setReport(null);
-      }
-    } finally {
-      if (latestReportKeyRef.current === cacheKey) {
-        setLoadingReport(false);
-      }
-    }
-  }
-
-
-  const maxBucketCount = report
-    ? Math.max(1, ...report.score_distribution.map((b) => b.count))
-    : 1;
-
-  // Penyebut persen = jumlah peserta yang masuk bucket, supaya persen
-  // semua bar berjumlah 100%.
-  const bucketTotal = report
-    ? report.score_distribution.reduce((sum, b) => sum + b.count, 0)
-    : 0;
-
-  // Skala skor tryout ini (skor maksimal) dan rata-rata dalam persen,
-  // supaya angka rata-rata langsung punya konteks ("72.5 dari 100 = 72%").
-  const scoreScale = report?.max_score > 0 ? report.max_score : null;
-
-  const insights = buildInsights(report);
-
-  // Info singkat tryout yang sedang dipilih (dari daftar tryout yang sudah
-  // di-cache, jadi langsung tampil). Nama mapel baru ada di laporan, jadi
-  // dipakai hanya kalau laporan yang tampil memang milik tryout terpilih.
-  // Daftar dari backend sudah urut terbaru dulu (id menurun), jadi dropdown
-  // dan pilihan awal otomatis tryout paling baru.
-  const selectedTryout = tryoutOptions.find(
-    (t) => String(t.id) === selectedTryoutId
-  );
-
-  const reportIsForSelected =
-    report && String(report.tryout_id) === selectedTryoutId;
-
-  // Tautan "siswa yang belum lulus" hanya kalau memang ada yang belum lulus.
-  const showFailedLink =
-    reportIsForSelected &&
-    report.pass_rate !== null &&
-    report.pass_rate !== undefined &&
-    report.pass_rate < 100;
-
-  const tryoutInfo = selectedTryout
-    ? [
-        reportIsForSelected ? report.subject_name : null,
-        selectedTryout.grade ? `Kelas ${selectedTryout.grade}` : null,
-        selectedTryout.total_questions
-          ? `${selectedTryout.total_questions} soal`
-          : null,
-        selectedTryout.duration_minutes
-          ? `${selectedTryout.duration_minutes} menit`
-          : null,
-        selectedTryout.difficulty || null,
-      ].filter(Boolean)
-    : [];
-
-  const averagePercent =
-    scoreScale && report?.average_score !== null && report?.average_score !== undefined
-      ? Math.round((report.average_score / scoreScale) * 100)
-      : null;
-
+  const {
+    tryoutOptions,
+    selectedTryoutId,
+    setSelectedTryoutId,
+    report,
+    loadingOptions,
+    loadingReport,
+    error,
+    maxBucketCount,
+    bucketTotal,
+    scoreScale,
+    insights,
+    selectedTryout,
+    reportIsForSelected,
+    showFailedLink,
+    tryoutInfo,
+    averagePercent
+  } = useTeacherReport();
 
   return (
     <>

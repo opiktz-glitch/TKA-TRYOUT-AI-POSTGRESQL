@@ -304,8 +304,24 @@ export async function deleteSubject(subjectId) {
 // QUESTIONS (BANK SOAL)
 // =====================================================
 
-export async function getQuestions() {
-  return apiFetch("/api/questions");
+export async function getQuestions(params = {}) {
+  const query = new URLSearchParams();
+
+  if (params.page) query.append("page", params.page);
+  if (params.limit) query.append("limit", params.limit);
+  if (params.search) query.append("search", params.search);
+  if (params.subjectFilter) query.append("subject_id", params.subjectFilter);
+  if (params.difficultyFilter) query.append("difficulty", params.difficultyFilter);
+  if (params.statusFilter === "ACTIVE") query.append("is_active", "true");
+  if (params.statusFilter === "INACTIVE") query.append("is_active", "false");
+  if (params.explanationFilter) query.append("explanation_status", params.explanationFilter);
+  if (params.hasImageFilter) query.append("has_image", params.hasImageFilter === "WITH_IMAGE");
+  if (params.onlyMine) query.append("only_mine", "true");
+
+  const queryString = query.toString();
+  const url = queryString ? `/api/questions?${queryString}` : "/api/questions";
+
+  return apiFetch(url, { method: "GET" });
 }
 
 // Detail satu soal (teks lengkap + opsi jawaban).
