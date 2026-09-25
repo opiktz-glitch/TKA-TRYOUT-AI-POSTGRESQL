@@ -458,6 +458,7 @@ export function useDashboard() {
     setTeacherActivity,
     setTeacherStats,
     show,
+    sortedStudentPreview,
     studentScoreTrend,
     studentStats,
     studentSubjectBreakdown,
