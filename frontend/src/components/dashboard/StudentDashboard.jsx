@@ -20,7 +20,7 @@ import {} from "../../services/api";
 import { timeAgo, shortDate, scoreTier, TREND_WIDTH, TREND_HEIGHT, TREND_PADDING_X, TREND_PADDING_BOTTOM, TREND_GRID_VALUES, trendValueToY, buildTrendPoints } from "../../utils/dashboardUtils";
 
 export default function StudentDashboard({ data }) {
-    const { studentStats, studentTryoutsPreview, dashError, dashFailed, dashLoading, loadStudentData, show, user, navigate, areaPoints, badgeClass, baselineY, linePoints, points, studentScoreTrend, studentSubjectBreakdown } = data;
+    const { studentStats, sortedStudentPreview, studentTryoutsPreview, dashError, dashFailed, dashLoading, loadStudentData, show, user, navigate, areaPoints, badgeClass, baselineY, linePoints, points, studentScoreTrend, studentSubjectBreakdown } = data;
   return (
     <>
       <>
