@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 
 import StatCard from "../components/StatCard";
 import ScoreTable from "../components/ScoreTable";
@@ -65,14 +66,12 @@ function StudentHistory() {
 
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
 
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [printView, setPrintView] = useState(false);
 
@@ -85,7 +84,6 @@ function StudentHistory() {
   async function loadHistory() {
     try {
       setLoading(true);
-      setError("");
 
       const data = await getAttemptHistory();
 
@@ -101,7 +99,7 @@ function StudentHistory() {
       );
     } catch (err) {
       console.error("LOAD HISTORY ERROR:", err);
-      setError(err.message || "Gagal memuat riwayat tryout");
+      toast.error(err.message || "Gagal memuat riwayat tryout", { id: "load-student-history" });
     } finally {
       setLoading(false);
     }
@@ -117,7 +115,6 @@ function StudentHistory() {
 
   async function openDetail(attempt) {
     setDetail({ attempt_id: attempt.attempt_id });
-    setDetailError("");
     setDetailLoading(true);
     setQuestionIndex(0);
     setPrintView(false);
@@ -127,7 +124,7 @@ function StudentHistory() {
       setDetail(data);
     } catch (err) {
       console.error("LOAD DETAIL ERROR:", err);
-      setDetailError(err.message || "Gagal memuat detail hasil");
+      toast.error(err.message || "Gagal memuat detail hasil", { id: "load-student-history-detail" });
     } finally {
       setDetailLoading(false);
     }
@@ -136,7 +133,6 @@ function StudentHistory() {
 
   function closeDetail() {
     setDetail(null);
-    setDetailError("");
     setQuestionIndex(0);
     setPrintView(false);
   }
@@ -294,9 +290,7 @@ function StudentHistory() {
           <div className="loading-message">Memuat riwayat tryout...</div>
         )}
 
-        {error && <div className="error-message">{error}</div>}
-
-        {!loading && !error && (
+        {!loading && (
           <ScoreTable
             rows={filteredAttempts}
             hideStudentColumn
@@ -331,7 +325,7 @@ function StudentHistory() {
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
-                {!detailLoading && !detailError && detail.questions && (
+                {!detailLoading && detail.questions && (
                   printView ? (
                     <>
                       <button
@@ -374,11 +368,7 @@ function StudentHistory() {
               <div className="loading-message">Memuat detail hasil...</div>
             )}
 
-            {detailError && (
-              <div className="error-message">{detailError}</div>
-            )}
-
-            {!detailLoading && !detailError && detail.questions && (
+            {!detailLoading && detail.questions && (
               <div>
 
                 {/* RINGKASAN — disembunyikan di tampilan cetak karena

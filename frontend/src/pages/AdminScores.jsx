@@ -14,9 +14,6 @@ function AdminScores() {
   const { user } = useAuth();
   const {
     loading,
-    error,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     selectedSubjectId,
@@ -129,22 +126,8 @@ function AdminScores() {
         </div>
 
         {loading && <div className="loading-message">Memuat rekap nilai...</div>}
-        {error && <div className="error-message">{error}</div>}
 
-        {actionError && (
-          <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-            {actionError}
-          </div>
-        )}
-
-        {actionSuccess && (
-          <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-            {actionSuccess}
-          </div>
-        )}
-
-        {!loading && !error && (
+        {!loading && (
           <ScoreTable
             rows={filteredScores}
             showTeacher

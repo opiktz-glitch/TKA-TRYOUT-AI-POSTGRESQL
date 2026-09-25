@@ -9,14 +9,12 @@ tryout) -- tidak ada endpoint "buat notifikasi" yang dipanggil
 manual dari frontend.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
 from database import get_db
 from dependencies import get_current_user
-from models import User, Notification
+from fastapi import APIRouter, Depends, HTTPException
+from models import Notification, User
 from schemas import NotificationResponse
-
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/notifications",
@@ -84,7 +82,7 @@ def mark_all_notifications_read(
         db.query(Notification)
         .filter(
             Notification.user_id == current_user.id,
-            Notification.is_read == False,  # noqa: E712 (perbandingan SQLAlchemy, bukan Python bool)
+            Notification.is_read == False,
         )
         .update({"is_read": True})
     )

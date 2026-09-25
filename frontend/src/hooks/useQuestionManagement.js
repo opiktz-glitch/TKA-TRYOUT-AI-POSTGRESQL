@@ -141,10 +141,13 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   // backend), supaya guru tidak buka modal dulu baru gagal
   // belakangan kalau tidak ada AI yang online.
   //
-  // State isian modal (langkah, file, hasil ekstraksi, dst.) ada di
-  // dalam ImportDocumentModal dan otomatis mulai dari nol karena
-  // komponennya di-mount baru setiap modal dibuka.
+  // - importGate  : tombol "Impor dari Dokumen" di toolbar
+  // - imageGate   : tombol "Import dari Gambar" di toolbar (cek AI online
+  //                 dulu; pengecekan kemampuan vision dilakukan di dalam
+  //                 komponen ImportImageButton lewat getImageImportCapability)
   const importGate = useAiStatusGate();
+
+  const imageGate = useAiStatusGate();
 
   // ======================================================
   // PREVIEW SOAL
@@ -342,11 +345,11 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   // SUBJECT NAME
   // ======================================================
 
-  function getSubjectName(subjectId) {
+  const getSubjectName = useCallback((subjectId) => {
     const subject = subjects.find((item) => item.id === subjectId);
 
     return subject ? subject.name : "-";
-  }
+  }, [subjects]);
 
   // ======================================================
   // DIFFICULTY LABEL
@@ -914,7 +917,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
         } catch (imageErr) {
           console.error("UPLOAD IMAGE ERROR:", imageErr);
           imageStepFailed = true;
-          setImageActionError(
+          toast.error(
             "Soal berhasil disimpan, tapi gambar gagal diupload: " +
               (imageErr.message || "kesalahan tidak diketahui") +
               ". Coba upload ulang gambarnya.",
@@ -926,16 +929,18 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
         } catch (imageErr) {
           console.error("DELETE IMAGE ERROR:", imageErr);
           imageStepFailed = true;
-          setImageActionError(
+          toast.error(
             "Soal berhasil disimpan, tapi gagal menghapus gambar: " +
               (imageErr.message || "kesalahan tidak diketahui"),
           );
         }
       }
 
-      setFormSuccess(
-        data.message || (existingId ? "Soal berhasil diperbarui" : "Soal berhasil ditambahkan"),
-      );
+      if (!imageStepFailed) {
+        toast.success(
+          data.message || (existingId ? "Soal berhasil diperbarui" : "Soal berhasil ditambahkan"),
+        );
+      }
 
       await loadQuestions();
 
@@ -1080,14 +1085,10 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     onlyMine,
     hasImageFilter,
     user,
+    getSubjectName,
   ]);
 
-  // Reset ke halaman 1 setiap kali pencarian/filter berubah, supaya
-  // tidak "nyangkut" di halaman 5 misalnya padahal hasil filter
-  // barunya cuma ada 1 halaman.
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
+  const currentFilterSig = [
     search,
     subjectFilter,
     difficultyFilter,
@@ -1095,18 +1096,23 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     explanationFilter,
     onlyMine,
     hasImageFilter,
-  ]);
+  ].join("|");
+
+  const [lastFilterSig, setLastFilterSig] = useState(currentFilterSig);
+
+  // Reset ke halaman 1 setiap kali pencarian/filter berubah
+  // Dilakukan saat render (tanpa useEffect) untuk mencegah cascading renders
+  if (currentFilterSig !== lastFilterSig) {
+    setLastFilterSig(currentFilterSig);
+    setCurrentPage(1);
+  }
 
   const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE));
 
-  // Kalau halaman aktif jadi lebih besar dari total halaman yang ada
-  // (mis. setelah soal terakhir di halaman itu dihapus), mundurkan
-  // otomatis ke halaman terakhir yang valid.
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  // Kalau halaman aktif jadi lebih besar dari total halaman yang ada, mundurkan
+  if (currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
 
   const paginatedQuestions = useMemo(() => {
     const start = (currentPage - 1) * QUESTIONS_PER_PAGE;
@@ -1182,6 +1188,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     hasActiveQuestionFilter,
     hasImageFilter,
     imagePreviewUrl,
+    imageGate,
     importGate,
     loadQuestions,
     loadSubjects,

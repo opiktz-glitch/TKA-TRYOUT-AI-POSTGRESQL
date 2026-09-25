@@ -2,17 +2,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-import jwt
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
 import config
-from config import (
-    ALGORITHM,
-    ACCESS_TOKEN_EXPIRE_MINUTES
-)
+import jwt
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM
+from fastapi import HTTPException
 from models import AppSetting
-
+from sqlalchemy.orm import Session
 
 # ==========================================
 # SECRET_KEY DINAMIS (disimpan di database)

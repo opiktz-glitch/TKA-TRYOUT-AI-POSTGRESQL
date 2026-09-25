@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { getTeacherReport, getTryouts } from "../services/api";
 import { readPageCache, writePageCache } from "../services/pageCache";
+import toast from "react-hot-toast";
 import {
   WRONG_MEDIUM_PERCENT,
   PASS_THRESHOLD_PERCENT,
@@ -72,7 +73,6 @@ export function useTeacherReport() {
 
   const [loadingOptions, setLoadingOptions] = useState(() => !cachedOptions);
   const [loadingReport, setLoadingReport] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     loadTryoutOptions();
@@ -95,7 +95,6 @@ export function useTeacherReport() {
       if (!hasCachedOptions) {
         setLoadingOptions(true);
       }
-      setError("");
 
       const data = await getTryouts();
 
@@ -120,7 +119,7 @@ export function useTeacherReport() {
       console.error("LOAD TRYOUT OPTIONS ERROR:", err);
 
       if (!hasCachedOptions) {
-        setError(err.message || "Gagal memuat daftar tryout");
+        toast.error(err.message || "Gagal memuat daftar tryout", { id: "load-teacher-report-options" });
       }
     } finally {
       setLoadingOptions(false);
@@ -139,8 +138,6 @@ export function useTeacherReport() {
       setLoadingReport(true);
     }
 
-    setError("");
-
     try {
       const data = await getTeacherReport(tryoutId);
       writePageCache(user?.id, cacheKey, data);
@@ -152,7 +149,7 @@ export function useTeacherReport() {
       console.error("LOAD REPORT ERROR:", err);
 
       if (!cachedData && latestReportKeyRef.current === cacheKey) {
-        setError(err.message || "Gagal memuat laporan");
+        toast.error(err.message || "Gagal memuat laporan", { id: "load-teacher-report" });
         setReport(null);
       }
     } finally {
@@ -213,7 +210,6 @@ export function useTeacherReport() {
     report,
     loadingOptions,
     loadingReport,
-    error,
     maxBucketCount,
     bucketTotal,
     scoreScale,

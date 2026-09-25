@@ -117,16 +117,16 @@ export const MIN_QUESTIONS_PER_CELL = 5;
 
 export const LIVE_REFRESH_MS = 30000;
 
-export function bankCellStyle(count) {
+export function getBankBadgeClass(count) {
   if (count === 0) {
-    return { background: "#f8d7da", color: "#842029", fontWeight: 600 };
+    return "score-badge is-fail";
   }
 
   if (count < MIN_QUESTIONS_PER_CELL) {
-    return { background: "#fff3cd", color: "#856404", fontWeight: 600 };
+    return "score-badge is-incomplete";
   }
 
-  return undefined;
+  return "score-badge is-pass";
 }
 
 

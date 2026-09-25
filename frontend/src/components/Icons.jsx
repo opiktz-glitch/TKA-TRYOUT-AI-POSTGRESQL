@@ -249,6 +249,16 @@ export function IconCheck(props) {
   );
 }
 
+export function IconHistory(props) {
+  return (
+    <Svg {...props}>
+      <path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8" />
+      <path d="M3 4v4h4" />
+      <path d="M12 7v5l3 3" />
+    </Svg>
+  );
+}
+
 export function IconRefresh(props) {
   return (
     <Svg {...props}>

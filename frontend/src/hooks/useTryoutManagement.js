@@ -41,7 +41,6 @@ export function useTryoutManagement(DIFFICULTIES) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewData, setReviewData] = useState(null);
   const [loadingReview, setLoadingReview] = useState(false);
-  const [reviewError, setReviewError] = useState("");
   const [reviewTab, setReviewTab] = useState("soal");
 
   // =====================================================
@@ -268,7 +267,6 @@ export function useTryoutManagement(DIFFICULTIES) {
 
   async function openReviewModal(tryout) {
     try {
-      setReviewError("");
       setReviewData(null);
       setReviewTab("soal");
       setShowReviewModal(true);
@@ -279,7 +277,7 @@ export function useTryoutManagement(DIFFICULTIES) {
       setReviewData(data);
     } catch (err) {
       console.error("LOAD TRYOUT REVIEW ERROR:", err);
-      setReviewError(err.message || "Gagal mengambil data review soal");
+      toast.error(err.message || "Gagal mengambil data review soal", { id: "load-tryout-review" });
     } finally {
       setLoadingReview(false);
     }
@@ -292,7 +290,6 @@ export function useTryoutManagement(DIFFICULTIES) {
   function closeReviewModal() {
     setShowReviewModal(false);
     setReviewData(null);
-    setReviewError("");
     setReviewTab("soal");
   }
 
@@ -452,7 +449,7 @@ export function useTryoutManagement(DIFFICULTIES) {
         ? await updateTryout(editingTryout.id, payload)
         : await createTryout(payload);
 
-      setFormSuccess(
+      toast.success(
         data.message ||
           (editingTryout
             ? "Tryout berhasil diperbarui"
@@ -657,7 +654,6 @@ export function useTryoutManagement(DIFFICULTIES) {
     handleDelete,
     handlePrintReview,
     loadingReview,
-    reviewError,
     reviewData,
     reviewTab,
     setReviewTab

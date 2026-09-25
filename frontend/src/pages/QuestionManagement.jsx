@@ -64,6 +64,7 @@ function QuestionManagement() {
     handleSubmit,
     hasActiveQuestionFilter,
     hasImageFilter,
+    imageGate,
     imagePreviewUrl,
     importGate,
     loadQuestions,
@@ -149,30 +150,6 @@ function QuestionManagement() {
               <h1>Bank Soal</h1>
 
               <p>Kelola soal TKA Tryout</p>
-
-              {aiGate.message && (
-                <div
-                  className="form-error-message"
-                  style={{
-                    marginTop: 10,
-                    maxWidth: 520,
-                  }}
-                >
-                  {aiGate.message}
-                </div>
-              )}
-
-              {importGate.message && (
-                <div
-                  className="form-error-message"
-                  style={{
-                    marginTop: 10,
-                    maxWidth: 520,
-                  }}
-                >
-                  {importGate.message}
-                </div>
-              )}
             </div>
 
             <div style={{ display: "flex", gap: "10px" }}>
@@ -185,7 +162,7 @@ function QuestionManagement() {
                 {importGate.checking ? "Mengecek AI..." : "📄 Impor dari Dokumen"}
               </button>
 
-              <ImportImageButton subjects={subjects} onImported={handleImportedFromImage} />
+              <ImportImageButton gate={imageGate} subjects={subjects} onImported={handleImportedFromImage} />
 
               <button
                 type="button"

@@ -1,12 +1,4 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
 import StatCard from "../StatCard";
-import {
-  readDashboardCache,
-  writeDashboardCache,
-} from "../../services/dashboardCache";
-import { parseUtcDate } from "../../utils/date";
 import "../ScoreTable.css";
 import {
   IconBarChart,
@@ -14,28 +6,18 @@ import {
   IconGraduationCap,
   IconNotebook,
 } from "../Icons";
-
-import {} from "../../services/api";
 import { truncateText } from "../../utils/dashboardUtils";
 
 export default function TeacherDashboard({ data }) {
   const {
     teacherStats,
     teacherActivity,
-    aiCardError,
-    aiCardLoading,
-    aiCardStatus,
-    dashError,
     dashFailed,
-    dashLoading,
-    loadTeacherData,
     show,
-    user,
     navigate,
   } = data;
   return (
     <>
-      <>
         <div className="stat-grid">
           <StatCard
             icon={<IconNotebook />}
@@ -221,7 +203,6 @@ export default function TeacherDashboard({ data }) {
             </div>
           </section>
         </div>
-      </>
     </>
   );
 }

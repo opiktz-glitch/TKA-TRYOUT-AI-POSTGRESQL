@@ -6,8 +6,7 @@ export default function TryoutTable({
   search, setSearch,
   subjectFilter, setSubjectFilter, subjects,
   statusFilter, setStatusFilter,
-  loading, loadError, showModal,
-  actionError, actionSuccess,
+  loading, showModal,
   filteredTryouts, user, onlyMine, setOnlyMine,
   hasActiveTryoutFilter, resetTryoutFilters,
   paginatedTryouts, getSubjectName,
@@ -66,22 +65,7 @@ export default function TryoutTable({
     <div className="loading-message">Memuat data tryout...</div>
   )}
 
-  {loadError && !showModal && (
-    <div className="error-message">{loadError}</div>
-  )}
 
-  {actionError && (
-    <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-      {actionError}
-    </div>
-  )}
-
-  {actionSuccess && (
-    <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-      <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-      {actionSuccess}
-    </div>
-  )}
 
   {!loading && (
     <>

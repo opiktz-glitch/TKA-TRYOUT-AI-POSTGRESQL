@@ -7,25 +7,23 @@ import random
 import re
 import time
 
+import auth
 import httpx
-from cryptography.fernet import Fernet, InvalidToken
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
 from config import (
+    AI_PROVIDER,
+    GEMINI_API_KEY,
+    GEMINI_BASE_URL,
+    GEMINI_FALLBACK_MODEL,
+    GEMINI_MODEL,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
     OLLAMA_VISION_MODEL,
-    GEMINI_API_KEY,
-    GEMINI_MODEL,
-    GEMINI_FALLBACK_MODEL,
-    GEMINI_BASE_URL,
-    AI_PROVIDER,
 )
+from cryptography.fernet import Fernet, InvalidToken
+from fastapi import HTTPException
 from models import AppSetting
 from schemas import ProviderStatus
-import auth
-
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -449,7 +447,6 @@ class AIJsonParseError(HTTPException):
     MAU membedakan (proses impor dokumen) tinggal except
     AIJsonParseError SEBELUM except HTTPException biasa.
     """
-    pass
 
 
 def _salvage_json_object(content: str) -> str | None:

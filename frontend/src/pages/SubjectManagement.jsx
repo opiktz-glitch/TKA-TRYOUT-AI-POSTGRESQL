@@ -7,9 +7,6 @@ import "../components/ScoreTable.css";
 function SubjectManagement() {
   const {
     loading,
-    loadError,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     filteredSubjects,
@@ -59,21 +56,6 @@ function SubjectManagement() {
         </div>
 
         {loading && <div className="loading-message">Memuat data mata pelajaran...</div>}
-
-        {loadError && !showModal && <div className="error-message">{loadError}</div>}
-
-        {actionError && (
-          <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-            {actionError}
-          </div>
-        )}
-
-        {actionSuccess && (
-          <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-            {actionSuccess}
-          </div>
-        )}
 
         {!loading && (
           <>

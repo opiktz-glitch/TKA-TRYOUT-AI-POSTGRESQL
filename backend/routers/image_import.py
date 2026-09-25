@@ -38,22 +38,22 @@ dan 2 baris "image_import" di main.py.
 
 import logging
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
 import ai_vision
 import image_import_service
 from database import get_db
 from dependencies import require_role
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from models import User
+from pydantic import BaseModel
+from schemas import AIExtractedQuestion
+from sqlalchemy.orm import Session
+
 from routers.questions import (
     _clean_ai_math_notation,
     _get_active_subject_or_404,
     _normalize_extracted_options,
 )
-from schemas import AIExtractedQuestion
 
 logger = logging.getLogger(__name__)
 

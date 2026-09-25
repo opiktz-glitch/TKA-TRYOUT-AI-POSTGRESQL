@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { getStudentProfiles, deleteStudentProfile } from "../services/api";
+import toast from "react-hot-toast";
 
 const STUDENTS_PER_PAGE = 10;
 
 export function useStudentManagement() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,12 +18,11 @@ export function useStudentManagement() {
   async function loadStudents() {
     try {
       setLoading(true);
-      setError("");
       const data = await getStudentProfiles();
       setStudents(data);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Gagal mengambil data siswa");
+      toast.error(err.message || "Gagal mengambil data siswa", { id: "load-students" });
     } finally {
       setLoading(false);
     }
@@ -40,18 +36,12 @@ export function useStudentManagement() {
     if (!confirmed) return;
 
     try {
-      setActionError("");
-      setActionSuccess("");
       await deleteStudentProfile(student.id);
-      setActionSuccess(`Data siswa "${student.full_name}" berhasil dihapus`);
+      toast.success(`Data siswa "${student.full_name}" berhasil dihapus`, { id: "delete-student-success" });
       await loadStudents();
-
-      setTimeout(() => {
-        setActionSuccess("");
-      }, 2500);
     } catch (err) {
       console.error(err);
-      setActionError(err.message || "Gagal menghapus data siswa");
+      toast.error(err.message || "Gagal menghapus data siswa", { id: "delete-student-error" });
     }
   }
 
@@ -94,9 +84,6 @@ export function useStudentManagement() {
   return {
     students,
     loading,
-    error,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     currentPage,

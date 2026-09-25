@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import StatCard from "../components/StatCard";
 import Pagination from "../components/Pagination";
@@ -9,6 +10,9 @@ import {
   IconBarChart,
   IconCheck,
   IconClipboard,
+  IconClock,
+  IconHistory,
+  IconRefresh,
   IconSearch,
   IconTarget,
 } from "../components/Icons";
@@ -67,6 +71,7 @@ function StudentTryoutList() {
   // =====================================================
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [startingId, setStartingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -79,19 +84,12 @@ function StudentTryoutList() {
   const [difficultyFilter, setDifficultyFilter] = useState("");
 
   // =====================================================
-  // MESSAGE
-  // =====================================================
-
-  const [error, setError] = useState("");
-
-  // =====================================================
   // LOAD DATA
   // =====================================================
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
 
       const [tryoutData, subjectData] = await Promise.all([
         getStudentTryouts(),
@@ -121,8 +119,7 @@ function StudentTryoutList() {
       }
     } catch (err) {
       console.error("LOAD STUDENT TRYOUT ERROR:", err);
-
-      setError(err.message || "Gagal mengambil daftar tryout");
+      toast.error(err.message || "Gagal mengambil daftar tryout", { id: "load-student-tryouts" });
     } finally {
       setLoading(false);
     }
@@ -135,6 +132,16 @@ function StudentTryoutList() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // =====================================================
+  // MANUAL REFRESH
+  // =====================================================
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }
 
   // =====================================================
   // GET SUBJECT NAME
@@ -259,7 +266,6 @@ function StudentTryoutList() {
 
     try {
       setStartingId(tryout.id);
-      setError("");
 
       const result = await startStudentTryout(tryout.id);
 
@@ -277,7 +283,7 @@ function StudentTryoutList() {
     } catch (err) {
       console.error("START STUDENT TRYOUT ERROR:", err);
 
-      setError(err.message || "Gagal memulai tryout");
+      toast.error(err.message || "Gagal memulai tryout");
     } finally {
       setStartingId(null);
     }
@@ -298,6 +304,14 @@ function StudentTryoutList() {
           <h1>Daftar Tryout</h1>
           <p>Pilih paket tryout yang ingin Anda kerjakan.</p>
         </div>
+        <button
+          className="secondary-button"
+          onClick={() => navigate("/student/history")}
+          title="Lihat riwayat & hasil tryout"
+        >
+          <IconHistory size={15} />
+          Riwayat Saya
+        </button>
       </div>
 
       {/* =================================================
@@ -381,15 +395,28 @@ function StudentTryoutList() {
               </option>
             ))}
           </select>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
+            title="Perbarui daftar tryout"
+            style={{ marginLeft: "auto", gap: "6px" }}
+          >
+            <IconRefresh
+              size={15}
+              style={refreshing ? { animation: "status-spin 0.8s linear infinite" } : undefined}
+            />
+            {refreshing ? "Memperbarui..." : "Refresh"}
+          </button>
         </div>
 
         {loading && (
           <div className="loading-message">Memuat daftar tryout...</div>
         )}
 
-        {error && <div className="error-message">{error}</div>}
-
-        {!loading && !error && (
+        {!loading && (
           <>
             <div className="score-meta">
               <div className="score-meta-left">
@@ -425,8 +452,8 @@ function StudentTryoutList() {
                     <tr>
                       <th className="is-left">Tryout</th>
                       <th>Soal</th>
-                      <th>Durasi</th>
-                      <th>Difficulty</th>
+                      <th><IconClock size={13} style={{ verticalAlign: "-2px", marginRight: 2 }} />Durasi</th>
+                      <th>Keterangan</th>
                       <th>Status</th>
                       <th>Aksi</th>
                     </tr>

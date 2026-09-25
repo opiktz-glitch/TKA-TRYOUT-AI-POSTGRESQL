@@ -62,7 +62,6 @@ function TryoutManagement() {
     handleDelete,
     handlePrintReview,
     loadingReview,
-    reviewError,
     reviewData,
     reviewTab,
     setReviewTab
@@ -133,7 +132,6 @@ function TryoutManagement() {
         closeReviewModal={closeReviewModal}
         handlePrintReview={handlePrintReview}
         loadingReview={loadingReview}
-        reviewError={reviewError}
         reviewData={reviewData}
         reviewTab={reviewTab}
         setReviewTab={setReviewTab}

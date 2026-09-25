@@ -2,31 +2,28 @@ import os
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-
-from database import get_db
-from models import User, AppSetting
-from schemas import (
-    AIProvidersResponse,
-    AIProviderUpdate,
-    ProviderConfigUpdate,
-    AIStatusResponse,
-    SecretKeyStatusResponse,
-    SecretKeyUpdateRequest,
-    SecretKeyActionResponse,
-    BackupFileResponse,
-    BackupListResponse,
-    BackupActionResponse,
-    RestoreActionResponse,
-)
-from dependencies import require_role
-
 import ai_providers
 import auth
 import backup_service
-
+from database import get_db
+from dependencies import require_role
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from models import AppSetting, User
+from schemas import (
+    AIProvidersResponse,
+    AIProviderUpdate,
+    AIStatusResponse,
+    BackupActionResponse,
+    BackupFileResponse,
+    BackupListResponse,
+    ProviderConfigUpdate,
+    RestoreActionResponse,
+    SecretKeyActionResponse,
+    SecretKeyStatusResponse,
+    SecretKeyUpdateRequest,
+)
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/settings",

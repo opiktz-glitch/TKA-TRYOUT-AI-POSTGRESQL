@@ -88,15 +88,7 @@ export default function SecurityTab({ data }) {
     setRotatingSecretKey,
     setSavingSecretKey,
     setSecretKeyConfirm,
-    setSecretKeyDraft,
-    setSecretKeyError,
-    setSecretKeyLoading,
-    setSecretKeyStatus,
-    setSelectedUploadFile,
-    setSystemStatus,
-    systemStatus,
-    updateDraft,
-    visibleTabs
+    setSecretKeyDraft
   } = data;
 
 

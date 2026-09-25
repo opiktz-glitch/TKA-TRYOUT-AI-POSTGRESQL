@@ -1,12 +1,4 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
 import StatCard from "../StatCard";
-import {
-  readDashboardCache,
-  writeDashboardCache,
-} from "../../services/dashboardCache";
-import { parseUtcDate } from "../../utils/date";
 import "../ScoreTable.css";
 import {
   IconBarChart,
@@ -17,15 +9,12 @@ import {
   IconGraduationCap,
   IconNotebook,
 } from "../Icons";
-
-import {} from "../../services/api";
-import { truncateText, MIN_QUESTIONS_PER_CELL, bankCellStyle, formatBytes, attentionBadgeStyle } from "../../utils/dashboardUtils";
+import { truncateText, MIN_QUESTIONS_PER_CELL, getBankBadgeClass, formatBytes, attentionBadgeStyle } from "../../utils/dashboardUtils";
 
 export default function AdminDashboard({ data }) {
-    const { adminStats, aiCardError, aiCardLoading, aiCardStatus, attention, dashError, dashFailed, dashLoading, loadAdminData, show, user, navigate, liveStats, loading, questionBank } = data;
+  const { adminStats, attention, dashFailed, dashLoading, show, navigate, liveStats, questionBank } = data;
   return (
     <>
-      <>
         <div className="stat-grid">
           <StatCard
             icon={<IconGraduationCap />}
@@ -95,6 +84,8 @@ export default function AdminDashboard({ data }) {
                         <th className="align-center">Sedang</th>
                         <th className="align-center">Sulit</th>
                         <th className="align-center">Total</th>
+                        <th className="align-center">Bergambar</th>
+                        <th className="align-center">Belum Dipakai</th>
                       </tr>
                     </thead>
 
@@ -105,29 +96,38 @@ export default function AdminDashboard({ data }) {
                             <strong>{subject.name}</strong>
                           </td>
 
-                          <td
-                            className="align-center"
-                            style={bankCellStyle(subject.easy)}
-                          >
-                            {subject.easy}
+                          <td className="align-center">
+                            <span className={getBankBadgeClass(subject.easy)}>
+                              {subject.easy}
+                            </span>
                           </td>
 
-                          <td
-                            className="align-center"
-                            style={bankCellStyle(subject.medium)}
-                          >
-                            {subject.medium}
+                          <td className="align-center">
+                            <span className={getBankBadgeClass(subject.medium)}>
+                              {subject.medium}
+                            </span>
                           </td>
 
-                          <td
-                            className="align-center"
-                            style={bankCellStyle(subject.hard)}
-                          >
-                            {subject.hard}
+                          <td className="align-center">
+                            <span className={getBankBadgeClass(subject.hard)}>
+                              {subject.hard}
+                            </span>
                           </td>
 
                           <td className="align-center">
                             <strong>{subject.total}</strong>
+                          </td>
+
+                          <td className="align-center">
+                            <span className="score-badge is-image">
+                              {subject.image_count ?? 0}
+                            </span>
+                          </td>
+
+                          <td className="align-center">
+                            <span className={subject.unused_count > 0 ? "score-badge is-warning" : "score-badge is-pass"}>
+                              {subject.unused_count ?? 0}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -145,13 +145,13 @@ export default function AdminDashboard({ data }) {
                   }}
                 >
                   <div>
-                    Merah = belum ada soal, kuning = kurang dari{" "}
-                    {MIN_QUESTIONS_PER_CELL} soal.
+                    Pill Merah = belum ada soal, Kuning = kurang dari{" "}
+                    {MIN_QUESTIONS_PER_CELL} soal, Hijau = jumlah soal memadai.
                   </div>
 
                   {questionBank.totalActive > 0 && (
                     <div>
-                      {questionBank.unusedCount > 0
+                      Secara keseluruhan, {questionBank.unusedCount > 0
                         ? `${questionBank.unusedCount} dari ${questionBank.totalActive} soal aktif belum masuk paket tryout mana pun.`
                         : "Semua soal aktif sudah dipakai di paket tryout."}
                     </div>
@@ -329,7 +329,6 @@ export default function AdminDashboard({ data }) {
             </div>
           </section>
         </div>
-      </>
     </>
   );
 }

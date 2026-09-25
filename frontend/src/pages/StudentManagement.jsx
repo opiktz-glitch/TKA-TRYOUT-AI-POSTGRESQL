@@ -8,9 +8,6 @@ import "../components/ScoreTable.css";
 function StudentManagement() {
   const {
     loading,
-    error,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     currentPage,
@@ -67,22 +64,8 @@ function StudentManagement() {
         </div>
 
         {loading && <div className="loading-message">Memuat data siswa...</div>}
-        {error && <div className="error-message">{error}</div>}
 
-        {actionError && (
-          <div className="form-error-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-            {actionError}
-          </div>
-        )}
-
-        {actionSuccess && (
-          <div className="success-message" style={{ margin: "0 16px", marginTop: "12px" }}>
-            <IconCheck size={14} style={{ verticalAlign: "-2px", marginRight: "4px" }} />
-            {actionSuccess}
-          </div>
-        )}
-
-        {!loading && !error && (
+        {!loading && (
           <>
             <div className="score-meta">
               <span>{filteredStudentsCount} siswa</span>

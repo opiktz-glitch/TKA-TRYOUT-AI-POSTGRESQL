@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getTeacherScores } from "../services/api";
 import { readPageCache, writePageCache } from "../services/pageCache";
+import toast from "react-hot-toast";
 
 const SCORES_CACHE_KEY = "teacher-scores";
 
@@ -11,7 +12,6 @@ export function useTeacherScores(user) {
 
   const [scores, setScores] = useState(() => cachedScores ?? []);
   const [loading, setLoading] = useState(() => !cachedScores);
-  const [error, setError] = useState("");
 
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [tryoutFilterId, setTryoutFilterId] = useState(searchParams.get("tryout") || "");
@@ -30,8 +30,6 @@ export function useTeacherScores(user) {
       setLoading(true);
     }
 
-    setError("");
-
     try {
       const data = await getTeacherScores();
       writePageCache(user?.id, SCORES_CACHE_KEY, data);
@@ -39,7 +37,7 @@ export function useTeacherScores(user) {
     } catch (err) {
       console.error("LOAD SCORES ERROR:", err);
       if (!cachedData) {
-        setError(err.message || "Gagal memuat rekap nilai");
+        toast.error(err.message || "Gagal memuat rekap nilai", { id: "load-teacher-scores" });
       }
     } finally {
       setLoading(false);
@@ -116,7 +114,6 @@ export function useTeacherScores(user) {
   return {
     scores,
     loading,
-    error,
     search,
     setSearch,
     tryoutFilterId,

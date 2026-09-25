@@ -25,10 +25,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import inspect, text  # noqa: E402
-
-from database import engine, DATABASE_URL  # noqa: E402
-
+from database import DATABASE_URL, engine
+from sqlalchemy import inspect, text
 
 COLUMNS_TO_ADD = {
     "active_session_id": "VARCHAR",

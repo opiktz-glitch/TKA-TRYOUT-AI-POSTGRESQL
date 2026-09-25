@@ -6,7 +6,6 @@ export default function TryoutReviewModal({
   closeReviewModal,
   handlePrintReview,
   loadingReview,
-  reviewError,
   reviewData,
   reviewTab,
   setReviewTab
@@ -36,7 +35,7 @@ export default function TryoutReviewModal({
               </div>
 
               <div style={{ display: "flex", gap: "8px" }}>
-                {reviewData && !loadingReview && !reviewError && (
+                {reviewData && !loadingReview && (
                   <button
                     type="button"
                     className="primary-button"
@@ -56,7 +55,7 @@ export default function TryoutReviewModal({
               </div>
             </div>
 
-            {!loadingReview && !reviewError && reviewData && (
+            {!loadingReview && reviewData && (
               <div className="review-tabs no-print">
                 <button
                   type="button"
@@ -88,11 +87,7 @@ export default function TryoutReviewModal({
               <div className="loading-message">Memuat soal...</div>
             )}
 
-            {!loadingReview && reviewError && (
-              <div className="error-message">{reviewError}</div>
-            )}
-
-            {!loadingReview && !reviewError && reviewData && reviewTab === "soal" && (
+            {!loadingReview && reviewData && reviewTab === "soal" && (
               <div className="review-print-page">
                 <div className="review-print-header">
                   <h3>{reviewData.title}</h3>
@@ -149,8 +144,7 @@ export default function TryoutReviewModal({
                 </div>
               </div>
             )}
-
-            {!loadingReview && !reviewError && reviewData && reviewTab === "jawaban" && (
+            {!loadingReview && reviewData && reviewTab === "jawaban" && (
               <div className="review-print-page">
                 <div className="review-print-header">
                   <h3>{reviewData.title} — Kunci Jawaban &amp; Pembahasan</h3>

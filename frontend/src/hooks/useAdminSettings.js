@@ -364,15 +364,12 @@ export function useAdminSettings() {
   // Kalau tab "Jaringan"/"Backup" sedang aktif tapi ternyata sudah
   // seharusnya disembunyikan (misal admin sempat klik sebelum data
   // termuat), otomatis pindah ke tab Profil supaya tidak terjebak
-  // di tab yang sudah disembunyikan.
-  useEffect(() => {
-    if (activeTab === "network" && networkInfo?.mode === "production") {
-      setActiveTab("profile");
-    }
-    if (activeTab === "backup" && systemStatus?.database?.is_sqlite === false) {
-      setActiveTab("profile");
-    }
-  }, [activeTab, networkInfo, systemStatus]);
+  // di tab yang sudah disembunyikan. Dilakukan saat render.
+  if (activeTab === "network" && networkInfo?.mode === "production") {
+    setActiveTab("profile");
+  } else if (activeTab === "backup" && systemStatus?.database?.is_sqlite === false) {
+    setActiveTab("profile");
+  }
 
 
 

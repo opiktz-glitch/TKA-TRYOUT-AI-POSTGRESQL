@@ -1,17 +1,22 @@
 import socket
 from urllib.parse import urlparse
 
+import ai_providers
+from config import (
+    APP_MODE,
+    BACKEND_PORT,
+    DATABASE_URL,
+    FRONTEND_PORT,
+    GEMINI_BASE_URL,
+    OLLAMA_BASE_URL,
+)
+from database import IS_SQLITE, get_db
+from dependencies import require_role
 from fastapi import APIRouter, Depends
+from models import User
+from schemas import NetworkAddress, NetworkInfoResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from database import get_db, IS_SQLITE
-from dependencies import require_role
-from config import DATABASE_URL, OLLAMA_BASE_URL, GEMINI_BASE_URL, FRONTEND_PORT, BACKEND_PORT, APP_MODE
-from models import User
-from schemas import NetworkInfoResponse, NetworkAddress
-import ai_providers
-
 
 router = APIRouter(
     prefix="/api/system",

@@ -53,9 +53,9 @@ import { generateAIExplanation, verifyAIAnswer } from "../services/api";
 
 // Dipakai KEDUA tombol: cek dasar yang sama-sama berlaku (soal
 // bergambar, teks soal kosong, kurang dari 2 pilihan terisi).
-function getBaseBlockReason({ hasImage, questionText, options }) {
-  if (hasImage) {
-    return "Soal bergambar belum didukung: AI tidak bisa melihat gambar, jadi pembahasan perlu ditulis manual.";
+function getBaseBlockReason({ questionText, options, hasImage, questionId }) {
+  if (hasImage && !questionId) {
+    return "Anda baru saja menambahkan gambar baru. Silakan Simpan soal ini terlebih dahulu, lalu buka Edit kembali untuk bisa menggunakan Pembahasan AI bergambar.";
   }
 
   if (!questionText.trim()) {
@@ -75,12 +75,12 @@ function getBaseBlockReason({ hasImage, questionText, options }) {
 // ditandai, jadi TIDAK mensyaratkan satu pilihan benar. Nonaktif
 // selama kolom Pembahasan masih terisi, supaya tidak menimpa draf
 // yang sudah ada/ditulis guru tanpa sadar.
-function getGenerateBlockReason({ value, hasImage, questionText, options }) {
+function getGenerateBlockReason({ value, questionText, options, hasImage, questionId }) {
   if (value.trim()) {
     return "Kolom pembahasan sudah terisi. Kosongkan dulu untuk membuat draf baru dengan AI.";
   }
 
-  return getBaseBlockReason({ hasImage, questionText, options });
+  return getBaseBlockReason({ questionText, options, hasImage, questionId });
 }
 
 // "🔍 Verifikasi Jawaban" -- selain butuh kunci yang SUDAH ditandai
@@ -92,8 +92,8 @@ function getGenerateBlockReason({ value, hasImage, questionText, options }) {
 // isi Pembahasan (lihat suggested_explanation), jadi tidak relevan
 // dijalankan kalau belum ada pembahasan sama sekali untuk dicek/
 // diganti.
-function getVerifyBlockReason({ value, hasImage, questionText, options }) {
-  const baseReason = getBaseBlockReason({ hasImage, questionText, options });
+function getVerifyBlockReason({ value, questionText, options, hasImage, questionId }) {
+  const baseReason = getBaseBlockReason({ questionText, options, hasImage, questionId });
 
   if (baseReason) {
     return baseReason;
@@ -121,6 +121,7 @@ function ExplanationField({
   options,
   subjectId,
   hasImage = false,
+  questionId = null,
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -132,15 +133,17 @@ function ExplanationField({
 
   const generateBlockReason = getGenerateBlockReason({
     value,
-    hasImage,
     questionText,
     options,
+    hasImage,
+    questionId,
   });
   const verifyBlockReason = getVerifyBlockReason({
     value,
-    hasImage,
     questionText,
     options,
+    hasImage,
+    questionId,
   });
 
   const optionsKey = options
@@ -164,6 +167,8 @@ function ExplanationField({
       setLoading(true);
       setError("");
       setDraftNotice(false);
+      setVerifyResult(null); // Bersihkan hasil verifikasi lama karena kita membuat pembahasan baru
+      setVerifyError("");
 
       // Sengaja TIDAK mengirim is_correct: AI menyimpulkan jawaban
       // benar sendiri dari nol (lihat build_explanation_prompt di
@@ -172,6 +177,7 @@ function ExplanationField({
       const data = await generateAIExplanation({
         question_text: questionText,
         subject_id: subjectId ? Number(subjectId) : null,
+        question_id: questionId ? Number(questionId) : null,
         options: options.map((option) => ({
           option_code: option.option_code,
           option_text: option.option_text,
@@ -194,9 +200,11 @@ function ExplanationField({
       setVerifying(true);
       setVerifyError("");
       setVerifyResult(null);
+      setDraftNotice(false); // Sembunyikan draft notice karena user lanjut memverifikasi
 
       const data = await verifyAIAnswer({
         question_text: questionText,
+        question_id: questionId ? Number(questionId) : null,
         options: options.map((option) => ({
           option_code: option.option_code,
           option_text: option.option_text,
@@ -243,6 +251,16 @@ function ExplanationField({
     setVerifyResult(null);
   }
 
+  // DEBUG OUTPUT
+  const debugInfo = {
+    hasImage,
+    questionId,
+    baseReason: getBaseBlockReason({ questionText, options, hasImage, questionId }),
+    generateBlockReason,
+    verifyBlockReason,
+    value: value,
+    filledOptions: options.filter((option) => option.option_text.trim()).map(o => o.is_correct),
+  };
 
   return (
     <div className="form-group">
@@ -295,9 +313,15 @@ function ExplanationField({
         disabled={disabled}
       />
 
-      {generateBlockReason && (
-        <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-          {generateBlockReason}
+      {loading && (
+        <div style={{ marginTop: 8, fontSize: 13, color: "#0284c7" }}>
+          ⏳ Sedang menyusun pembahasan dengan AI. Proses ini mungkin memakan waktu hingga satu menit (terutama untuk soal bergambar). Anda tetap bisa mengedit kolom lain sambil menunggu.
+        </div>
+      )}
+
+      {verifying && (
+        <div style={{ marginTop: 8, fontSize: 13, color: "#0284c7" }}>
+          ⏳ Sedang memverifikasi jawaban dengan AI. Proses ini mungkin memakan waktu hingga satu menit (terutama untuk soal bergambar). Anda tetap bisa mengedit kolom lain sambil menunggu.
         </div>
       )}
 

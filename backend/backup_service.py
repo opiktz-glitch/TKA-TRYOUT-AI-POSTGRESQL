@@ -42,7 +42,6 @@ from pathlib import Path
 from config import DATABASE_URL
 from database import engine
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 BACKUP_DIR = Path(

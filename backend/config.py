@@ -3,7 +3,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 
@@ -115,7 +114,7 @@ OLLAMA_BASE_URL = os.getenv(
 
 OLLAMA_MODEL = os.getenv(
     "OLLAMA_MODEL",
-    "llama3.2:3b"
+    "qwen2.5:3b"
 )
 
 # Model Ollama KHUSUS untuk fitur "Impor Soal dari Gambar" (lihat
@@ -128,7 +127,7 @@ OLLAMA_MODEL = os.getenv(
 # pesan error kalau field ini kosong / modelnya belum ter-pull.
 OLLAMA_VISION_MODEL = os.getenv(
     "OLLAMA_VISION_MODEL",
-    ""
+    "qwen2.5vl:3b"
 )
 
 

@@ -19,7 +19,11 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
 
-  useEffect(() => {
+  const [lastOpenState, setLastOpenState] = useState({ isOpen: false, editingStudent: null });
+
+  // Inisialisasi state saat modal dibuka (dilakukan saat render)
+  if (isOpen !== lastOpenState.isOpen || editingStudent !== lastOpenState.editingStudent) {
+    setLastOpenState({ isOpen, editingStudent });
     if (isOpen) {
       setFormError("");
       setFormSuccess("");
@@ -35,20 +39,25 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
         });
       } else {
         setForm(EMPTY_FORM);
-        loadAvailableUsers();
       }
     }
-  }, [isOpen, editingStudent]);
-
-  async function loadAvailableUsers() {
-    try {
-      const data = await getAvailableStudentUsers();
-      setAvailableUsers(data);
-    } catch (err) {
-      console.error(err);
-      setAvailableUsers([]);
-    }
   }
+
+  useEffect(() => {
+    async function loadAvailableUsers() {
+      try {
+        const data = await getAvailableStudentUsers();
+        setAvailableUsers(data);
+      } catch (err) {
+        console.error(err);
+        setAvailableUsers([]);
+      }
+    }
+
+    if (isOpen && !editingStudent) {
+      loadAvailableUsers();
+    }
+  }, [isOpen, editingStudent]);
 
   if (!isOpen) return null;
 

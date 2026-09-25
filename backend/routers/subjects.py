@@ -1,15 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
 from database import get_db
-from models import Subject, User, Question, Tryout
-from schemas import (
-    SubjectCreate,
-    SubjectUpdate,
-    SubjectResponse
-)
 from dependencies import require_role
-
+from fastapi import APIRouter, Depends, HTTPException
+from models import Question, Subject, Tryout, User
+from schemas import SubjectCreate, SubjectResponse, SubjectUpdate
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/subjects",

@@ -43,13 +43,11 @@ import sys
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BACKEND_DIR)
 
-from sqlalchemy import create_engine, func, select  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
-
-import models  # noqa: E402  (registrasi semua model ke Base.metadata)
-from database import engine as target_engine  # noqa: E402 (Postgres aktif, dari .env)
-from config import DATABASE_URL  # noqa: E402
-
+import models
+from config import DATABASE_URL
+from database import engine as target_engine
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import sessionmaker
 
 # =========================================================
 # URUTAN TABEL — WAJIB mengikuti dependency foreign key

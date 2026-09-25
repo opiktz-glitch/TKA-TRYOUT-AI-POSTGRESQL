@@ -1741,6 +1741,32 @@ button {
   fill: #ef4444;
 }
 
+.trend-chart-dot-html {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.trend-chart-dot-html:hover {
+  transform: scale(1.3);
+}
+
+.trend-chart-dot-html.is-pass {
+  background: #22c55e;
+}
+
+.trend-chart-dot-html.is-medium {
+  background: #eab308;
+}
+
+.trend-chart-dot-html.is-fail {
+  background: #ef4444;
+}
+
 .trend-chart-axis {
   position: relative;
   display: flex;

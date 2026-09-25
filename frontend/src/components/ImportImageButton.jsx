@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import ImportImageModal from "./ImportImageModal";
 import { getImageImportCapability } from "../services/imageImportApi";
 
@@ -20,34 +19,29 @@ import { getImageImportCapability } from "../services/imageImportApi";
 // services/imageImportApi.js, services/imageCrop.js.
 //
 // Props:
+//   gate       -> useAiStatusGate instance dari parent (cek AI online)
 //   subjects   -> daftar mata pelajaran, diteruskan ke modal
 //   onImported -> onImported(jumlah) setelah ada soal yang tersimpan
 // ======================================================
 
 const IMAGE_IMPORT_ENABLED = true;
 
-function ImportImageButtonInner({ subjects, onImported }) {
+function ImportImageButtonInner({ gate, subjects, onImported }) {
   const [showModal, setShowModal] = useState(false);
 
-  const [checking, setChecking] = useState(false);
-
-  const [message, setMessage] = useState("");
-
-  // Cek CEPAT (tanpa memanggil AI) apakah provider AI yang aktif bisa
-  // membaca gambar. Tidak memakai useAiStatusGate karena hook itu
-  // hanya tahu "AI online atau tidak" -- Ollama text-only bisa online
-  // tetapi tetap tidak bisa dipakai untuk gambar.
-  async function handleClick() {
-    setMessage("");
-
+  // Langkah 1: gate.run() cek apakah AI online (via getAIStatus),
+  // sama seperti importGate pada tombol "Impor dari Dokumen".
+  // Langkah 2: jika online, getImageImportCapability() dijalankan
+  // untuk memastikan provider mendukung vision (mis. bukan Ollama
+  // text-only), baru modal dibuka.
+  async function openIfCapable() {
     try {
-      setChecking(true);
-
       const capability = await getImageImportCapability();
 
       if (!capability.available) {
-        setMessage(
+        toast.error(
           capability.reason || "AI yang aktif saat ini belum bisa membaca gambar. Hubungi admin.",
+          { id: "ai-image-gate" }
         );
 
         return;
@@ -57,38 +51,23 @@ function ImportImageButtonInner({ subjects, onImported }) {
     } catch (err) {
       console.error("CHECK IMAGE IMPORT CAPABILITY ERROR:", err);
 
-      setMessage(err.message || "Gagal memeriksa kemampuan AI. Coba lagi nanti.");
-    } finally {
-      setChecking(false);
+      toast.error(
+        err.message || "Gagal memeriksa kemampuan AI. Coba lagi nanti.",
+        { id: "ai-image-gate" }
+      );
     }
   }
 
   return (
-    <div style={{ position: "relative" }}>
+    <>
       <button
         type="button"
         className="secondary-button"
-        onClick={handleClick}
-        disabled={checking}
+        onClick={() => gate.run(openIfCapable)}
+        disabled={gate.checking}
       >
-        {checking ? "Mengecek AI..." : "🖼️ Import dari Gambar"}
+        {gate.checking ? "Mengecek AI..." : "🖼️ Import dari Gambar"}
       </button>
-
-      {message && (
-        <div
-          className="form-error-message"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            width: "320px",
-            zIndex: 5,
-            textAlign: "left",
-          }}
-        >
-          {message}
-        </div>
-      )}
 
       {showModal && (
         <ImportImageModal
@@ -97,7 +76,7 @@ function ImportImageButtonInner({ subjects, onImported }) {
           onImported={onImported}
         />
       )}
-    </div>
+    </>
   );
 }
 

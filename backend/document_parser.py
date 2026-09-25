@@ -6,7 +6,6 @@ from docx import Document as DocxDocument
 from fastapi import HTTPException, UploadFile
 from pypdf import PdfReader
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -1,29 +1,27 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-
+from attempt_utils import compute_attempt_numbers
 from database import get_db
 from dependencies import get_current_user
-from schemas import StudentProfileUpdate
-from attempt_utils import compute_attempt_numbers
+from fastapi import APIRouter, Depends, HTTPException
 from models import (
-    User,
+    Answer,
+    Attempt,
+    Notification,
+    Question,
+    QuestionOption,
+    Result,
     Student,
     Subject,
     Tryout,
     TryoutQuestion,
-    Question,
-    QuestionOption,
-    Attempt,
-    Answer,
-    Result,
-    Notification,
+    User,
 )
-
+from pydantic import BaseModel
+from schemas import StudentProfileUpdate
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/student",

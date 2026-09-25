@@ -1,25 +1,23 @@
-from datetime import datetime, timedelta
 from collections import defaultdict
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import func, or_, text
-from sqlalchemy.orm import Session
-
-from database import get_db, IS_SQLITE
+from database import IS_SQLITE, get_db
 from dependencies import require_role
+from fastapi import APIRouter, Depends
 from models import (
-    User,
-    Student,
-    Teacher,
-    Subject,
-    Tryout,
-    Attempt,
-    Result,
     Answer,
+    Attempt,
     Question,
+    Result,
+    Student,
+    Subject,
+    Teacher,
+    Tryout,
     TryoutQuestion,
+    User,
 )
-
+from sqlalchemy import func, or_, text, case
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/admin",
@@ -76,7 +74,7 @@ def admin_dashboard(
 # ============================================================
 
 
-def _compose_question_bank(subjects, grouped_counts):
+def _compose_question_bank(subjects, grouped_counts, subject_metrics):
     """
     Menyusun baris tabel "Komposisi Bank Soal" untuk dashboard admin.
 
@@ -101,6 +99,7 @@ def _compose_question_bank(subjects, grouped_counts):
     rows = []
 
     for subject in subjects:
+        metrics = subject_metrics.get(subject.id, {"image_count": 0, "unused_count": 0})
         rows.append({
             "subject_id": subject.id,
             "code": subject.code,
@@ -109,6 +108,8 @@ def _compose_question_bank(subjects, grouped_counts):
             "medium": per_difficulty.get((subject.id, "MEDIUM"), 0),
             "hard": per_difficulty.get((subject.id, "HARD"), 0),
             "total": totals.get(subject.id, 0),
+            "image_count": metrics["image_count"],
+            "unused_count": metrics["unused_count"],
         })
 
     return rows
@@ -227,21 +228,38 @@ def get_admin_dashboard_summary(
         .group_by(Question.subject_id, Question.difficulty)
         .all()
     )
+    used_in_tryout = (
+        db.query(TryoutQuestion.id)
+        .filter(TryoutQuestion.question_id == Question.id)
+        .exists()
+    )
+
+    subject_metrics_rows = (
+        db.query(
+            Question.subject_id,
+            func.sum(case((Question.image_data.is_not(None), 1), else_=0)),
+            func.sum(case((~used_in_tryout, 1), else_=0))
+        )
+        .filter(Question.is_active == True)
+        .group_by(Question.subject_id)
+        .all()
+    )
+
+    subject_metrics = {
+        row[0]: {"image_count": row[1] or 0, "unused_count": row[2] or 0}
+        for row in subject_metrics_rows
+    }
 
     question_bank_subjects = _compose_question_bank(
         active_subjects,
         grouped_counts,
+        subject_metrics,
     )
 
     total_active_questions = sum(
         row["total"] for row in question_bank_subjects
     )
 
-    used_in_tryout = (
-        db.query(TryoutQuestion.id)
-        .filter(TryoutQuestion.question_id == Question.id)
-        .exists()
-    )
 
     unused_questions = (
         db.query(func.count(Question.id))

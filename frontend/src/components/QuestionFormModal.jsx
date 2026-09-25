@@ -238,7 +238,7 @@ showModal,
               <ExplanationField
                 value={form.explanation}
                 onTextChange={(text) =>
-                  setForm((prev) => ({ ...prev, explanation: text }))
+                  handleChange({ target: { name: "explanation", value: text } })
                 }
                 disabled={saving}
                 questionText={form.question_text}
@@ -249,6 +249,7 @@ showModal,
                   Boolean(editingQuestion?.has_image && !removeExistingImage) ||
                   Boolean(aiImageDescription)
                 }
+                questionId={editingQuestion?.id}
               />
 
               <div className="form-row">

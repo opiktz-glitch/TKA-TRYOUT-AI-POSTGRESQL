@@ -64,8 +64,7 @@ import argparse
 import os
 import sys
 
-from sqlalchemy import create_engine, MetaData, Table, select
-
+from sqlalchemy import MetaData, Table, create_engine, select
 
 # =========================================================
 # NORMALISASI TEKS UNTUK PERBANDINGAN
@@ -297,7 +296,7 @@ def main():
 
     if subjects_to_create:
         print(
-            f"Mata pelajaran baru yang akan dibuat di tujuan: "
+            "Mata pelajaran baru yang akan dibuat di tujuan: "
             + ", ".join(f"{code} ({row.name})" for code, row in subjects_to_create.items())
         )
 

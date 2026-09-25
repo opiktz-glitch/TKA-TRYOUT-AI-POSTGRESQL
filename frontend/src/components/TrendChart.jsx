@@ -29,8 +29,13 @@ export default function TrendChart({ attemptsTrend, maxTrendCount, trendTotal, t
                 style={{
                   height: `${(day.count / maxTrendCount) * 80}%`,
                 }}
-                title={`${new Date(day.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}: ${day.count} attempt`}
               />
+              
+              <div className="trend-tooltip">
+                <strong>{new Date(day.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</strong>
+                <br />
+                {day.count} attempt
+              </div>
               
               <div
                 className="trend-bar-date"

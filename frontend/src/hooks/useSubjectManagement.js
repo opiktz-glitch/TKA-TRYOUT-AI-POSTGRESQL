@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import { getSubjects, deleteSubject as deleteSubjectApi } from "../services/api";
+import toast from "react-hot-toast";
 
 export function useSubjectManagement() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -16,12 +14,11 @@ export function useSubjectManagement() {
   async function loadSubjects() {
     try {
       setLoading(true);
-      setLoadError("");
       const data = await getSubjects();
       setSubjects(data);
     } catch (err) {
       console.error(err);
-      setLoadError(err.message || "Gagal mengambil mata pelajaran");
+      toast.error(err.message || "Gagal mengambil mata pelajaran", { id: "load-subjects" });
     } finally {
       setLoading(false);
     }
@@ -35,20 +32,12 @@ export function useSubjectManagement() {
     if (!confirmed) return;
 
     try {
-      setActionError("");
-      setActionSuccess("");
-
       const data = await deleteSubjectApi(subject.id);
-
-      setActionSuccess(data.message || `Mata pelajaran "${subject.name}" berhasil dihapus`);
+      toast.success(data.message || `Mata pelajaran "${subject.name}" berhasil dihapus`, { id: "delete-subject-success" });
       await loadSubjects();
-
-      setTimeout(() => {
-        setActionSuccess("");
-      }, 2500);
     } catch (err) {
       console.error(err);
-      setActionError(err.message || "Gagal menghapus mata pelajaran");
+      toast.error(err.message || "Gagal menghapus mata pelajaran", { id: "delete-subject-error" });
     }
   }
 
@@ -64,9 +53,6 @@ export function useSubjectManagement() {
   return {
     subjects,
     loading,
-    loadError,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     filteredSubjects,

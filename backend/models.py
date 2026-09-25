@@ -1,23 +1,21 @@
 from datetime import datetime
 
+from database import Base
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
     Boolean,
-    Float,
-    Text,
+    Column,
     DateTime,
+    Float,
     ForeignKey,
-    UniqueConstraint,
     Index,
+    Integer,
     LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import relationship
-
-from database import Base
-
 
 # =========================================================
 # USER

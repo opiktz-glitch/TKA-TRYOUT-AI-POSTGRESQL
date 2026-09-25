@@ -1,44 +1,41 @@
-import json
 import logging
 import random
 import re
-
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from sqlalchemy.orm import Session
 
 import ai_providers
 import document_parser
 import image_service
 from database import get_db
+from dependencies import require_role
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from models import (
+    Answer,
     Question,
     QuestionOption,
     Subject,
     Tryout,
     TryoutQuestion,
-    Answer,
-    User
+    User,
 )
 from schemas import (
-    QuestionCreate,
-    QuestionUpdate,
-    QuestionResponse,
-    QuestionListResponse,
-    AIQuestionGenerateRequest,
-    AIQuestionGenerateResponse,
-    AIPromptPreviewResponse,
-    AIExtractedQuestion,
-    AIDocumentChunk,
-    AIDocumentPrepareResponse,
     AIChunkProcessRequest,
     AIChunkProcessResponse,
+    AIDocumentChunk,
+    AIDocumentPrepareResponse,
     AIExplanationRequest,
     AIExplanationResponse,
+    AIExtractedQuestion,
+    AIPromptPreviewResponse,
+    AIQuestionGenerateRequest,
+    AIQuestionGenerateResponse,
     AIVerifyAnswerRequest,
-    AIVerifyAnswerResponse
+    AIVerifyAnswerResponse,
+    QuestionCreate,
+    QuestionListResponse,
+    QuestionResponse,
+    QuestionUpdate,
 )
-from dependencies import require_role
-
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/questions",
@@ -1303,7 +1300,26 @@ async def generate_explanation_ai(
         options,
     )
 
-    ai_result = await ai_providers.call_active_provider(prompt, db)
+    image_bytes = None
+    mime_type = None
+
+    if request_data.question_id:
+        question = (
+            db.query(Question)
+            .filter(Question.id == request_data.question_id)
+            .first()
+        )
+        if question and question.has_image and question.image_data:
+            image_bytes = question.image_data
+            mime_type = question.image_mime_type or "image/png"
+
+    if image_bytes:
+        from ai_vision import call_active_vision_provider
+        ai_result = await call_active_vision_provider(
+            prompt, image_bytes, mime_type, db
+        )
+    else:
+        ai_result = await ai_providers.call_active_provider(prompt, db)
 
     raw_explanation = ""
 

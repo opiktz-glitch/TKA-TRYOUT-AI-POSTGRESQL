@@ -1,23 +1,21 @@
 import math
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
-from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
-
 from database import get_db
+from dependencies import require_role
+from fastapi import APIRouter, Depends, HTTPException
 from models import (
-    Tryout,
-    TryoutQuestion,
+    Attempt,
     Question,
     QuestionOption,
     Subject,
+    Tryout,
+    TryoutQuestion,
     User,
-    Attempt,
 )
-from schemas import TryoutCreate, TryoutUpdate, QuestionResponse
-from dependencies import require_role
-
+from pydantic import BaseModel, Field
+from schemas import TryoutCreate, TryoutUpdate
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/tryouts",

@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { getTeacherProfiles, deleteTeacherProfile } from "../services/api";
+import toast from "react-hot-toast";
 
 const TEACHERS_PER_PAGE = 10;
 
 export function useTeacherManagement() {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,12 +18,11 @@ export function useTeacherManagement() {
   async function loadTeachers() {
     try {
       setLoading(true);
-      setError("");
       const data = await getTeacherProfiles();
       setTeachers(data);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Gagal mengambil data guru");
+      toast.error(err.message || "Gagal mengambil data guru", { id: "load-teachers" });
     } finally {
       setLoading(false);
     }
@@ -40,18 +36,12 @@ export function useTeacherManagement() {
     if (!confirmed) return;
 
     try {
-      setActionError("");
-      setActionSuccess("");
       await deleteTeacherProfile(teacher.id);
-      setActionSuccess(`Data guru "${teacher.full_name}" berhasil dihapus`);
+      toast.success(`Data guru "${teacher.full_name}" berhasil dihapus`, { id: "delete-teacher-success" });
       await loadTeachers();
-
-      setTimeout(() => {
-        setActionSuccess("");
-      }, 2500);
     } catch (err) {
       console.error(err);
-      setActionError(err.message || "Gagal menghapus data guru");
+      toast.error(err.message || "Gagal menghapus data guru", { id: "delete-teacher-error" });
     }
   }
 
@@ -94,9 +84,6 @@ export function useTeacherManagement() {
   return {
     teachers,
     loading,
-    error,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     currentPage,

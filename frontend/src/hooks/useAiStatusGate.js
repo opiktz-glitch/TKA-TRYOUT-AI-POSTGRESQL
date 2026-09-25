@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-
+import toast from "react-hot-toast";
 import { getAIStatus } from "../services/api";
 
 // ======================================================
@@ -33,23 +33,18 @@ import { getAIStatus } from "../services/api";
 export default function useAiStatusGate() {
   const [checking, setChecking] = useState(false);
 
-  const [message, setMessage] = useState("");
-
-  const reset = useCallback(() => {
-    setMessage("");
-  }, []);
+  const reset = useCallback(() => {}, []);
 
   const run = useCallback(async (onOnline) => {
-    setMessage("");
-
     try {
       setChecking(true);
 
       const status = await getAIStatus();
 
       if (!status.online) {
-        setMessage(
+        toast.error(
           status.reason || "Tidak ada AI yang online saat ini. Coba lagi nanti atau hubungi admin.",
+          { id: "ai-status-gate" }
         );
 
         return;
@@ -59,11 +54,14 @@ export default function useAiStatusGate() {
     } catch (err) {
       console.error("CHECK AI STATUS ERROR:", err);
 
-      setMessage(err.message || "Gagal memeriksa status AI. Coba lagi nanti.");
+      toast.error(
+        err.message || "Gagal memeriksa status AI. Coba lagi nanti.",
+        { id: "ai-status-gate" }
+      );
     } finally {
       setChecking(false);
     }
   }, []);
 
-  return { checking, message, run, reset };
+  return { checking, run, reset };
 }

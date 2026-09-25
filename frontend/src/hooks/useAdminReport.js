@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { getAdminReportOverview } from "../services/api";
 import { readPageCache, writePageCache } from "../services/pageCache";
+import toast from "react-hot-toast";
 
 const REPORT_CACHE_KEY = "admin-report";
 
@@ -12,7 +13,6 @@ export function useAdminReport() {
 
   const [report, setReport] = useState(() => cachedReport ?? null);
   const [loading, setLoading] = useState(() => !cachedReport);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     loadReport();
@@ -26,8 +26,6 @@ export function useAdminReport() {
         setLoading(true);
       }
 
-      setError("");
-
       const data = await getAdminReportOverview();
 
       setReport(data);
@@ -36,7 +34,7 @@ export function useAdminReport() {
       console.error("LOAD ADMIN REPORT ERROR:", err);
 
       if (!hasCachedReport) {
-        setError(err.message || "Gagal memuat laporan");
+        toast.error(err.message || "Gagal memuat laporan", { id: "load-admin-report" });
       }
     } finally {
       setLoading(false);
@@ -75,7 +73,6 @@ export function useAdminReport() {
   return {
     report,
     loading,
-    error,
     overallPercentage,
     subjectPercentage,
     scoreBarWidth,

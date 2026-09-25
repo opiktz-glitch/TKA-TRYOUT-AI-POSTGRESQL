@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
 from database import get_db
-from models import Attempt, Answer, Result, User
 from dependencies import require_role
-
+from fastapi import APIRouter, Depends, HTTPException
+from models import Answer, Attempt, Result, User
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/attempts",

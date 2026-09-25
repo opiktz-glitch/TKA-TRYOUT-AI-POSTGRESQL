@@ -36,8 +36,7 @@ from pathlib import Path
 # cwd = folder backend/).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backup_service import backup_database, cleanup_old_backups  # noqa: E402
-
+from backup_service import backup_database, cleanup_old_backups
 
 if __name__ == "__main__":
 

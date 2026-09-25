@@ -5,25 +5,14 @@ import {
   IconTrendingUp,
   IconBarChart,
 } from "../Icons";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
 import StatCard from "../StatCard";
-import {
-  readDashboardCache,
-  writeDashboardCache,
-} from "../../services/dashboardCache";
-import { parseUtcDate } from "../../utils/date";
 import "../ScoreTable.css";
-import {} from "../Icons";
-import {} from "../../services/api";
 import { timeAgo, shortDate, scoreTier, TREND_WIDTH, TREND_HEIGHT, TREND_PADDING_X, TREND_PADDING_BOTTOM, TREND_GRID_VALUES, trendValueToY, buildTrendPoints } from "../../utils/dashboardUtils";
 
 export default function StudentDashboard({ data }) {
-    const { studentStats, sortedStudentPreview, studentTryoutsPreview, dashError, dashFailed, dashLoading, loadStudentData, show, user, navigate, areaPoints, badgeClass, baselineY, linePoints, points, studentScoreTrend, studentSubjectBreakdown } = data;
+  const { studentStats, sortedStudentPreview, dashFailed, show, navigate, studentScoreTrend, studentSubjectBreakdown } = data;
   return (
     <>
-      <>
         <div className="stat-grid">
           <StatCard
             icon={<IconClipboard />}
@@ -292,71 +281,97 @@ export default function StudentDashboard({ data }) {
                       )}
                     </div>
 
-                    <svg
-                      className="trend-chart-svg"
-                      viewBox={`0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`}
-                      preserveAspectRatio="none"
-                    >
-                      {TREND_GRID_VALUES.map((value) => (
-                        <g key={value}>
+                    <div style={{ position: "relative", width: "100%", height: "110px" }}>
+                      <svg
+                        className="trend-chart-svg"
+                        viewBox={`0 0 ${TREND_WIDTH} ${TREND_HEIGHT}`}
+                        preserveAspectRatio="none"
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+                      >
+                        {TREND_GRID_VALUES.map((value) => (
                           <line
+                            key={value}
                             x1={TREND_PADDING_X}
                             x2={TREND_WIDTH - TREND_PADDING_X}
                             y1={trendValueToY(value)}
                             y2={trendValueToY(value)}
                             className="trend-chart-grid"
+                            vectorEffect="non-scaling-stroke"
                           />
+                        ))}
 
-                          <text
-                            x={2}
-                            y={trendValueToY(value)}
-                            dy={value === 0 ? -2 : value === 100 ? 8 : 3}
-                            className="trend-chart-grid-label"
-                          >
-                            {value}
-                          </text>
-                        </g>
+                        {areaPoints && (
+                          <polygon
+                            points={areaPoints}
+                            className="trend-chart-area"
+                          />
+                        )}
+
+                        {points.length > 1 && (
+                          <polyline
+                            points={linePoints}
+                            className="trend-chart-line"
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        )}
+                      </svg>
+
+                      {/* Label Sumbu Y (HTML) */}
+                      {TREND_GRID_VALUES.map((value) => (
+                        <span
+                          key={value}
+                          style={{
+                            position: "absolute",
+                            left: "2px",
+                            top: `${(trendValueToY(value) / TREND_HEIGHT) * 100}%`,
+                            transform: "translateY(-50%)",
+                            fontSize: "10px",
+                            color: "#9ca3af",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {value}
+                        </span>
                       ))}
 
-                      {areaPoints && (
-                        <polygon
-                          points={areaPoints}
-                          className="trend-chart-area"
-                        />
-                      )}
-
-                      {points.length > 1 && (
-                        <polyline
-                          points={linePoints}
-                          className="trend-chart-line"
-                        />
-                      )}
-
+                      {/* Titik Data & Nilai (HTML) */}
                       {points.map((p, i) => (
-                        <g key={studentScoreTrend[i].attempt_id}>
-                          <text
-                            x={p.x}
-                            y={p.y}
-                            dy={-9}
-                            className="trend-chart-value-label"
+                        <div
+                          key={studentScoreTrend[i].attempt_id}
+                          style={{
+                            position: "absolute",
+                            left: `${(p.x / TREND_WIDTH) * 100}%`,
+                            top: `${(p.y / TREND_HEIGHT) * 100}%`,
+                            transform: "translate(-50%, -50%)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            pointerEvents: "none",
+                            zIndex: 10,
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              bottom: "10px",
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              color: "#374151",
+                              whiteSpace: "nowrap",
+                              textShadow: "0 1px 3px rgba(255,255,255,0.9)"
+                            }}
                           >
                             {scores[i]}
-                          </text>
+                          </span>
 
-                          <circle
-                            cx={p.x}
-                            cy={p.y}
-                            r={3.5}
-                            className={`trend-chart-dot ${scoreTier(scores[i])}`}
-                          >
-                            <title>
-                              {studentScoreTrend[i].tryout_title} — {scores[i]}{" "}
-                              ({shortDate(studentScoreTrend[i].finished_at)})
-                            </title>
-                          </circle>
-                        </g>
+                          <div
+                            className={`trend-chart-dot-html ${scoreTier(scores[i])}`}
+                            style={{ pointerEvents: "auto" }}
+                            title={`${studentScoreTrend[i].tryout_title} — ${scores[i]} (${shortDate(studentScoreTrend[i].finished_at)})`}
+                          />
+                        </div>
                       ))}
-                    </svg>
+                    </div>
 
                     <div className="trend-chart-axis">
                       {studentScoreTrend.length <= 5 ? (
@@ -487,7 +502,6 @@ export default function StudentDashboard({ data }) {
             })}
           </div>
         </div>
-      </>
     </>
   );
 }

@@ -70,10 +70,10 @@ from pathlib import Path
 # folder mana pun (bukan cuma saat cwd = folder backend/).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import argparse  # noqa: E402
+import argparse
 
-from database import SessionLocal  # noqa: E402
-from models import Answer, Question, QuestionOption  # noqa: E402
+from database import SessionLocal
+from models import Answer, Question, QuestionOption
 
 
 def find_questions_with_option_e(db):

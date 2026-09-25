@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+
 import { useAuth } from "../auth/AuthContext";
 import { useDashboard } from "../hooks/useDashboard";
 import AdminDashboard from "../components/dashboard/AdminDashboard";
@@ -10,7 +9,6 @@ import "../components/ScoreTable.css";
 function Dashboard() {
   const { user } = useAuth();
   const dashboardData = useDashboard();
-  const navigate = useNavigate();
 
   if (!user) {
     return (
@@ -26,7 +24,7 @@ function Dashboard() {
     SISWA: "Siswa",
   };
 
-  const commonData = { ...dashboardData, user, navigate };
+  const commonData = { ...dashboardData, user };
 
   return (
     <>

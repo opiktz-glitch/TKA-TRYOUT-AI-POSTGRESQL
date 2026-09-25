@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
   getAdminDashboardSummary,
@@ -14,7 +14,6 @@ import { useNavigate } from "react-router-dom";
 
 export function useDashboard() {
   const { user } = useAuth();
-  const { loading } = useAuth();
   const navigate = useNavigate();
 
   // Data dari kunjungan dashboard sebelumnya di sesi ini (lihat
@@ -426,46 +425,19 @@ export function useDashboard() {
     aiCardLoading,
     aiCardStatus,
     attention,
-    dashError,
     dashFailed,
     dashLoading,
     liveStats,
-    loadAdminData,
-    loadAiCardStatus,
-    loadDashboardData,
-    loadStudentData,
-    loadSystemStatus,
-    loadTeacherData,
-    loading,
     navigate,
     questionBank,
-    setAdminStats,
-    setAiCardError,
-    setAiCardLoading,
-    setAiCardStatus,
-    setAttention,
-    setDashError,
-    setDashLoading,
-    setLiveStats,
-    setQuestionBank,
-    setStudentScoreTrend,
-    setStudentStats,
-    setStudentSubjectBreakdown,
-    setStudentTryoutsPreview,
-    setSystemError,
-    setSystemLoading,
-    setSystemStatus,
-    setTeacherActivity,
-    setTeacherStats,
     show,
     sortedStudentPreview,
     studentScoreTrend,
     studentStats,
     studentSubjectBreakdown,
-    studentTryoutsPreview,
-    systemError,
-    systemLoading,
     systemStatus,
+    systemLoading,
+    systemError,
     teacherActivity,
     teacherStats,
     user

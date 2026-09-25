@@ -1,6 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ==========================================
 # NOTIFICATION
@@ -255,6 +255,7 @@ class AIExplanationRequest(BaseModel):
     options: list[AIExplanationOption]
     # Opsional: nama mapel dipakai sebagai konteks tambahan di prompt.
     subject_id: int | None = None
+    question_id: int | None = None
 
 
 class AIExplanationResponse(BaseModel):
@@ -275,6 +276,7 @@ class AIExplanationResponse(BaseModel):
 class AIVerifyAnswerRequest(BaseModel):
     question_text: str
     options: list[AIExplanationOption]
+    question_id: int | None = None
 
 
 class AIVerifyAnswerResponse(BaseModel):

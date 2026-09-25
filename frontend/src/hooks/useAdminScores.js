@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { getAdminScores, getScoreCreators, getSubjects, deleteAttempt } from "../services/api";
 import { readPageCache, writePageCache } from "../services/pageCache";
+import toast from "react-hot-toast";
 
 const SCORE_OPTIONS_CACHE_KEY = "admin-scores-options";
 
@@ -17,12 +18,7 @@ export function useAdminScores(user) {
   const [scores, setScores] = useState(() => cachedScores ?? []);
   const [subjectOptions, setSubjectOptions] = useState(() => cachedOptions?.subjects ?? []);
   const [teacherOptions, setTeacherOptions] = useState(() => cachedOptions?.teachers ?? []);
-
   const [loading, setLoading] = useState(() => !cachedScores);
-  const [error, setError] = useState("");
-
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
@@ -70,8 +66,6 @@ export function useAdminScores(user) {
       setLoading(true);
     }
 
-    setError("");
-
     try {
       const data = await getAdminScores({
         subjectId: selectedSubjectId || undefined,
@@ -86,7 +80,7 @@ export function useAdminScores(user) {
     } catch (err) {
       console.error("LOAD ADMIN SCORES ERROR:", err);
       if (!cachedData && latestScoresKeyRef.current === cacheKey) {
-        setError(err.message || "Gagal memuat rekap nilai");
+        toast.error(err.message || "Gagal memuat rekap nilai", { id: "load-admin-scores" });
       }
     } finally {
       if (latestScoresKeyRef.current === cacheKey) {
@@ -110,23 +104,17 @@ export function useAdminScores(user) {
     }
 
     try {
-      setActionError("");
-      setActionSuccess("");
-
       await deleteAttempt(item.attempt_id);
 
-      setActionSuccess(
-        `Nilai "${item.student_name || "-"}" untuk tryout "${item.tryout_title || "-"}"${attemptLabel} berhasil dihapus`
+      toast.success(
+        `Nilai "${item.student_name || "-"}" untuk tryout "${item.tryout_title || "-"}"${attemptLabel} berhasil dihapus`,
+        { id: "delete-attempt-success" }
       );
 
       await loadScores();
-
-      setTimeout(() => {
-        setActionSuccess("");
-      }, 2500);
     } catch (err) {
       console.error("DELETE ATTEMPT ERROR:", err);
-      setActionError(err.message || "Gagal menghapus nilai");
+      toast.error(err.message || "Gagal menghapus nilai", { id: "delete-attempt-error" });
     }
   }
 
@@ -201,9 +189,6 @@ export function useAdminScores(user) {
   return {
     scores,
     loading,
-    error,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     selectedSubjectId,

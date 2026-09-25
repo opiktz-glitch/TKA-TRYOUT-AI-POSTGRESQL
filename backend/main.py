@@ -1,39 +1,36 @@
 
-import os
 import logging
-
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-
-import models
-
-from database import Base, engine, SessionLocal
-from config import ALLOWED_ORIGINS, CORS_ORIGIN_REGEX, APP_MODE
+import os
 
 # Modul auth.py (bukan routers/auth.py) — dipakai HANYA untuk
 # bootstrap_secret_key() di bawah. Diberi alias "core_auth" supaya
 # tidak bentrok dengan "from routers import auth" (routers.auth)
 # yang sudah dipakai di seluruh file ini untuk app.include_router().
 import auth as core_auth
-
-from routers import auth
-from routers import users
-from routers import admin
-from routers import subjects
-from routers import questions
-from routers import tryouts
-from routers import attempts
-from routers import student
-from routers import students
-from routers import teachers
-from routers import teacher
-from routers import system
-from routers import settings
-from routers import notifications
-from routers import image_import
-
+import models
+from config import ALLOWED_ORIGINS, APP_MODE, CORS_ORIGIN_REGEX
+from database import Base, SessionLocal, engine
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from routers import (
+    admin,
+    attempts,
+    auth,
+    image_import,
+    notifications,
+    questions,
+    settings,
+    student,
+    students,
+    subjects,
+    system,
+    teacher,
+    teachers,
+    tryouts,
+    users,
+)
 
 # ==========================================
 # LOGGING

@@ -22,19 +22,17 @@ import base64
 import json
 import logging
 
-import httpx
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
 import ai_providers
+import httpx
 from config import (
     GEMINI_API_KEY,
-    GEMINI_BASE_URL,
     GEMINI_FALLBACK_MODEL,
     GEMINI_MODEL,
     OLLAMA_BASE_URL,
     OLLAMA_VISION_MODEL,
 )
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

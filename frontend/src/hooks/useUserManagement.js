@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { getUsers, deleteUser, forceLogoutUser } from "../services/api";
+import toast from "react-hot-toast";
 
 const USERS_PER_PAGE = 10;
 
 export function useUserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -23,12 +20,11 @@ export function useUserManagement() {
   async function loadUsers() {
     try {
       setLoading(true);
-      setLoadError("");
       const data = await getUsers();
       setUsers(data);
     } catch (err) {
       console.error(err);
-      setLoadError(err.message || "Gagal mengambil data user");
+      toast.error(err.message || "Gagal mengambil data user", { id: "load-users" });
     } finally {
       setLoading(false);
     }
@@ -42,18 +38,12 @@ export function useUserManagement() {
     if (!confirmed) return;
 
     try {
-      setActionError("");
-      setActionSuccess("");
       await deleteUser(user.id);
-      setActionSuccess(`User "${user.username}" berhasil dihapus`);
+      toast.success(`User "${user.username}" berhasil dihapus`, { id: "delete-user-success" });
       await loadUsers();
-
-      setTimeout(() => {
-        setActionSuccess("");
-      }, 2500);
     } catch (err) {
       console.error(err);
-      setActionError(err.message || "Gagal menghapus user");
+      toast.error(err.message || "Gagal menghapus user", { id: "delete-user-error" });
     }
   }
 
@@ -65,17 +55,11 @@ export function useUserManagement() {
     if (!confirmed) return;
 
     try {
-      setActionError("");
-      setActionSuccess("");
       await forceLogoutUser(user.id);
-      setActionSuccess(`Sesi user "${user.username}" berhasil di-logout paksa`);
-
-      setTimeout(() => {
-        setActionSuccess("");
-      }, 2500);
+      toast.success(`Sesi user "${user.username}" berhasil di-logout paksa`, { id: "logout-user-success" });
     } catch (err) {
       console.error(err);
-      setActionError(err.message || "Gagal memaksa logout user");
+      toast.error(err.message || "Gagal memaksa logout user", { id: "logout-user-error" });
     }
   }
 
@@ -126,9 +110,6 @@ export function useUserManagement() {
   return {
     users,
     loading,
-    loadError,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     roleFilter,

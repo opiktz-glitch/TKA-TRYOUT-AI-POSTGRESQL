@@ -18,7 +18,6 @@ function AdminReport() {
   const {
     report,
     loading,
-    error,
     overallPercentage,
     subjectPercentage,
     scoreBarWidth,
@@ -44,7 +43,6 @@ function AdminReport() {
         <div className="loading-message">Memuat laporan...</div>
       )}
 
-      {error && <div className="error-message">{error}</div>}
 
       {!loading && report && (
         <>

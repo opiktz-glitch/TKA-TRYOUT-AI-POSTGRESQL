@@ -19,9 +19,6 @@ const ROLES = ["ADMIN", "GURU", "SISWA"];
 function UserManagement() {
   const {
     loading,
-    loadError,
-    actionError,
-    actionSuccess,
     search,
     setSearch,
     roleFilter,
@@ -115,33 +112,9 @@ function UserManagement() {
           </select>
         </div>
 
-        {actionSuccess && (
-          <div
-            className="success-message"
-            style={{ margin: "0 16px", marginTop: "12px" }}
-          >
-            <IconCheck
-              size={14}
-              style={{ verticalAlign: "-2px", marginRight: "4px" }}
-            />
-            {actionSuccess}
-          </div>
-        )}
-
-        {actionError && (
-          <div
-            className="form-error-message"
-            style={{ margin: "0 16px", marginTop: "12px" }}
-          >
-            {actionError}
-          </div>
-        )}
-
         {loading && <div className="loading-message">Memuat data user...</div>}
 
-        {loadError && <div className="error-message">{loadError}</div>}
-
-        {!loading && !loadError && (
+        {!loading && (
           <>
             <div className="score-meta">
               <span>{filteredUsersCount} user</span>

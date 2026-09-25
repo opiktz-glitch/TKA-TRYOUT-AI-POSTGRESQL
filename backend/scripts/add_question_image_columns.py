@@ -25,10 +25,9 @@ import sys
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BACKEND_DIR)
 
-from sqlalchemy import text  # noqa: E402
-
-from config import DATABASE_URL  # noqa: E402
-from database import engine  # noqa: E402
+from config import DATABASE_URL
+from database import engine
+from sqlalchemy import text
 
 
 def main():

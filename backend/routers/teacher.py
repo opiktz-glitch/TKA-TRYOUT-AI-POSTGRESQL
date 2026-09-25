@@ -1,25 +1,23 @@
+from attempt_utils import compute_attempt_numbers
+from database import get_db
+from dependencies import require_role
 from fastapi import APIRouter, Depends, HTTPException
+from models import (
+    Answer,
+    Attempt,
+    Question,
+    Result,
+    Student,
+    Subject,
+    Teacher,
+    Tryout,
+    TryoutQuestion,
+    User,
+)
+from schemas import TeacherProfileUpdate
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
-
-from database import get_db
-from dependencies import require_role
-from attempt_utils import compute_attempt_numbers
-from schemas import TeacherProfileUpdate
-from models import (
-    User,
-    Attempt,
-    Student,
-    Teacher,
-    Tryout,
-    Subject,
-    Result,
-    Answer,
-    Question,
-    TryoutQuestion,
-)
-
 
 router = APIRouter(
     prefix="/api/teacher",

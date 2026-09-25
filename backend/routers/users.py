@@ -1,17 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
+from auth import end_session, hash_password
 from database import get_db
-from models import User, Student, Teacher, Attempt, Tryout, Question
-from schemas import (
-    UserCreate,
-    UserUpdate,
-    UserResponse,
-    PasswordReset
-)
-from auth import hash_password, end_session
 from dependencies import require_role
-
+from fastapi import APIRouter, Depends, HTTPException
+from models import Attempt, Question, Student, Teacher, Tryout, User
+from schemas import PasswordReset, UserCreate, UserResponse, UserUpdate
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/users",

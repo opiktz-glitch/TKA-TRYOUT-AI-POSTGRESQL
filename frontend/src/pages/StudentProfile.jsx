@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import "../components/settings/settings.css";
 
@@ -24,7 +25,6 @@ function StudentProfile() {
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
 
   const [form, setForm] = useState({
     full_name: "",
@@ -46,7 +46,6 @@ function StudentProfile() {
   async function loadProfile() {
     try {
       setLoading(true);
-      setLoadError("");
 
       const data = await getMyProfile();
 
@@ -60,7 +59,7 @@ function StudentProfile() {
       });
     } catch (err) {
       console.error("LOAD PROFILE ERROR:", err);
-      setLoadError(err.message || "Gagal memuat profil");
+      toast.error(err.message || "Gagal memuat profil", { id: "load-student-profile" });
     } finally {
       setLoading(false);
     }
@@ -136,13 +135,7 @@ function StudentProfile() {
         </div>
       )}
 
-      {loadError && (
-        <div className="dashboard-card">
-          <div className="error-message">{loadError}</div>
-        </div>
-      )}
-
-      {!loading && !loadError && profile && (
+      {!loading && profile && (
         <div className="settings-grid is-profile">
 
           {/* KARTU AKUN (read-only) + tombol ubah password */}

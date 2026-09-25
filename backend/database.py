@@ -1,8 +1,6 @@
+from config import DATABASE_URL
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
-
-from config import DATABASE_URL
-
 
 # =========================================================
 # IS_SQLITE

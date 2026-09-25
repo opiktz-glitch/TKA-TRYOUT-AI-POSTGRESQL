@@ -1,34 +1,26 @@
-from datetime import timedelta, datetime
-
-from fastapi import APIRouter, Depends, HTTPException
-
-from sqlalchemy.orm import Session
-
-from database import get_db
-
-from models import User
-
-from schemas import (
-    LoginRequest,
-    LoginResponse,
-    UserResponse,
-    ChangePassword,
-    MyProfileUpdate
-)
+from datetime import datetime, timedelta
 
 from auth import (
-    verify_password,
     create_access_token,
+    end_session,
     hash_password,
     is_session_active,
     start_session,
-    end_session
+    verify_password,
 )
-
-from dependencies import get_current_user
-
 from config import ACCESS_TOKEN_EXPIRE_MINUTES
-
+from database import get_db
+from dependencies import get_current_user
+from fastapi import APIRouter, Depends, HTTPException
+from models import User
+from schemas import (
+    ChangePassword,
+    LoginRequest,
+    LoginResponse,
+    MyProfileUpdate,
+    UserResponse,
+)
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/auth",
