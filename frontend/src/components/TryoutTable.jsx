@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconSearch, IconCheck, IconEdit, IconEye, IconTrash } from './Icons';
+import { IconSearch, IconCheck, IconEdit, IconEye, IconTrash, IconTrophy, IconBarChart } from './Icons';
 import Pagination from './Pagination';
 
 export default function TryoutTable({
@@ -10,7 +10,7 @@ export default function TryoutTable({
   filteredTryouts, user, onlyMine, setOnlyMine,
   hasActiveTryoutFilter, resetTryoutFilters,
   paginatedTryouts, getSubjectName,
-  openEditModal, openReviewModal, handleDelete, deletingId,
+  openEditModal, openReviewModal, handleDelete, deletingId, openLeaderboardModal, openAnalysisModal,
   currentPage, totalPages, TRYOUTS_PER_PAGE, setCurrentPage
 }) {
   return (
@@ -192,6 +192,26 @@ export default function TryoutTable({
                         >
                           <IconEye size={16} />
                         </button>
+                        
+                        {openLeaderboardModal && (
+                          <button
+                            className="review-button"
+                            onClick={() => openLeaderboardModal(tryout)}
+                            title="Papan Peringkat"
+                          >
+                            <IconTrophy size={16} />
+                          </button>
+                        )}
+
+                        {hasParticipants && (
+                          <button
+                            className="icon-button"
+                            onClick={() => openAnalysisModal(tryout)}
+                            title="Analisis Butir Soal"
+                          >
+                            <IconBarChart size={16} />
+                          </button>
+                        )}
 
                         <button
                           className="delete-button"

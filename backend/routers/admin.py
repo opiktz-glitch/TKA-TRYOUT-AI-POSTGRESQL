@@ -32,7 +32,62 @@ def admin_dashboard(
     )
 ):
 
+
+    # --------------------------------------------------------
+    # Top Siswa & Paket Tryout Populer
+    # --------------------------------------------------------
+
+    popular_tryouts = []
+    tryout_attempt_counts = defaultdict(int)
+    for attempt in completed_attempts:
+        tryout_attempt_counts[attempt.tryout_id] += 1
+    
+    for tryout_id, count in tryout_attempt_counts.items():
+        t = tryout_map.get(tryout_id)
+        if t:
+            popular_tryouts.append({
+                "tryout_id": tryout_id,
+                "title": t.title,
+                "attempt_count": count
+            })
+    popular_tryouts.sort(key=lambda x: x["attempt_count"], reverse=True)
+    popular_tryouts = popular_tryouts[:5]
+
+    student_scores = defaultdict(list)
+    for attempt in completed_attempts:
+        tryout = tryout_map.get(attempt.tryout_id)
+        if not tryout:
+            continue
+            
+        attempt_result = results_by_attempt.get(attempt.id)
+        score = attempt_result.score if attempt_result and attempt_result.score is not None else attempt.score
+        if score is None:
+            continue
+            
+        max_score = tryout.max_score or 100
+        percentage = score / max_score * 100
+        student_scores[attempt.student_id].append(percentage)
+
+    top_students = []
+    students_by_id = {s.id: s for s in db.query(Student).all()}
+    for student_id, percentages in student_scores.items():
+        s = students_by_id.get(student_id)
+        if not s: continue
+        u = users_by_id.get(s.user_id)
+        name = u.full_name if u else "Unknown"
+        avg_percentage = round(sum(percentages) / len(percentages), 1)
+        top_students.append({
+            "student_id": student_id,
+            "student_name": name,
+            "average_percentage": avg_percentage,
+            "tryouts_taken": len(percentages)
+        })
+    top_students.sort(key=lambda x: (x["average_percentage"], x["tryouts_taken"]), reverse=True)
+    top_students = top_students[:5]
+
     return {
+        "top_students": top_students,
+        "popular_tryouts": popular_tryouts,
 
         "success": True,
 
@@ -140,6 +195,7 @@ def _compose_attention(
       index) di Postgres, None kalau lagi jalan di atas SQLite (dev
       lokal), lihat get_question_table_bytes().
     """
+
 
     return {
         "tryouts_with_inactive_questions": {
@@ -330,7 +386,71 @@ def get_admin_dashboard_summary(
 
     question_table_bytes = _get_question_table_bytes(db)
 
+    completed_attempts = db.query(Attempt).filter(Attempt.status != "IN_PROGRESS").all()
+    tryout_map = {t.id: t for t in db.query(Tryout).all()}
+    attempt_ids = [a.id for a in completed_attempts]
+    results_by_attempt = {}
+    if attempt_ids:
+        results = db.query(Result).filter(Result.attempt_id.in_(attempt_ids)).all()
+        results_by_attempt = {r.attempt_id: r for r in results}
+    users_by_id = {u.id: u for u in db.query(User).all()}
+
+
+    # --------------------------------------------------------
+    # Top Siswa & Paket Tryout Populer
+    # --------------------------------------------------------
+
+    popular_tryouts = []
+    tryout_attempt_counts = defaultdict(int)
+    for attempt in completed_attempts:
+        tryout_attempt_counts[attempt.tryout_id] += 1
+    
+    for tryout_id, count in tryout_attempt_counts.items():
+        t = tryout_map.get(tryout_id)
+        if t:
+            popular_tryouts.append({
+                "tryout_id": tryout_id,
+                "title": t.title,
+                "attempt_count": count
+            })
+    popular_tryouts.sort(key=lambda x: x["attempt_count"], reverse=True)
+    popular_tryouts = popular_tryouts[:5]
+
+    student_scores = defaultdict(list)
+    for attempt in completed_attempts:
+        tryout = tryout_map.get(attempt.tryout_id)
+        if not tryout:
+            continue
+            
+        attempt_result = results_by_attempt.get(attempt.id)
+        score = attempt_result.score if attempt_result and attempt_result.score is not None else attempt.score
+        if score is None:
+            continue
+            
+        max_score = tryout.max_score or 100
+        percentage = score / max_score * 100
+        student_scores[attempt.student_id].append(percentage)
+
+    top_students = []
+    students_by_id = {s.id: s for s in db.query(Student).all()}
+    for student_id, percentages in student_scores.items():
+        s = students_by_id.get(student_id)
+        if not s: continue
+        u = users_by_id.get(s.user_id)
+        name = u.full_name if u else "Unknown"
+        avg_percentage = round(sum(percentages) / len(percentages), 1)
+        top_students.append({
+            "student_id": student_id,
+            "student_name": name,
+            "average_percentage": avg_percentage,
+            "tryouts_taken": len(percentages)
+        })
+    top_students.sort(key=lambda x: (x["average_percentage"], x["tryouts_taken"]), reverse=True)
+    top_students = top_students[:5]
+
     return {
+        "top_students": top_students,
+        "popular_tryouts": popular_tryouts,
 
         "stats": {
             "total_students": total_students,
@@ -447,7 +567,71 @@ def get_admin_live_summary(
         .scalar()
     ) or 0
 
+    completed_attempts = db.query(Attempt).filter(Attempt.status != "IN_PROGRESS").all()
+    tryout_map = {t.id: t for t in db.query(Tryout).all()}
+    attempt_ids = [a.id for a in completed_attempts]
+    results_by_attempt = {}
+    if attempt_ids:
+        results = db.query(Result).filter(Result.attempt_id.in_(attempt_ids)).all()
+        results_by_attempt = {r.attempt_id: r for r in results}
+    users_by_id = {u.id: u for u in db.query(User).all()}
+
+
+    # --------------------------------------------------------
+    # Top Siswa & Paket Tryout Populer
+    # --------------------------------------------------------
+
+    popular_tryouts = []
+    tryout_attempt_counts = defaultdict(int)
+    for attempt in completed_attempts:
+        tryout_attempt_counts[attempt.tryout_id] += 1
+    
+    for tryout_id, count in tryout_attempt_counts.items():
+        t = tryout_map.get(tryout_id)
+        if t:
+            popular_tryouts.append({
+                "tryout_id": tryout_id,
+                "title": t.title,
+                "attempt_count": count
+            })
+    popular_tryouts.sort(key=lambda x: x["attempt_count"], reverse=True)
+    popular_tryouts = popular_tryouts[:5]
+
+    student_scores = defaultdict(list)
+    for attempt in completed_attempts:
+        tryout = tryout_map.get(attempt.tryout_id)
+        if not tryout:
+            continue
+            
+        attempt_result = results_by_attempt.get(attempt.id)
+        score = attempt_result.score if attempt_result and attempt_result.score is not None else attempt.score
+        if score is None:
+            continue
+            
+        max_score = tryout.max_score or 100
+        percentage = score / max_score * 100
+        student_scores[attempt.student_id].append(percentage)
+
+    top_students = []
+    students_by_id = {s.id: s for s in db.query(Student).all()}
+    for student_id, percentages in student_scores.items():
+        s = students_by_id.get(student_id)
+        if not s: continue
+        u = users_by_id.get(s.user_id)
+        name = u.full_name if u else "Unknown"
+        avg_percentage = round(sum(percentages) / len(percentages), 1)
+        top_students.append({
+            "student_id": student_id,
+            "student_name": name,
+            "average_percentage": avg_percentage,
+            "tryouts_taken": len(percentages)
+        })
+    top_students.sort(key=lambda x: (x["average_percentage"], x["tryouts_taken"]), reverse=True)
+    top_students = top_students[:5]
+
     return {
+        "top_students": top_students,
+        "popular_tryouts": popular_tryouts,
         "in_progress": _count_active_students(in_progress_rows, now_utc),
         "finished_today": finished_today,
     }
@@ -757,7 +941,62 @@ def get_admin_report_overview(
 
             hardest_questions = hardest_questions[:HARDEST_QUESTIONS_LIMIT]
 
+
+    # --------------------------------------------------------
+    # Top Siswa & Paket Tryout Populer
+    # --------------------------------------------------------
+
+    popular_tryouts = []
+    tryout_attempt_counts = defaultdict(int)
+    for attempt in completed_attempts:
+        tryout_attempt_counts[attempt.tryout_id] += 1
+    
+    for tryout_id, count in tryout_attempt_counts.items():
+        t = tryout_map.get(tryout_id)
+        if t:
+            popular_tryouts.append({
+                "tryout_id": tryout_id,
+                "title": t.title,
+                "attempt_count": count
+            })
+    popular_tryouts.sort(key=lambda x: x["attempt_count"], reverse=True)
+    popular_tryouts = popular_tryouts[:5]
+
+    student_scores = defaultdict(list)
+    for attempt in completed_attempts:
+        tryout = tryout_map.get(attempt.tryout_id)
+        if not tryout:
+            continue
+            
+        attempt_result = results_by_attempt.get(attempt.id)
+        score = attempt_result.score if attempt_result and attempt_result.score is not None else attempt.score
+        if score is None:
+            continue
+            
+        max_score = tryout.max_score or 100
+        percentage = score / max_score * 100
+        student_scores[attempt.student_id].append(percentage)
+
+    top_students = []
+    students_by_id = {s.id: s for s in db.query(Student).all()}
+    for student_id, percentages in student_scores.items():
+        s = students_by_id.get(student_id)
+        if not s: continue
+        u = users_by_id.get(s.user_id)
+        name = u.full_name if u else "Unknown"
+        avg_percentage = round(sum(percentages) / len(percentages), 1)
+        top_students.append({
+            "student_id": student_id,
+            "student_name": name,
+            "average_percentage": avg_percentage,
+            "tryouts_taken": len(percentages)
+        })
+    top_students.sort(key=lambda x: (x["average_percentage"], x["tryouts_taken"]), reverse=True)
+    top_students = top_students[:5]
+
     return {
+        "top_students": top_students,
+        "popular_tryouts": popular_tryouts,
         "total_students": total_students,
         "total_teachers": total_teachers,
         "total_tryouts": total_tryouts,

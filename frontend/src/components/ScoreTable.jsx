@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Pagination from "./Pagination";
-import { IconTrash, IconEye } from "./Icons";
+import { IconTrash, IconEye, IconTrophy } from "./Icons";
 import "./ScoreTable.css";
 
 
@@ -97,10 +97,12 @@ function ScoreTable({
   emptyMessage = "Belum ada data nilai.",
   onDeleteAttempt = null,
   onViewDetail = null,
+  onViewLeaderboard = null,
 }) {
   const showDeleteAction = typeof onDeleteAttempt === "function";
   const showViewAction = typeof onViewDetail === "function";
-  const showActions = showDeleteAction || showViewAction;
+  const showLeaderboardAction = typeof onViewLeaderboard === "function";
+  const showActions = showDeleteAction || showViewAction || showLeaderboardAction;
 
   const [page, setPage] = useState(1);
   const [lastResetKey, setLastResetKey] = useState(resetKey);
@@ -276,6 +278,17 @@ function ScoreTable({
                               title="Lihat Detail"
                             >
                               <IconEye size={16} />
+                            </button>
+                          )}
+                          
+                          {showLeaderboardAction && (
+                            <button
+                              type="button"
+                              className="review-button"
+                              onClick={() => onViewLeaderboard(item)}
+                              title="Papan Peringkat"
+                            >
+                              <IconTrophy size={16} />
                             </button>
                           )}
 

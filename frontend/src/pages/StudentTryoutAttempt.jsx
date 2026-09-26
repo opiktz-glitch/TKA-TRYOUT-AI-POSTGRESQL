@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -81,6 +82,44 @@ function StudentTryoutAttempt() {
 
   const [remainingSeconds, setRemainingSeconds] = useState(null);
   const hasAutoSubmitted = useRef(false);
+
+  // =====================================================
+  // ANTI-CHEAT (FOCUS MODE)
+  // =====================================================
+
+  useEffect(() => {
+    // Jangan jalankan perlindungan kalau masih loading, udah selesai, atau udah disubmit.
+    if (loading || alreadyDone || result) return;
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        toast.error("Peringatan Anti-Kecurangan: Kamu terdeteksi berpindah ke halaman/aplikasi lain!", {
+          duration: 5000,
+          icon: "⚠️",
+        });
+      }
+    }
+
+    function handleContextMenu(e) {
+      e.preventDefault();
+      toast.error("Peringatan: Klik kanan dinonaktifkan selama tryout.");
+    }
+
+    function handleCopy(e) {
+      e.preventDefault();
+      toast.error("Peringatan: Menyalin teks dinonaktifkan selama tryout.");
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("copy", handleCopy);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("copy", handleCopy);
+    };
+  }, [loading, alreadyDone, result]);
 
   // =====================================================
   // LOAD ATTEMPT

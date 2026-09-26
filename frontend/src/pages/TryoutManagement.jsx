@@ -2,6 +2,8 @@ import React from "react";
 import TryoutTable from "../components/TryoutTable";
 import TryoutFormWizardModal from "../components/TryoutFormWizardModal";
 import TryoutReviewModal from "../components/TryoutReviewModal";
+import LeaderboardModal from "../components/LeaderboardModal";
+import ItemAnalysisModal from "../components/ItemAnalysisModal";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import "../components/TryoutWizard.css";
@@ -14,6 +16,12 @@ const DIFFICULTIES = [
 ];
 
 function TryoutManagement() {
+  const [leaderboardTryoutId, setLeaderboardTryoutId] = React.useState(null);
+  const [leaderboardTitle, setLeaderboardTitle] = React.useState("");
+
+  const [analysisTryoutId, setAnalysisTryoutId] = React.useState(null);
+  const [analysisTitle, setAnalysisTitle] = React.useState("");
+
   const {
     user,
     defaultBankScope,
@@ -99,6 +107,14 @@ function TryoutManagement() {
             hasActiveTryoutFilter={hasActiveTryoutFilter} resetTryoutFilters={resetTryoutFilters}
             paginatedTryouts={paginatedTryouts} getSubjectName={getSubjectName}
             openEditModal={openEditModal} openReviewModal={openReviewModal} handleDelete={handleDelete} deletingId={deletingId}
+            openLeaderboardModal={(tryout) => {
+              setLeaderboardTryoutId(tryout.id);
+              setLeaderboardTitle(tryout.title);
+            }}
+            openAnalysisModal={(tryout) => {
+              setAnalysisTryoutId(tryout.id);
+              setAnalysisTitle(tryout.title);
+            }}
             currentPage={currentPage} totalPages={totalPages} TRYOUTS_PER_PAGE={TRYOUTS_PER_PAGE} setCurrentPage={setCurrentPage}
           />
         </div>
@@ -136,6 +152,24 @@ function TryoutManagement() {
         reviewTab={reviewTab}
         setReviewTab={setReviewTab}
       />
+
+      {leaderboardTryoutId && (
+        <LeaderboardModal
+          tryoutId={leaderboardTryoutId}
+          title={leaderboardTitle}
+          onClose={() => setLeaderboardTryoutId(null)}
+          currentUserId={user?.id}
+          currentUserRole={user?.role}
+        />
+      )}
+
+      {analysisTryoutId && (
+        <ItemAnalysisModal
+          tryoutId={analysisTryoutId}
+          title={analysisTitle}
+          onClose={() => setAnalysisTryoutId(null)}
+        />
+      )}
     </div>
   );
 }

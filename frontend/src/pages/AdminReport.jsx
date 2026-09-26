@@ -79,9 +79,10 @@ function AdminReport() {
             />
           </div>
 
+          <div className="report-2-col">
           {/* RATA-RATA SKOR PER MAPEL */}
 
-          <div className="dashboard-card" style={{ marginBottom: 14 }}>
+          <div className="dashboard-card" style={{ height: "100%" }}>
 
             <div className="card-header">
               <div>
@@ -123,9 +124,64 @@ function AdminReport() {
 
           </div>
 
+
+          {/* GURU PALING AKTIF */}
+
+          <div className="dashboard-card" style={{ height: "100%" }}>
+
+            <div className="card-header">
+              <div>
+                <h3>Mata Pelajaran Tersulit</h3>
+                <p>5 mata pelajaran dengan rata-rata nilai terendah dari seluruh siswa</p>
+              </div>
+            </div>
+
+            {report.average_score_per_subject.length === 0 ? (
+              <div className="empty-message">
+                Belum ada data nilai mata pelajaran.
+              </div>
+            ) : (
+              <>
+                <div className="table-container">
+                  <table className="score-table is-compact">
+                    <thead>
+                      <tr>
+                        <th className="is-left">Mata Pelajaran</th>
+                        <th title="Rata-rata persentase skor">Rata-rata Skor (%)</th>
+                        <th title="Jumlah percobaan siswa pada mata pelajaran ini">Jumlah Percobaan</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {[...report.average_score_per_subject]
+                        .sort((a, b) => a.average_percentage - b.average_percentage)
+                        .slice(0, 5)
+                        .map((s, index) => (
+                        <tr key={s.subject_id}>
+                          <td>
+                            <span className="teacher-rank-badge">{index + 1}</span>
+                            <span className="score-primary is-strong">{s.subject_name}</span>
+                          </td>
+                          <td className="is-center" style={{ color: "var(--danger)", fontWeight: 600 }}>{s.average_percentage}%</td>
+                          <td className="is-center">{s.total_attempts}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+          </div>
+
+
+          </div>
+
+          <div className="report-2-col">
+
           {/* TREN JUMLAH ATTEMPT */}
 
-          <div className="dashboard-card" style={{ marginBottom: 14 }}>
+          <div className="dashboard-card" style={{ height: "100%" }}>
 
             <div className="card-header">
               <div>
@@ -144,63 +200,10 @@ function AdminReport() {
 
           </div>
 
-          {/* GURU PALING AKTIF */}
-
-          <div className="dashboard-card" style={{ marginBottom: 14 }}>
-
-            <div className="card-header">
-              <div>
-                <h3>Guru Paling Aktif</h3>
-                <p>5 guru teratas berdasarkan jumlah attempt siswa pada tryout yang dibuat</p>
-              </div>
-            </div>
-
-            {report.top_teachers.length === 0 ? (
-              <div className="empty-message">
-                Belum ada guru yang membuat tryout.
-              </div>
-            ) : (
-              <>
-                <div className="table-container">
-                  {/* Gaya tabel sama dengan halaman Nilai (score-table) */}
-                  <table className="score-table is-compact">
-                    <thead>
-                      <tr>
-                        <th className="is-left">Guru</th>
-                        <th title="Jumlah tryout yang dibuat guru ini">Jumlah Tryout</th>
-                        <th title="Jumlah tryout yang sudah diselesaikan siswa">Jumlah Attempt</th>
-                        <th title="Jumlah siswa berbeda yang pernah menyelesaikan tryout guru ini">Jangkauan Siswa</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {report.top_teachers.map((t, index) => (
-                        <tr key={t.teacher_id}>
-                          <td>
-                            <span className="teacher-rank-badge">{index + 1}</span>
-                            <span className="score-primary is-strong">{t.teacher_name}</span>
-                          </td>
-                          <td className="is-center">{t.tryout_count}</td>
-                          <td className="is-center">{t.total_attempts}</td>
-                          <td className="is-center">{t.student_reach}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="report-table-note">
-                  Jangkauan siswa = jumlah siswa berbeda yang pernah menyelesaikan
-                  tryout guru tersebut (satu siswa dihitung sekali).
-                </div>
-              </>
-            )}
-
-          </div>
 
           {/* SOAL PALING SERING SALAH (GLOBAL) */}
 
-          <div className="dashboard-card">
+          <div className="dashboard-card" style={{ height: "100%" }}>
 
             <div className="card-header">
               <div>
@@ -221,6 +224,84 @@ function AdminReport() {
               }
               emptyMessage="Belum cukup data jawaban untuk ditampilkan."
             />
+
+          </div>
+
+          </div>
+
+          <div className="report-2-col">
+
+          {/* TOP SISWA */}
+          <div className="dashboard-card" style={{ height: "100%" }}>
+            <div className="card-header">
+              <div>
+                <h3>Top 5 Siswa Berprestasi</h3>
+                <p>Berdasarkan rata-rata nilai dari seluruh tryout yang dikerjakan</p>
+              </div>
+            </div>
+            {(!report.top_students || report.top_students.length === 0) ? (
+              <div className="empty-message">Belum ada data siswa.</div>
+            ) : (
+              <div className="table-container">
+                <table className="score-table is-compact">
+                  <thead>
+                    <tr>
+                      <th className="is-left">Nama Siswa</th>
+                      <th className="is-center" title="Jumlah paket tryout yang diselesaikan">Tryout Selesai</th>
+                      <th className="is-center">Rata-rata Skor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.top_students.map((student, index) => (
+                      <tr key={student.student_id}>
+                        <td>
+                          <span className="teacher-rank-badge">{index + 1}</span>
+                          <span className="score-primary">{student.student_name}</span>
+                        </td>
+                        <td className="is-center">{student.tryouts_taken}</td>
+                        <td className="is-center" style={{ color: "var(--accent)", fontWeight: 600 }}>{student.average_percentage}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* POPULAR TRYOUTS */}
+          <div className="dashboard-card" style={{ height: "100%" }}>
+            <div className="card-header">
+              <div>
+                <h3>Paket Tryout Paling Populer</h3>
+                <p>Berdasarkan total attempt yang diselesaikan siswa</p>
+              </div>
+            </div>
+            {(!report.popular_tryouts || report.popular_tryouts.length === 0) ? (
+              <div className="empty-message">Belum ada tryout yang dikerjakan.</div>
+            ) : (
+              <div className="table-container">
+                <table className="score-table is-compact">
+                  <thead>
+                    <tr>
+                      <th className="is-left">Judul Tryout</th>
+                      <th className="is-center">Total Attempt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.popular_tryouts.map((tryout, index) => (
+                      <tr key={tryout.tryout_id}>
+                        <td>
+                          <span className="teacher-rank-badge" style={{ background: "var(--secondary-color, #8b5cf6)", color: "white" }}>{index + 1}</span>
+                          <span className="score-primary is-strong">{tryout.title}</span>
+                        </td>
+                        <td className="is-center" style={{ fontWeight: 600 }}>{tryout.attempt_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
 
           </div>
 

@@ -735,3 +735,68 @@ class NetworkInfoResponse(BaseModel):
     # "development" (dijalankan lewat run.py, localhost saja) atau
     # "server" (dijalankan lewat run_server.py, terbuka ke WiFi/LAN).
     mode: str = "development"
+
+
+# ==========================================
+# LEADERBOARD
+# ==========================================
+
+class LeaderboardEntryResponse(BaseModel):
+    rank: int
+    student_id: int
+    user_id: int
+    student_name: str
+    started_at: datetime
+    finished_at: datetime
+    duration_seconds: int
+    score: float
+    attempt_number: int = 1
+    attempt_total: int = 1
+
+
+# ==========================================
+# ITEM ANALYSIS
+# ==========================================
+
+class ItemAnalysisOptionCount(BaseModel):
+    option_code: str
+    option_text: str = ""
+    is_correct: bool = False
+    count: int
+
+class ItemAnalysisQuestionStats(BaseModel):
+    question_number: int
+    question_id: int
+    question_text: str
+    total_answered: int
+    correct_count: int
+    wrong_count: int
+    blank_count: int
+    difficulty_index: float
+    options_distribution: list[ItemAnalysisOptionCount]
+
+class ItemAnalysisResponse(BaseModel):
+    tryout_id: int
+    tryout_title: str
+    total_attempts: int
+    questions: list[ItemAnalysisQuestionStats]
+    
+    class Config:
+        from_attributes = True
+
+class LeaderboardResponse(BaseModel):
+    tryout_id: int
+    leaderboard: list[LeaderboardEntryResponse] = Field(default_factory=list)
+
+# ==========================================
+# WEAKNESS ANALYSIS
+# ==========================================
+
+class SubjectWeaknessAnalysis(BaseModel):
+    subject_id: int
+    subject_name: str
+    total_answered: int
+    correct_count: int
+    wrong_count: int
+    blank_count: int
+    accuracy_percentage: float

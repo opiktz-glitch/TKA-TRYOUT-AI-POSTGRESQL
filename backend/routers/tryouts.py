@@ -1,8 +1,10 @@
 import math
 
+from attempt_utils import compute_attempt_numbers
 from database import get_db
-from dependencies import require_role
+from dependencies import require_role, get_current_user
 from fastapi import APIRouter, Depends, HTTPException
+import models
 from models import (
     Attempt,
     Question,
@@ -11,8 +13,11 @@ from models import (
     Tryout,
     TryoutQuestion,
     User,
+    Student,
+    Result,
 )
 from pydantic import BaseModel, Field
+import schemas
 from schemas import TryoutCreate, TryoutUpdate
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -1041,3 +1046,169 @@ def delete_tryout(
         "success": True,
         "message": "Tryout berhasil dihapus"
     }
+
+
+# =========================================================
+# GET LEADERBOARD
+# =========================================================
+
+@router.get("/{tryout_id}/leaderboard")
+def get_tryout_leaderboard(
+    tryout_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN", "GURU", "SISWA"))
+):
+    tryout = db.query(Tryout).filter(Tryout.id == tryout_id).first()
+    if not tryout:
+        raise HTTPException(
+            status_code=404,
+            detail="Tryout tidak ditemukan"
+        )
+        
+    # Get all submitted attempts with results and student info
+    attempts_data = (
+        db.query(Attempt, Result, Student)
+        .join(Result, Result.attempt_id == Attempt.id)
+        .join(Student, Student.id == Attempt.student_id)
+        .filter(Attempt.tryout_id == tryout_id)
+        .filter(Attempt.status == "SUBMITTED")
+        .all()
+    )
+    
+    attempts_list = [row[0] for row in attempts_data]
+    attempt_numbers = compute_attempt_numbers(attempts_list)
+    
+    leaderboard_data = []
+    for attempt, result, student in attempts_data:
+        # Calculate duration in seconds
+        duration = 0
+        if attempt.started_at and attempt.finished_at:
+            duration = int((attempt.finished_at - attempt.started_at).total_seconds())
+            
+        attempt_number, attempt_total = attempt_numbers.get(attempt.id, (1, 1))
+            
+        leaderboard_data.append({
+            "student_id": student.id,
+            "user_id": student.user_id,
+            "student_name": student.full_name,
+            "started_at": attempt.started_at,
+            "finished_at": attempt.finished_at,
+            "duration_seconds": duration,
+            "score": result.score,
+            "attempt_number": attempt_number,
+            "attempt_total": attempt_total,
+        })
+        
+    # Sort by score DESC, then duration ASC
+    leaderboard_data.sort(key=lambda x: (-x["score"], x["duration_seconds"]))
+    
+    # Assign ranks
+    for i, data in enumerate(leaderboard_data):
+        data["rank"] = i + 1
+        
+    return {
+        "tryout_id": tryout_id,
+        "leaderboard": leaderboard_data
+    }
+
+
+# =========================================================
+# ITEM ANALYSIS
+# =========================================================
+
+@router.get("/{tryout_id}/item-analysis", response_model=schemas.ItemAnalysisResponse)
+def get_item_analysis(
+    tryout_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Mengambil data analisis butir soal (item analysis) untuk tryout tertentu.
+    Hanya bisa diakses oleh ADMIN dan GURU.
+    """
+    if current_user.role not in ["ADMIN", "GURU"]:
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+
+    tryout = db.query(models.Tryout).filter(models.Tryout.id == tryout_id).first()
+    if not tryout:
+        raise HTTPException(status_code=404, detail="Tryout tidak ditemukan")
+
+    # Get all finished attempts
+    attempts = db.query(models.Attempt).filter(
+        models.Attempt.tryout_id == tryout_id,
+        models.Attempt.finished_at != None,
+        models.Attempt.score != None
+    ).all()
+    
+    total_attempts = len(attempts)
+    attempt_ids = [a.id for a in attempts]
+    
+    # Get all questions in the tryout
+    tryout_questions = (
+        db.query(models.TryoutQuestion, models.Question)
+        .join(models.Question, models.TryoutQuestion.question_id == models.Question.id)
+        .filter(models.TryoutQuestion.tryout_id == tryout_id)
+        .order_by(models.TryoutQuestion.question_number)
+        .all()
+    )
+    
+    # Get all answers for these attempts
+    all_answers = []
+    if attempt_ids:
+        all_answers = db.query(models.Answer).filter(
+            models.Answer.attempt_id.in_(attempt_ids)
+        ).all()
+        
+    # Build dictionary of answers: question_id -> list of AttemptAnswer
+    answers_by_question = {}
+    for answer in all_answers:
+        if answer.question_id not in answers_by_question:
+            answers_by_question[answer.question_id] = []
+        answers_by_question[answer.question_id].append(answer)
+        
+    questions_stats = []
+    
+    for tq, q in tryout_questions:
+        q_answers = answers_by_question.get(q.id, [])
+        total_answered = len(q_answers)
+        correct_count = sum(1 for a in q_answers if a.is_correct)
+        blank_count = sum(1 for a in q_answers if not a.selected_option)
+        wrong_count = total_answered - correct_count - blank_count
+        
+        difficulty_index = (correct_count / total_answered) if total_answered > 0 else 0
+        
+        # Count options
+        option_counts = {}
+        for a in q_answers:
+            if a.selected_option:
+                option_counts[a.selected_option] = option_counts.get(a.selected_option, 0) + 1
+                
+        # Format options_distribution
+        q_options = db.query(models.QuestionOption).filter(models.QuestionOption.question_id == q.id).order_by(models.QuestionOption.option_code).all()
+        options_distribution = []
+        for opt in q_options:
+            options_distribution.append({
+                "option_code": opt.option_code,
+                "option_text": opt.option_text,
+                "is_correct": opt.is_correct,
+                "count": option_counts.get(opt.option_code, 0)
+            })
+            
+        questions_stats.append({
+            "question_number": tq.question_number,
+            "question_id": q.id,
+            "question_text": q.question_text,
+            "total_answered": total_answered,
+            "correct_count": correct_count,
+            "wrong_count": wrong_count,
+            "blank_count": blank_count,
+            "difficulty_index": round(difficulty_index, 2),
+            "options_distribution": options_distribution
+        })
+        
+    return {
+        "tryout_id": tryout.id,
+        "tryout_title": tryout.title,
+        "total_attempts": total_attempts,
+        "questions": questions_stats
+    }

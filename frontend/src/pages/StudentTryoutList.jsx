@@ -15,13 +15,17 @@ import {
   IconRefresh,
   IconSearch,
   IconTarget,
+  IconTrophy,
 } from "../components/Icons";
 
 import {
   getSubjects,
   getStudentTryouts,
   startStudentTryout,
+  getMyProfile,
 } from "../services/api";
+
+import LeaderboardModal from "../components/LeaderboardModal";
 
 // =====================================================
 // DIFFICULTY
@@ -74,6 +78,10 @@ function StudentTryoutList() {
   const [refreshing, setRefreshing] = useState(false);
   const [startingId, setStartingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [profile, setProfile] = useState(null);
+
+  const [leaderboardTryoutId, setLeaderboardTryoutId] = useState(null);
+  const [leaderboardTitle, setLeaderboardTitle] = useState("");
 
   // =====================================================
   // FILTER
@@ -91,10 +99,13 @@ function StudentTryoutList() {
     try {
       setLoading(true);
 
-      const [tryoutData, subjectData] = await Promise.all([
+      const [tryoutData, subjectData, profileData] = await Promise.all([
         getStudentTryouts(),
         getSubjects(),
+        getMyProfile(),
       ]);
+
+      setProfile(profileData);
 
       // -------------------------------------------------
       // TRYOUT
@@ -527,6 +538,19 @@ function StudentTryoutList() {
                                 </>
                               )}
                             </button>
+
+                            <button
+                              className="secondary-button"
+                              style={{ marginLeft: 8 }}
+                              onClick={() => {
+                                setLeaderboardTryoutId(tryout.id);
+                                setLeaderboardTitle(tryout.title);
+                              }}
+                              title="Lihat Papan Peringkat"
+                            >
+                              <IconTrophy size={15} />
+                              Peringkat
+                            </button>
                           </td>
                         </tr>
                       );
@@ -548,6 +572,16 @@ function StudentTryoutList() {
         )}
 
       </div>
+
+      {leaderboardTryoutId && (
+        <LeaderboardModal
+          tryoutId={leaderboardTryoutId}
+          title={leaderboardTitle}
+          onClose={() => setLeaderboardTryoutId(null)}
+          currentUserId={profile?.id}
+          currentUserRole={profile?.role}
+        />
+      )}
     </>
   );
 }

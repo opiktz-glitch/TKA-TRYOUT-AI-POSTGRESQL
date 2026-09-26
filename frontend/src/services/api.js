@@ -751,6 +751,10 @@ export async function deleteTryout(tryoutId) {
   });
 }
 
+export async function getItemAnalysis(tryoutId) {
+  return apiFetch(`/api/tryouts/${tryoutId}/item-analysis`);
+}
+
 
 // =========================================================
 // DATA SISWA (t_student) — ADMIN
@@ -950,6 +954,10 @@ export async function updateMyTeacherProfile(profileData) {
 
 export async function getAttemptHistory() {
   return apiFetch("/api/student/attempts/history");
+}
+
+export async function getStudentWeaknessAnalysis() {
+  return apiFetch("/api/student/weakness-analysis");
 }
 
 export async function getAttemptResultDetail(attemptId) {
@@ -1177,4 +1185,12 @@ export async function markAllNotificationsRead() {
   return await apiFetch("/api/notifications/read-all", {
     method: "POST",
   });
+}
+
+// ==========================================
+// LEADERBOARD
+// ==========================================
+
+export async function getTryoutLeaderboard(tryoutId) {
+  return await apiFetch(`/api/tryouts/${tryoutId}/leaderboard`);
 }

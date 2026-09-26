@@ -637,3 +637,17 @@
 
   margin-right: 8px;
 }
+
+
+/* Kolom Berdampingan */
+.report-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) {
+  .report-2-col {
+    grid-template-columns: 1fr;
+  }
+}

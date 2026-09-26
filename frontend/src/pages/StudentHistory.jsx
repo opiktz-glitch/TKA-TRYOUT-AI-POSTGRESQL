@@ -18,6 +18,7 @@ import {
   getAttemptHistory,
   getAttemptResultDetail,
   getMyProfile,
+  getStudentWeaknessAnalysis,
 } from "../services/api";
 
 
@@ -65,6 +66,7 @@ function formatDate(value) {
 function StudentHistory() {
 
   const [attempts, setAttempts] = useState([]);
+  const [weaknesses, setWeaknesses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
@@ -77,15 +79,16 @@ function StudentHistory() {
 
   // Nama/NIS/sekolah siswa untuk kop halaman cetak (tombol "Cetak
   // Hasil" di modal detail). Gagal ambil profil tidak menghalangi
-  // fitur lain di halaman ini, jadi errornya diabaikan saja.
   const [profile, setProfile] = useState(null);
-
 
   async function loadHistory() {
     try {
       setLoading(true);
 
-      const data = await getAttemptHistory();
+      const [data, weaknessData] = await Promise.all([
+        getAttemptHistory(),
+        getStudentWeaknessAnalysis()
+      ]);
 
       // ScoreTable (dipakai bersama Nilai admin/guru) memakai nama
       // field "tryout_title", sedangkan endpoint riwayat siswa
@@ -97,6 +100,7 @@ function StudentHistory() {
           tryout_title: item.title,
         }))
       );
+      setWeaknesses(weaknessData);
     } catch (err) {
       console.error("LOAD HISTORY ERROR:", err);
       toast.error(err.message || "Gagal memuat riwayat tryout", { id: "load-student-history" });
@@ -114,20 +118,25 @@ function StudentHistory() {
 
 
   async function openDetail(attempt) {
-    setDetail({ attempt_id: attempt.attempt_id });
+    setDetail({ attempt_id: attempt.attempt_id, tryout_id: attempt.tryout_id });
     setDetailLoading(true);
     setQuestionIndex(0);
     setPrintView(false);
 
     try {
       const data = await getAttemptResultDetail(attempt.attempt_id);
-      setDetail(data);
+      setDetail({ ...data, tryout_id: attempt.tryout_id });
     } catch (err) {
       console.error("LOAD DETAIL ERROR:", err);
       toast.error(err.message || "Gagal memuat detail hasil", { id: "load-student-history-detail" });
     } finally {
       setDetailLoading(false);
     }
+  }
+
+  function openLeaderboard(attempt) {
+    setLeaderboardTryoutId(attempt.tryout_id);
+    setLeaderboardTitle(attempt.tryout_title);
   }
 
 
@@ -257,6 +266,49 @@ function StudentHistory() {
           description="Sudah kamu ikuti"
         />
       </div>
+
+      {/* ANALISIS KELEMAHAN */}
+      {!loading && weaknesses.length > 0 && (
+        <div className="dashboard-card" style={{ marginBottom: 24, marginTop: 16 }}>
+          <div className="card-header">
+            <div>
+              <h3>Analisis Kelemahan Mata Pelajaran</h3>
+              <p>Mata pelajaran yang perlu kamu tingkatkan, diurutkan dari akurasi terendah</p>
+            </div>
+          </div>
+          <div style={{ padding: "6px 18px 18px" }}>
+            <div className="table-container">
+              <table className="score-table is-compact">
+                <thead>
+                  <tr>
+                    <th className="is-left">Mata Pelajaran</th>
+                    <th title="Akurasi jawaban benar">Akurasi (%)</th>
+                    <th title="Total jawaban benar / total soal">Benar / Total</th>
+                    <th title="Total jawaban salah">Salah</th>
+                    <th title="Total tidak dijawab">Kosong</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weaknesses.map((w, i) => (
+                    <tr key={w.subject_id}>
+                      <td>
+                        <span className="teacher-rank-badge">{i + 1}</span>
+                        <span className="score-primary is-strong">{w.subject_name}</span>
+                      </td>
+                      <td className="is-center" style={{ color: w.accuracy_percentage < 50 ? "var(--danger)" : "inherit", fontWeight: w.accuracy_percentage < 50 ? 600 : 400 }}>
+                        {w.accuracy_percentage}%
+                      </td>
+                      <td className="is-center">{w.correct_count} / {w.total_answered}</td>
+                      <td className="is-center">{w.wrong_count}</td>
+                      <td className="is-center">{w.blank_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TABLE */}
 
