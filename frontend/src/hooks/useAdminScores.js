@@ -31,7 +31,7 @@ export function useAdminScores(user) {
 
   useEffect(() => {
     loadScores();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [selectedSubjectId, selectedTeacherId]);
 
   async function loadFilterOptions() {

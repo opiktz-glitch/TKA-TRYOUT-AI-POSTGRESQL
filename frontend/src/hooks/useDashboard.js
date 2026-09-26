@@ -142,7 +142,7 @@ export function useDashboard() {
     }
 
     loadDashboardData(user);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [user]);
 
 
@@ -169,7 +169,7 @@ export function useDashboard() {
     } else if (user.role === "GURU") {
       loadAiCardStatus({ silent: Boolean(readDashboardCache(user.id).aiCard) });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [user]);
 
 

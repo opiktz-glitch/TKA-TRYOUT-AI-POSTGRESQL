@@ -177,7 +177,7 @@ function Header() {
 
     return () => clearInterval(intervalId);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [user?.id]);
 
   async function handleNotificationClick(notification) {

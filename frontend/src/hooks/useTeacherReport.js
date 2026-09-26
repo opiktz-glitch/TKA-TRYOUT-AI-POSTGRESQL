@@ -76,14 +76,14 @@ export function useTeacherReport() {
 
   useEffect(() => {
     loadTryoutOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
     if (selectedTryoutId) {
       loadReport(selectedTryoutId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [selectedTryoutId]);
 
   async function loadTryoutOptions() {

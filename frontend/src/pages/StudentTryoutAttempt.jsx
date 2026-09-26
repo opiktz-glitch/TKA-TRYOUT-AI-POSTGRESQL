@@ -127,7 +127,7 @@ function StudentTryoutAttempt() {
 
   useEffect(() => {
     loadAttempt();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [attemptId]);
 
   async function loadAttempt() {
@@ -195,7 +195,7 @@ function StudentTryoutAttempt() {
     }, 1000);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [remainingSeconds, alreadyDone, result]);
 
   // =====================================================
