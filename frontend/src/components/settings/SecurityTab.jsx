@@ -1,4 +1,4 @@
-import { IconShield, IconRefresh, IconClipboard } from "../Icons";
+import { IconShield, IconRefresh } from "../Icons";
 
 export default function SecurityTab({ data }) {
           const {

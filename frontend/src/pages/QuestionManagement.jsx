@@ -5,16 +5,13 @@ import Pagination from "../components/Pagination";
 import QuestionFilters from "../components/QuestionFilters";
 import QuestionTable from "../components/QuestionTable";
 import "../components/ScoreTable.css";
-import { IconCheck, IconTrash, IconEdit, IconBook, IconEye } from "../components/Icons";
+import { IconBook } from "../components/Icons";
 import PanduanSoalModal from "../components/PanduanSoalModal";
 import AiPromptModal from "../components/AiPromptModal";
 import QuestionFormModal from "../components/QuestionFormModal";
 import QuestionPreviewModal from "../components/QuestionPreviewModal";
 import ImportDocumentModal from "../components/ImportDocumentModal";
 import ImportImageButton from "../components/ImportImageButton";
-import QuestionImage from "../components/QuestionImage";
-import OptionsEditor from "../components/OptionsEditor";
-import ExplanationField from "../components/ExplanationField";
 import { OPTION_CODES, DIFFICULTIES } from "../data/questionConstants";
 import { useQuestionManagement } from "../hooks/useQuestionManagement";
 

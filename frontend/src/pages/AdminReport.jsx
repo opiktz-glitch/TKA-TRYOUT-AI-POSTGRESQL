@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 
 import StatCard from "../components/StatCard";
 import HardestQuestionList from "../components/HardestQuestionList";

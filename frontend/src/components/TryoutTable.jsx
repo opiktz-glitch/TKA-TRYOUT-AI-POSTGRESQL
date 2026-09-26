@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconSearch, IconCheck, IconEdit, IconEye, IconTrash, IconTrophy, IconBarChart } from './Icons';
+import { IconEdit, IconEye, IconTrash, IconTrophy, IconBarChart } from './Icons';
 import Pagination from './Pagination';
 
 export default function TryoutTable({

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSubjectManagement } from "../hooks/useSubjectManagement";
 import SubjectFormModal from "../components/SubjectFormModal";
-import { IconEdit, IconTrash, IconCheck, IconSearch } from "../components/Icons";
+import { IconEdit, IconTrash, IconSearch } from "../components/Icons";
 import "../components/ScoreTable.css";
 
 function SubjectManagement() {

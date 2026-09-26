@@ -1,8 +1,5 @@
 import React from 'react';
-import { IconBook } from './Icons';
-import { DIFFICULTIES } from '../data/questionConstants';
 
-import { IconCheck } from './Icons';
 import QuestionImage from './QuestionImage';
 import OptionsEditor from './OptionsEditor';
 import ExplanationField from './ExplanationField';

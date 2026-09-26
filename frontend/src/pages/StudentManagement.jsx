@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconEdit, IconTrash, IconCheck, IconSearch } from "../components/Icons";
+import { IconEdit, IconTrash, IconSearch } from "../components/Icons";
 import Pagination from "../components/Pagination";
 import StudentFormModal from "../components/StudentFormModal";
 import { useStudentManagement } from "../hooks/useStudentManagement";

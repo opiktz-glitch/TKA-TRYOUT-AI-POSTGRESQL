@@ -1,4 +1,3 @@
-import { IconShield, IconRefresh, IconClipboard } from "../Icons";
 
 export default function AiModelTab({ data }) {
           const {

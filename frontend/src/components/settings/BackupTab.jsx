@@ -1,4 +1,4 @@
-import { IconShield, IconRefresh, IconClipboard } from "../Icons";
+import { IconClipboard } from "../Icons";
 
 export default function BackupTab({ data }) {
           const {

@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import StatCard from "../components/StatCard";
@@ -13,7 +12,6 @@ import {
 
 import "./Report.css";
 import {
-  WRONG_MEDIUM_PERCENT,
   PASS_THRESHOLD_PERCENT,
   bucketPassState,
 } from "../utils/report";

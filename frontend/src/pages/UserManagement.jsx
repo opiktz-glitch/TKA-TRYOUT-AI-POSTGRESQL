@@ -9,7 +9,6 @@ import {
   IconEdit,
   IconTrash,
   IconKey,
-  IconCheck,
   IconLogOut,
   IconSearch,
 } from "../components/Icons";
