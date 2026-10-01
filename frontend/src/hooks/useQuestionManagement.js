@@ -319,7 +319,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   const loadQuestions = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getQuestions();
+      const data = await getQuestions({ limit: 10000 });
 
       setQuestions(data.data || data); setTotalQuestions(data.total || 0);
     } catch (err) {
