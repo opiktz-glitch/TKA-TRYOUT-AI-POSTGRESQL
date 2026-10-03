@@ -1206,7 +1206,7 @@ def build_explanation_prompt(
         if question_type == "MULTIPLE_CHOICE":
             instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Susun pembahasan Anda menjadi 3 alur yang runut: (1) Identifikasi inti soal atau apa yang diketahui, (2) Jabarkan panduan langkah-langkah penyelesaiannya, dan (3) Tarik kesimpulan serta jelaskan mengapa opsi lain salah."
         elif question_type == "TRUE_FALSE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Bahas secara detail status Benar/Salah dari setiap pernyataan, konsep dasarnya, dan panduan langkah demi langkah mengapa pernyataan tersebut bernilai benar atau salah."
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Susun pembahasan Anda menjadi 2 alur yang jelas: (1) Awali dengan menjelaskan konsep dasar atau rumus utama yang dibutuhkan untuk soal ini, (2) Bahas SETIAP pernyataan satu per satu secara berurutan. Untuk tiap pernyataan, sebutkan statusnya (Benar/Salah) dengan tegas di awal kalimat, lalu berikan alasan atau langkah-langkah detail mengapa pernyataan tersebut bernilai benar atau salah."
         else:
             instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Sebutkan dengan jelas huruf pilihan apa saja yang benar. Jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah untuk setiap opsi yang benar, dan jelaskan mengapa opsi lain salah."
     else:
