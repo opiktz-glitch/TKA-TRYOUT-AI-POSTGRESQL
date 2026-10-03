@@ -185,13 +185,9 @@ function ExplanationField({
 
       const formatExplanation = (text) => {
         if (!text) return text;
-        if (text.includes('\n\n')) return text;
+        if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
         
-        let count = 0;
-        return text.replace(/([.?!])\s+(?=[A-Z])/g, (match, p1) => {
-          count++;
-          return count % 2 === 0 ? p1 + "\n\n" : p1 + " ";
-        });
+        return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n");
       };
 
       onTextChange(formatExplanation(data.explanation));

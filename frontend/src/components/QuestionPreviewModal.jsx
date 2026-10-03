@@ -24,14 +24,11 @@ import QuestionImage from "./QuestionImage";
 function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose }) {
   const formatExplanation = (text) => {
     if (!text) return null;
-    if (text.includes('\n\n')) return text;
+    // Jika teks sudah memiliki baris baru ganda, ubah jadi tunggal agar rapat
+    if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
     
-    let count = 0;
-    // Gabungkan setiap 2 kalimat menjadi satu paragraf agar tidak terlalu panjang/banyak spasi
-    return text.replace(/([.?!])\s+(?=[A-Z])/g, (match, p1) => {
-      count++;
-      return count % 2 === 0 ? p1 + "\n\n" : p1 + " ";
-    });
+    // Ganti setiap akhir kalimat dengan SATU baris baru (tanpa jarak kosong)
+    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n");
   };
 
   return (

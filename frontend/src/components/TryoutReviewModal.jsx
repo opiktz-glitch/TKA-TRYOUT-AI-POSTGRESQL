@@ -14,14 +14,9 @@ export default function TryoutReviewModal({
 
   const formatExplanation = (text) => {
     if (!text) return null;
-    if (text.includes('\n\n')) return text;
+    if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
     
-    let count = 0;
-    // Gabungkan setiap 2 kalimat menjadi satu paragraf agar tidak terlalu panjang/banyak spasi
-    return text.replace(/([.?!])\s+(?=[A-Z])/g, (match, p1) => {
-      count++;
-      return count % 2 === 0 ? p1 + "\n\n" : p1 + " ";
-    });
+    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n");
   };
 
   return (
