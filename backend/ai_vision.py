@@ -265,7 +265,7 @@ async def call_ollama_vision(
                 "images": [base64.b64encode(image_bytes).decode("ascii")],
             }
         ],
-        "format": "json",
+        # "format": "json", # Di-comment karena sering membuat model vision (seperti Qwen-VL) error/mengembalikan kosong
         "stream": True,
         "keep_alive": "30m",
         "think": False,
