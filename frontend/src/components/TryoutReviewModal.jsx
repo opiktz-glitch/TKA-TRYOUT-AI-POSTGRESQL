@@ -14,9 +14,14 @@ export default function TryoutReviewModal({
 
   const formatExplanation = (text) => {
     if (!text) return null;
-    if (text.includes('\n')) return text;
-    // Tambahkan baris ganda setiap akhir kalimat (titik/tanya/seru yang diikuti spasi dan huruf kapital)
-    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n\n");
+    if (text.includes('\n\n')) return text;
+    
+    let count = 0;
+    // Gabungkan setiap 2 kalimat menjadi satu paragraf agar tidak terlalu panjang/banyak spasi
+    return text.replace(/([.?!])\s+(?=[A-Z])/g, (match, p1) => {
+      count++;
+      return count % 2 === 0 ? p1 + "\n\n" : p1 + " ";
+    });
   };
 
   return (
