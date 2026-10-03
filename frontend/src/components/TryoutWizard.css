@@ -422,9 +422,9 @@
 }
 
 .tqp-random {
-  padding: 12px 14px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--paper);
 }
 
@@ -443,7 +443,7 @@
 .tqp-random-fields {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
 }
 
@@ -457,17 +457,18 @@
 
 .tqp-random-fields input {
   width: 110px;
-  height: 36px;
+  height: 32px;
   padding: 0 8px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   background: white;
 }
 
 .tqp-random-submit {
-  height: 36px;
+  height: 32px;
   padding: 0 16px;
+  font-size: 13px;
 }
 
 .tqp-random-note {
@@ -478,11 +479,11 @@
 
 .tqp-panes {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   flex: 1;
-  min-height: 240px;
+  min-height: 300px;
 }
 
 .tqp-pane {

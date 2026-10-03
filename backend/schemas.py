@@ -151,6 +151,8 @@ class QuestionCreate(BaseModel):
     question_text: str
     question_type: str = "MULTIPLE_CHOICE"
     difficulty: str = "MEDIUM"
+    true_label: str | None = "Benar"
+    false_label: str | None = "Salah"
     explanation: str | None = None
     points: float = 1
     is_active: bool = True
@@ -162,6 +164,8 @@ class QuestionUpdate(BaseModel):
     question_text: str
     question_type: str = "MULTIPLE_CHOICE"
     difficulty: str = "MEDIUM"
+    true_label: str | None = "Benar"
+    false_label: str | None = "Salah"
     explanation: str | None = None
     points: float = 1
     is_active: bool = True
@@ -174,6 +178,7 @@ class QuestionUpdate(BaseModel):
 
 class AIQuestionGenerateRequest(BaseModel):
     subject_id: int
+    question_type: str = "MULTIPLE_CHOICE"
     difficulty: str = "MEDIUM"
     materi: str = Field(min_length=1)
     additional_instruction: str | None = None
@@ -252,6 +257,7 @@ class AIExplanationOption(BaseModel):
 
 class AIExplanationRequest(BaseModel):
     question_text: str
+    question_type: str = "MULTIPLE_CHOICE"
     options: list[AIExplanationOption]
     # Opsional: nama mapel dipakai sebagai konteks tambahan di prompt.
     subject_id: int | None = None
@@ -275,6 +281,7 @@ class AIExplanationResponse(BaseModel):
 
 class AIVerifyAnswerRequest(BaseModel):
     question_text: str
+    question_type: str = "MULTIPLE_CHOICE"
     options: list[AIExplanationOption]
     question_id: int | None = None
 
@@ -316,6 +323,8 @@ class AIExtractedQuestion(BaseModel):
     question_text: str
     question_type: str = "MULTIPLE_CHOICE"
     difficulty: str = "MEDIUM"
+    true_label: str | None = "Benar"
+    false_label: str | None = "Salah"
     explanation: str | None = None
     points: float = 1
     options: list[QuestionOptionCreate]
@@ -355,6 +364,7 @@ class AIChunkProcessRequest(BaseModel):
     subject_id: int
     chunk_text: str
     expected_count: int = 0
+    question_type: str = "MULTIPLE_CHOICE"
 
 
 class AIChunkProcessResponse(BaseModel):
@@ -488,6 +498,8 @@ class QuestionResponse(BaseModel):
     question_text: str
     question_type: str
     difficulty: str
+    true_label: str | None = "Benar"
+    false_label: str | None = "Salah"
     explanation: str | None = None
     points: float
     is_active: bool
@@ -534,6 +546,10 @@ class TryoutCreate(BaseModel):
 
     max_score: float = 100
 
+    weight_pg: float = 40
+    weight_mcma: float = 35
+    weight_bs: float = 25
+
     difficulty: str | None = None
 
     is_active: bool = True
@@ -554,6 +570,10 @@ class TryoutUpdate(BaseModel):
     duration_minutes: int = 60
 
     max_score: float = 100
+
+    weight_pg: float = 40
+    weight_mcma: float = 35
+    weight_bs: float = 25
 
     difficulty: str | None = None
 
@@ -593,6 +613,10 @@ class TryoutResponse(BaseModel):
     total_questions: int
 
     max_score: float
+
+    weight_pg: float = 40
+    weight_mcma: float = 35
+    weight_bs: float = 25
 
     difficulty: str | None = None
 

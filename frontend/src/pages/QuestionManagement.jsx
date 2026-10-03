@@ -21,6 +21,8 @@ function QuestionManagement() {
     aiConsistencyWarning,
     aiError,
     aiForm,
+    addOption,
+    removeOption,
     aiGate,
     aiGeneratedNotice,
     aiGenerating,
@@ -156,7 +158,7 @@ function QuestionManagement() {
                 onClick={() => importGate.run(() => setShowImportModal(true))}
                 disabled={importGate.checking}
               >
-                {importGate.checking ? "Mengecek AI..." : "📄 Impor dari Dokumen"}
+                {importGate.checking ? "Mengecek AI..." : "📄 Import Teks Massal (Word/PDF)"}
               </button>
 
               <ImportImageButton gate={imageGate} subjects={subjects} onImported={handleImportedFromImage} />
@@ -288,6 +290,8 @@ function QuestionManagement() {
         handleRemoveImageClick={handleRemoveImageClick}
         handleOptionTextChange={handleOptionTextChange}
         handleCorrectAnswer={handleCorrectAnswer}
+        addOption={addOption}
+        removeOption={removeOption}
         IconBook={IconBook}
         setShowGuideModal={setShowGuideModal}
         editAiGate={editAiGate}

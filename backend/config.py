@@ -127,7 +127,7 @@ OLLAMA_MODEL = os.getenv(
 # pesan error kalau field ini kosong / modelnya belum ter-pull.
 OLLAMA_VISION_MODEL = os.getenv(
     "OLLAMA_VISION_MODEL",
-    "qwen2.5vl:3b"
+    "qwen3-vl:4b-instruct"
 )
 
 

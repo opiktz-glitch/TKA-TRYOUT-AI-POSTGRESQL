@@ -78,6 +78,9 @@ export function useTryoutManagement(DIFFICULTIES) {
       grade: "",
       duration_minutes: 60,
       max_score: 100,
+      weight_pg: 40,
+      weight_mcma: 35,
+      weight_bs: 25,
       difficulty: "",
       is_active: true,
       questions: [],
@@ -220,6 +223,9 @@ export function useTryoutManagement(DIFFICULTIES) {
         grade: detail.grade || "",
         duration_minutes: detail.duration_minutes || 60,
         max_score: detail.max_score || 100,
+        weight_pg: detail.weight_pg ?? 40,
+        weight_mcma: detail.weight_mcma ?? 35,
+        weight_bs: detail.weight_bs ?? 25,
         difficulty: detail.difficulty || "",
         is_active: detail.is_active !== false,
         // Selain id/nomor/bobot, backend juga mengirim snapshot soal
@@ -325,6 +331,11 @@ export function useTryoutManagement(DIFFICULTIES) {
 
     if (!Number.isFinite(maxScore) || maxScore <= 0) {
       return "Nilai maksimal harus lebih dari 0";
+    }
+
+    const totalWeights = Number(form.weight_pg || 0) + Number(form.weight_mcma || 0) + Number(form.weight_bs || 0);
+    if (totalWeights !== 100) {
+      return "Total bobot penilaian harus pas 100%";
     }
 
     return null;
@@ -436,6 +447,9 @@ export function useTryoutManagement(DIFFICULTIES) {
         grade: form.grade || null,
         duration_minutes: Number(form.duration_minutes),
         max_score: Number(form.max_score),
+        weight_pg: Number(form.weight_pg),
+        weight_mcma: Number(form.weight_mcma),
+        weight_bs: Number(form.weight_bs),
         difficulty: form.difficulty.trim() || null,
         is_active: form.is_active,
         questions: form.questions.map((item) => ({

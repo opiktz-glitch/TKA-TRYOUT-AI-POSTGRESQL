@@ -74,6 +74,7 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
   const [importStep, setImportStep] = useState("upload");
 
   const [importSubjectId, setImportSubjectId] = useState("");
+  const [importQuestionType, setImportQuestionType] = useState("MULTIPLE_CHOICE");
 
   const [importFile, setImportFile] = useState(null);
 
@@ -269,12 +270,17 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
           Number(importSubjectId),
           chunk.chunk_text,
           chunk.expected_count,
+          importQuestionType,
         );
 
         const items = result.questions.map((question) => ({
           key: nextImportKeyRef.current++,
 
           question_text: question.question_text,
+          question_type: importQuestionType,
+          
+          true_label: question.true_label || "Benar",
+          false_label: question.false_label || "Salah",
 
           difficulty: question.difficulty || "MEDIUM",
 
@@ -282,15 +288,11 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
 
           points: question.points ?? 1,
 
-          options: OPTION_CODES.map((code) => {
-            const found = question.options.find((option) => option.option_code === code);
-
-            return {
-              option_code: code,
-              option_text: found?.option_text || "",
-              is_correct: found?.is_correct || false,
-            };
-          }),
+          options: question.options.map((opt) => ({
+              option_code: opt.option_code,
+              option_text: opt.option_text || "",
+              is_correct: opt.is_correct || false,
+          })),
 
           warning: question.warning || null,
 
@@ -398,14 +400,44 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
           return item;
         }
 
+        const isMultipleAnswer = item.question_type === "TRUE_FALSE" || item.question_type === "MULTIPLE_RESPONSE";
+
         return {
           ...item,
           options: item.options.map((option, index) => ({
             ...option,
-            is_correct: index === optionIndex,
+            is_correct: isMultipleAnswer
+              ? (index === optionIndex ? !option.is_correct : option.is_correct)
+              : (index === optionIndex),
           })),
         };
       }),
+    );
+  }
+
+  function handleImportAddOption(key) {
+    setImportedQuestions((prev) =>
+      prev.map((item) => {
+        if (item.key !== key || item.options.length >= 5) return item;
+        const newCode = String(item.options.length + 1);
+        return {
+          ...item,
+          options: [...item.options, { option_code: newCode, option_text: "", is_correct: false }],
+        };
+      })
+    );
+  }
+
+  function handleImportRemoveOption(key, optionIndex) {
+    setImportedQuestions((prev) =>
+      prev.map((item) => {
+        if (item.key !== key || item.options.length <= 2) return item;
+        const newOptions = item.options.filter((_, idx) => idx !== optionIndex).map((opt, idx) => ({
+          ...opt,
+          option_code: String(idx + 1),
+        }));
+        return { ...item, options: newOptions };
+      })
     );
   }
 
@@ -456,7 +488,9 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
         await createQuestion({
           subject_id: Number(importSubjectId),
           question_text: item.question_text,
-          question_type: "MULTIPLE_CHOICE",
+          question_type: item.question_type || "MULTIPLE_CHOICE",
+          true_label: item.true_label || "Benar",
+          false_label: item.false_label || "Salah",
           difficulty: item.difficulty,
           explanation: item.explanation || null,
           points: item.points,
@@ -498,11 +532,11 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
       <div className="modal" style={{ maxWidth: 720 }}>
         <div className="modal-header">
           <div>
-            <h2>📄 Impor Soal dari Dokumen</h2>
+            <h2>📄 Import Teks Massal (Word/PDF)</h2>
 
             <p>
               {importStep === "upload"
-                ? "Upload dokumen (.pdf, .docx, .txt) yang isinya SUDAH BERISI soal pilihan ganda. AI hanya akan membaca ulang & menstrukturkannya — bukan membuat soal baru."
+                ? "Upload dokumen (.pdf, .docx, .txt) berisi soal TANPA gambar pelengkap. AI akan mengekstrak teks secara massal/cepat namun akan MENGABAIKAN semua gambar di dalamnya."
                 : "Periksa & lengkapi tiap soal hasil ekstraksi sebelum disimpan. Soal tidak akan tersimpan kalau belum dicentang."}
             </p>
           </div>
@@ -537,6 +571,21 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
                       {subject.code} - {subject.name}
                     </option>
                   ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Tipe Soal *</label>
+              
+              <select
+                value={importQuestionType}
+                onChange={(e) => setImportQuestionType(e.target.value)}
+                disabled={importLoading}
+                required
+              >
+                <option value="MULTIPLE_CHOICE">Pilihan Ganda (PG)</option>
+                <option value="MULTIPLE_RESPONSE">Pilihan Ganda Kompleks - Pilihan Jamak (PGK-MCMA)</option>
+                <option value="TRUE_FALSE">Pilihan Ganda Kompleks - Kategori (Benar/Salah)</option>
               </select>
             </div>
 
@@ -797,16 +846,47 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
                     />
                   </div>
 
+                  {item.question_type === "TRUE_FALSE" && (
+                    <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
+                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                        <label>Label Kategori Kiri (Benar)</label>
+                        <input
+                          type="text"
+                          value={item.true_label || ""}
+                          onChange={(e) => setImportedQuestions(prev => prev.map(q => q.key === item.key ? { ...q, true_label: e.target.value } : q))}
+                          disabled={importSaving}
+                          placeholder="Benar"
+                        />
+                      </div>
+                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                        <label>Label Kategori Kanan (Salah)</label>
+                        <input
+                          type="text"
+                          value={item.false_label || ""}
+                          onChange={(e) => setImportedQuestions(prev => prev.map(q => q.key === item.key ? { ...q, false_label: e.target.value } : q))}
+                          disabled={importSaving}
+                          placeholder="Salah"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <OptionsEditor
                     options={item.options}
                     name={`import-correct-${item.key}`}
                     disabled={importSaving}
+                    trueLabel={item.true_label}
+                    falseLabel={item.false_label}
+                    isTrueFalse={item.question_type === "TRUE_FALSE"}
+                    isMultipleResponse={item.question_type === "MULTIPLE_RESPONSE"}
                     onTextChange={(optionIndex, value) =>
                       handleImportOptionTextChange(item.key, optionIndex, value)
                     }
                     onCorrectChange={(optionIndex) =>
                       handleImportCorrectAnswer(item.key, optionIndex)
                     }
+                    onAddOption={() => handleImportAddOption(item.key)}
+                    onRemoveOption={(optionIndex) => handleImportRemoveOption(item.key, optionIndex)}
                   />
 
                   <div className="form-group">

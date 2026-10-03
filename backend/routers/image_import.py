@@ -42,7 +42,7 @@ import ai_vision
 import image_import_service
 from database import get_db
 from dependencies import require_role
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from models import User
 from pydantic import BaseModel
@@ -155,7 +155,39 @@ def _parse_image_box(raw) -> dict | None:
     }
 
 
-def build_image_extract_prompt(subject_name: str) -> str:
+def build_image_extract_prompt(subject_name: str, question_type: str = "MULTIPLE_CHOICE") -> str:
+
+    if question_type == "TRUE_FALSE":
+        return f"""Anda sedang membantu seorang guru mata pelajaran {subject_name} memindahkan soal-soal PGK Kategori (Pernyataan Benar/Salah, Ya/Tidak, Setuju/Tidak Setuju) yang SUDAH ADA di sebuah gambar ke sistem baru.
+
+PENTING: Anda TIDAK membuat soal baru. Tugas Anda HANYA membaca gambar yang dilampirkan lalu menyalin ulang setiap soal/tabel yang benar-benar TERLIHAT ke dalam format JSON.
+
+Untuk SETIAP soal PGK Kategori yang terlihat di gambar:
+- "question_text": Salin SELURUH teks pengantar, wacana, cerita, atau instruksi soal persis seperti di gambar, TANPA nomor soal di depannya. Jika ada paragraf panjang sebelum tabel pernyataan, masukkan semuanya ke sini.
+- "true_label": Teks label untuk kolom pernyataan afirmatif (misal: "Benar", "Mengalami", "Sesuai", "Ya"). Salin PERSIS sesuai judul kolom di tabel.
+- "false_label": Teks label untuk kolom pernyataan negatif (misal: "Salah", "Tidak Mengalami", "Tidak Sesuai", "Tidak"). Salin PERSIS sesuai judul kolom di tabel.
+- "options": Salin SEMUA pernyataan (baris) yang ada di tabel/daftar. Tiap opsi punya "option_code" (cukup urutkan "1", "2", "3"...) dan "option_text" (isi teks pernyataannya saja, jangan gabungkan dengan centang).
+- Kunci jawaban ("is_correct"): Tandai `true` JIKA pada gambar terdapat tanda centang/kunci jawaban yang berada persis di bawah kolom "true_label". Tandai `false` JIKA tanda centang berada pada kolom "false_label". JANGAN menebak jika tidak ada tanda centang sama sekali (isi false untuk semua).
+- "explanation": Salin pembahasan kalau ada di gambar. Kalau tidak ada, isi string kosong.
+- "gambar_box": Kalau soal ini punya gambar/diagram pelengkap, isi kotak berformat [ymin, xmin, ymax, xmax] skala 0-1000. Kalau tidak ada, isi null.
+- "catatan": Isi pesan peringatan jika ada bagian terpotong/kabur.
+
+Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis seperti ini:
+{{
+  "questions": [
+    {{
+      "question_text": "...",
+      "true_label": "Benar",
+      "false_label": "Salah",
+      "options": [
+        {{"option_code": "1", "option_text": "...", "is_correct": false}}
+      ],
+      "explanation": "",
+      "gambar_box": null,
+      "catatan": ""
+    }}
+  ]
+}}"""
 
     return f"""Anda sedang membantu seorang guru mata pelajaran {subject_name} memindahkan soal-soal PILIHAN GANDA yang SUDAH ADA di sebuah gambar (screenshot, foto, atau hasil scan) ke sistem baru.
 
@@ -233,7 +265,8 @@ async def get_image_import_capability(
     response_model=ImageExtractResponse,
 )
 async def extract_questions_from_image(
-    subject_id: int,
+    subject_id: int = Form(...),
+    question_type: str = Form("MULTIPLE_CHOICE"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -275,7 +308,10 @@ async def extract_questions_from_image(
         image_import_service.prepare_image_for_ai, raw_bytes
     )
 
-    prompt = build_image_extract_prompt(subject_name=subject.name)
+    prompt = build_image_extract_prompt(
+        subject_name=subject.name,
+        question_type=question_type,
+    )
 
     # HTTPException dari provider (Gemini mati, API key salah, kuota,
     # dst.) sengaja diteruskan apa adanya -- ini masalah konfigurasi,
@@ -312,7 +348,8 @@ async def extract_questions_from_image(
             continue
 
         options, options_warning = _normalize_extracted_options(
-            raw_question.get("options", [])
+            raw_question.get("options", []),
+            question_type=question_type,
         )
 
         explanation = _clean_ai_math_notation(
@@ -334,6 +371,9 @@ async def extract_questions_from_image(
         extracted.append(
             ImageExtractedQuestion(
                 question_text=question_text,
+                question_type=question_type,
+                true_label=raw_question.get("true_label", "Benar") if question_type == "TRUE_FALSE" else "Benar",
+                false_label=raw_question.get("false_label", "Salah") if question_type == "TRUE_FALSE" else "Salah",
                 difficulty="MEDIUM",
                 explanation=explanation,
                 points=1,

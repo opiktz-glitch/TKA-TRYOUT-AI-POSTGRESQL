@@ -122,6 +122,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
   const createEmptyAiForm = () => ({
     subject_id: "",
+    question_type: "MULTIPLE_CHOICE",
     difficulty: "MEDIUM",
     materi: "",
     additional_instruction: "",
@@ -283,6 +284,8 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     question_text: "",
     question_type: "MULTIPLE_CHOICE",
     difficulty: "MEDIUM",
+    true_label: "Benar",
+    false_label: "Salah",
     explanation: "",
     points: 1,
     is_active: true,
@@ -392,7 +395,12 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   // ======================================================
 
   function openEditModal(question) {
-    const options = OPTION_CODES.map((code) => {
+    const isTrueFalse = question.question_type === "TRUE_FALSE";
+    const optionCodesToMap = isTrueFalse 
+      ? (question.options?.map(o => o.option_code) || [])
+      : OPTION_CODES;
+
+    const options = optionCodesToMap.map((code) => {
       const existingOption = question.options?.find((option) => option.option_code === code);
 
       return {
@@ -415,9 +423,9 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
       question_type: question.question_type || "MULTIPLE_CHOICE",
 
       difficulty: question.difficulty || "MEDIUM",
-
+      true_label: question.true_label || "Benar",
+      false_label: question.false_label || "Salah",
       explanation: question.explanation || "",
-
       points: question.points ?? 1,
 
       is_active: question.is_active !== false,
@@ -595,6 +603,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
       const result = await previewAIPrompt({
         subject_id: Number(aiForm.subject_id),
+        question_type: aiForm.question_type,
         difficulty: aiForm.difficulty,
         materi: aiForm.materi.trim(),
         additional_instruction: aiForm.additional_instruction.trim() || null,
@@ -675,6 +684,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
       const result = await generateAIQuestion({
         subject_id: Number(aiForm.subject_id),
+        question_type: aiForm.question_type,
         difficulty: aiForm.difficulty,
         materi: aiForm.materi.trim(),
         additional_instruction: aiForm.additional_instruction.trim() || null,
@@ -707,17 +717,11 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
         is_active: aiReplaceMode ? prev.is_active : true,
 
-        options: OPTION_CODES.map((code) => {
-          const found = result.options.find((option) => option.option_code === code);
-
-          return {
-            option_code: code,
-
-            option_text: found?.option_text || "",
-
-            is_correct: found?.is_correct || false,
-          };
-        }),
+        options: result.options.map((option) => ({
+          option_code: option.option_code,
+          option_text: option.option_text || "",
+          is_correct: option.is_correct || false,
+        })),
       }));
 
       setAiGeneratedNotice(true);
@@ -761,11 +765,64 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
 
-    setForm((prev) => ({
-      ...prev,
+    setForm((prev) => {
+      let newOptions = prev.options;
+      if (name === "question_type") {
+        if (value === "TRUE_FALSE") {
+          newOptions = [
+            { option_code: "1", option_text: "", is_correct: true },
+            { option_code: "2", option_text: "", is_correct: false },
+            { option_code: "3", option_text: "", is_correct: true },
+            { option_code: "4", option_text: "", is_correct: false },
+          ];
+        } else {
+          // Both MULTIPLE_CHOICE and MULTIPLE_RESPONSE use A-D options
+          newOptions = OPTION_CODES.map((code) => ({
+            option_code: code,
+            option_text: "",
+            is_correct: false,
+          }));
+        }
+      }
 
-      [name]: type === "checkbox" ? checked : value,
-    }));
+      return {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+        ...(name === "question_type" ? { options: newOptions } : {}),
+      };
+    });
+  }
+
+  function addOption() {
+    setForm((prev) => {
+      if (prev.options.length >= 5) return prev;
+      
+      const isAlphabet = prev.question_type !== "TRUE_FALSE";
+      const nextCode = isAlphabet 
+        ? String.fromCharCode(65 + prev.options.length) 
+        : String(prev.options.length + 1);
+
+      return {
+        ...prev,
+        options: [...prev.options, { option_code: nextCode, option_text: "", is_correct: false }],
+      };
+    });
+  }
+
+  function removeOption(index) {
+    setForm((prev) => {
+      if (prev.options.length <= 2) return prev;
+      
+      const isAlphabet = prev.question_type !== "TRUE_FALSE";
+      const newOptions = prev.options.filter((_, i) => i !== index).map((opt, i) => ({
+        ...opt,
+        option_code: isAlphabet ? String.fromCharCode(65 + i) : String(i + 1),
+      }));
+      return {
+        ...prev,
+        options: newOptions,
+      };
+    });
   }
 
   // ======================================================
@@ -794,10 +851,12 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
   function handleCorrectAnswer(index) {
     setForm((prev) => {
+      const isMultipleAnswer = prev.question_type === "TRUE_FALSE" || prev.question_type === "MULTIPLE_RESPONSE";
       const newOptions = prev.options.map((option, optionIndex) => ({
         ...option,
-
-        is_correct: optionIndex === index,
+        is_correct: isMultipleAnswer
+          ? (optionIndex === index ? !option.is_correct : option.is_correct)
+          : (optionIndex === index),
       }));
 
       return {
@@ -830,18 +889,25 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
       return "Bobot soal harus lebih besar dari 0";
     }
 
+    const isTrueFalse = form.question_type === "TRUE_FALSE";
+    const isMultipleResponse = form.question_type === "MULTIPLE_RESPONSE";
+
     for (let index = 0; index < form.options.length; index++) {
       const option = form.options[index];
 
       if (!option.option_text.trim()) {
-        return `Pilihan ${option.option_code} ` + "wajib diisi";
+        return (isTrueFalse ? `Pernyataan ${index + 1} ` : `Pilihan ${option.option_code} `) + "wajib diisi";
       }
     }
 
     const correctOptions = form.options.filter((option) => option.is_correct);
 
-    if (correctOptions.length !== 1) {
-      return "Harus memilih tepat satu " + "jawaban yang benar";
+    if (form.question_type === "MULTIPLE_CHOICE" && correctOptions.length !== 1) {
+      return "Harus memilih tepat satu jawaban yang benar";
+    }
+
+    if (isMultipleResponse && correctOptions.length < 1) {
+      return "Harus memilih minimal satu jawaban yang benar";
     }
 
     return null;
@@ -879,6 +945,10 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
         points: Number(form.points),
 
         is_active: form.is_active,
+        
+        true_label: form.question_type === "TRUE_FALSE" ? (form.true_label || "Benar") : undefined,
+        
+        false_label: form.question_type === "TRUE_FALSE" ? (form.false_label || "Salah") : undefined,
 
         options: form.options.map((option) => ({
           option_code: option.option_code,
@@ -1143,6 +1213,8 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   // RENDER
   // ======================================================
   return {
+    addOption,
+    removeOption,
     QUESTIONS_PER_PAGE,
     aiConsistencyWarning,
     aiError,

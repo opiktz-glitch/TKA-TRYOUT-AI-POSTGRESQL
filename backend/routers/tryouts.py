@@ -368,6 +368,8 @@ def get_tryout_review(
             "question_id": question.id,
             "question_text": question.question_text,
             "question_type": question.question_type,
+            "true_label": getattr(question, "true_label", "Benar") or "Benar",
+            "false_label": getattr(question, "false_label", "Salah") or "Salah",
             "points": tryout_question.points,
             "explanation": question.explanation,
             "has_image": question.has_image,
@@ -588,6 +590,21 @@ def get_available_questions(
         if difficulty_value in difficulty_counts:
             difficulty_counts[difficulty_value] = count_value
 
+    type_count_rows = (
+        db.query(Question.question_type, func.count(Question.id))
+        .filter(*conditions)
+        .group_by(Question.question_type)
+        .all()
+    )
+    question_type_counts = {
+        "MULTIPLE_CHOICE": 0,
+        "MULTIPLE_RESPONSE": 0,
+        "TRUE_FALSE": 0
+    }
+    for type_val, count_val in type_count_rows:
+        if type_val in question_type_counts:
+            question_type_counts[type_val] = count_val
+
     if difficulty:
         total = difficulty_counts[difficulty]
     else:
@@ -620,6 +637,7 @@ def get_available_questions(
         "page_size": page_size,
         "total_pages": total_pages,
         "difficulty_counts": difficulty_counts,
+        "question_type_counts": question_type_counts,
     }
 
 
@@ -638,15 +656,9 @@ class RandomPickRequest(BaseModel):
         default_factory=list,
         max_length=5000
     )
-    easy: int = Field(
-        default=0, ge=0, le=RANDOM_PICK_MAX_PER_DIFFICULTY
-    )
-    medium: int = Field(
-        default=0, ge=0, le=RANDOM_PICK_MAX_PER_DIFFICULTY
-    )
-    hard: int = Field(
-        default=0, ge=0, le=RANDOM_PICK_MAX_PER_DIFFICULTY
-    )
+    pg: int = Field(default=0, ge=0, le=RANDOM_PICK_MAX_PER_DIFFICULTY)
+    pgk: int = Field(default=0, ge=0, le=RANDOM_PICK_MAX_PER_DIFFICULTY)
+    bs: int = Field(default=0, ge=0, le=RANDOM_PICK_MAX_PER_DIFFICULTY)
 
 
 @router.post("/available/questions/random")
@@ -668,33 +680,39 @@ def pick_random_questions(
         conditions.append(~Question.id.in_(data.exclude_ids))
 
     requested = {
-        "EASY": data.easy,
-        "MEDIUM": data.medium,
-        "HARD": data.hard,
+        "MULTIPLE_CHOICE": data.pg,
+        "MULTIPLE_RESPONSE": data.pgk,
+        "TRUE_FALSE": data.bs,
     }
 
     items = []
     picked = {}
 
-    for difficulty_value, wanted in requested.items():
+    for q_type, wanted in requested.items():
 
-        picked[difficulty_value] = 0
+        picked[q_type] = 0
 
         if wanted <= 0:
             continue
 
-        rows = (
+        query = (
             _bank_query(db)
             .filter(
                 *conditions,
-                Question.difficulty == difficulty_value
+                Question.question_type == q_type
             )
-            .order_by(func.random())
-            .limit(wanted)
-            .all()
         )
+        
+        # DEBUG DUMP
+        if q_type == "MULTIPLE_CHOICE":
+            pass # Removed debug dump
 
-        picked[difficulty_value] = len(rows)
+        rows = query.all()
+        if len(rows) > wanted:
+            import random
+            rows = random.sample(rows, wanted)
+
+        picked[q_type] = len(rows)
 
         items.extend(
             _bank_item(row, current_user) for row in rows

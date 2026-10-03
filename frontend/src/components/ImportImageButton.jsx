@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import ImportImageModal from "./ImportImageModal";
 import { getImageImportCapability } from "../services/imageImportApi";
 
@@ -66,7 +67,7 @@ function ImportImageButtonInner({ gate, subjects, onImported }) {
         onClick={() => gate.run(openIfCapable)}
         disabled={gate.checking}
       >
-        {gate.checking ? "Mengecek AI..." : "🖼️ Import dari Gambar"}
+        {gate.checking ? "Mengecek AI..." : "🎯 Import Presisi (PDF/Gambar)"}
       </button>
 
       {showModal && (

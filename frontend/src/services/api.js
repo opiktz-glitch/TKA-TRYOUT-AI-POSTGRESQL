@@ -542,7 +542,7 @@ export async function prepareDocumentExtraction(subjectId, file) {
 // tidak membanjiri provider AI dengan banyak request bersamaan.
 // Timeout di sini cukup untuk SATU potongan saja (jauh lebih kecil
 // dari sebelumnya yang harus menampung SEMUA potongan sekaligus).
-export async function processDocumentChunk(subjectId, chunkText, expectedCount) {
+export async function processDocumentChunk(subjectId, chunkText, expectedCount, questionType = "MULTIPLE_CHOICE") {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 280000);
 
@@ -555,6 +555,7 @@ export async function processDocumentChunk(subjectId, chunkText, expectedCount) 
           subject_id: subjectId,
           chunk_text: chunkText,
           expected_count: expectedCount,
+          question_type: questionType,
         },
         signal: controller.signal,
       }
@@ -713,9 +714,9 @@ export async function getRandomAvailableQuestions({
   scope = "all",
   search = "",
   excludeIds = [],
-  easy = 0,
-  medium = 0,
-  hard = 0,
+  pg = 0,
+  pgk = 0,
+  bs = 0,
 }) {
   return apiFetch("/api/tryouts/available/questions/random", {
     method: "POST",
@@ -724,9 +725,9 @@ export async function getRandomAvailableQuestions({
       scope,
       search: search && search.trim() ? search.trim() : null,
       exclude_ids: excludeIds,
-      easy,
-      medium,
-      hard,
+      pg,
+      pgk,
+      bs,
     },
   });
 }

@@ -46,7 +46,9 @@ logger = logging.getLogger(__name__)
 
 
 ALLOWED_TYPES = [
-    "MULTIPLE_CHOICE"
+    "MULTIPLE_CHOICE",
+    "TRUE_FALSE",
+    "MULTIPLE_RESPONSE",
 ]
 
 ALLOWED_DIFFICULTIES = [
@@ -93,57 +95,138 @@ def validate_question_data(question_data):
             detail="Bobot soal harus lebih besar dari 0"
         )
 
-    if len(question_data.options) != len(ALLOWED_OPTIONS):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Soal pilihan ganda harus memiliki "
-                f"{len(ALLOWED_OPTIONS)} pilihan"
-            )
-        )
-
-    option_codes = []
-
-    correct_count = 0
-
-    for option in question_data.options:
-
-        code = option.option_code.strip().upper()
-
-        if code not in ALLOWED_OPTIONS:
+    if question_data.question_type == "MULTIPLE_CHOICE":
+        if len(question_data.options) != len(ALLOWED_OPTIONS):
             raise HTTPException(
                 status_code=400,
-                detail=f"Pilihan {code} tidak valid"
+                detail=(
+                    "Soal pilihan ganda harus memiliki "
+                    f"{len(ALLOWED_OPTIONS)} pilihan"
+                )
             )
 
-        if code in option_codes:
+        option_codes = []
+        correct_count = 0
+
+        for option in question_data.options:
+            code = option.option_code.strip().upper()
+
+            if code not in ALLOWED_OPTIONS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Pilihan {code} tidak valid"
+                )
+
+            if code in option_codes:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Pilihan {code} duplikat"
+                )
+
+            if not option.option_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Teks pilihan {code} wajib diisi"
+                )
+
+            option_codes.append(code)
+
+            if option.is_correct:
+                correct_count += 1
+
+        if set(option_codes) != set(ALLOWED_OPTIONS):
             raise HTTPException(
                 status_code=400,
-                detail=f"Pilihan {code} duplikat"
+                detail="Pilihan harus terdiri dari A, B, C, dan D"
             )
 
-        if not option.option_text.strip():
+        if correct_count != 1:
             raise HTTPException(
                 status_code=400,
-                detail=f"Teks pilihan {code} wajib diisi"
+                detail="Harus ada tepat satu jawaban benar"
             )
 
-        option_codes.append(code)
+    elif question_data.question_type == "MULTIPLE_RESPONSE":
+        if len(question_data.options) != len(ALLOWED_OPTIONS):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Soal pilihan ganda kompleks harus memiliki "
+                    f"{len(ALLOWED_OPTIONS)} pilihan"
+                )
+            )
 
-        if option.is_correct:
-            correct_count += 1
+        option_codes = []
+        correct_count = 0
 
-    if set(option_codes) != set(ALLOWED_OPTIONS):
-        raise HTTPException(
-            status_code=400,
-            detail="Pilihan harus terdiri dari A, B, C, dan D"
-        )
+        for option in question_data.options:
+            code = option.option_code.strip().upper()
 
-    if correct_count != 1:
-        raise HTTPException(
-            status_code=400,
-            detail="Harus ada tepat satu jawaban benar"
-        )
+            if code not in ALLOWED_OPTIONS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Pilihan {code} tidak valid"
+                )
+
+            if code in option_codes:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Pilihan {code} duplikat"
+                )
+
+            if not option.option_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Teks pilihan {code} wajib diisi"
+                )
+
+            option_codes.append(code)
+
+            if option.is_correct:
+                correct_count += 1
+
+        if set(option_codes) != set(ALLOWED_OPTIONS):
+            raise HTTPException(
+                status_code=400,
+                detail="Pilihan harus terdiri dari A, B, C, dan D"
+            )
+
+        if correct_count < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Harus ada minimal satu jawaban benar"
+            )
+
+    elif question_data.question_type == "TRUE_FALSE":
+        if len(question_data.options) < 2 or len(question_data.options) > 5:
+            raise HTTPException(
+                status_code=400,
+                detail="Soal benar-salah majemuk harus memiliki 2 hingga 5 pernyataan"
+            )
+
+        option_codes = []
+        for option in question_data.options:
+            code = option.option_code.strip().upper()
+
+            if not code:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Kode pernyataan wajib diisi"
+                )
+
+            if code in option_codes:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Pernyataan {code} duplikat"
+                )
+
+            if not option.option_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Teks pernyataan {code} wajib diisi"
+                )
+
+            option_codes.append(code)
 
 
 # =========================================================
@@ -334,6 +417,7 @@ def build_ai_prompt(
     materi: str,
     additional_instruction: str | None,
     with_image: bool = False,
+    question_type: str = "MULTIPLE_CHOICE",
 ) -> str:
 
     difficulty_label = DIFFICULTY_LABELS.get(
@@ -371,15 +455,71 @@ def build_ai_prompt(
         if with_image else ""
     )
 
-    return f"""Anda adalah seorang guru mata pelajaran {subject_name} yang sedang menyusun soal ujian tryout TKA untuk siswa kelas 6 SD.
+    if question_type == "TRUE_FALSE":
+        return f"""Bertindaklah sebagai Ahli Penyusun Kurikulum dan Pembuat Soal Evaluasi Pendidikan (TKA / Tes Kompetensi Akademik) untuk tingkat SD Kelas 6.
+Tolong buatkan SATU butir soal Pilihan Ganda Kompleks (Kategori Benar-Salah){image_kind_word} untuk mata pelajaran {subject_name}, dengan topik materi: "{materi.strip()}".
 
-Buatkan SATU soal pilihan ganda{image_kind_word} dengan ketentuan berikut:
+Setiap soal harus mengikuti struktur dan kriteria berikut:
 - Tingkat kesulitan: {difficulty_label}
-- Materi / lingkup soal: {materi.strip()}
-{image_instruction_line}- Format Teks: Buatlah sebuah teks bacaan nonfiksi atau fiksi pendek yang utuh (MAKSIMAL 2 kalimat, jangan lebih) di dalam question_text, diikuti dengan kalimat tanya yang jelas di bagian akhir teks. Hindari kalimat pembuka yang kaku seperti "Baca teks berikut:".
+{image_instruction_line}- Stimulus: Berikan narasi, kasus pendek, teks informasi, atau ilustrasi situasi yang kontekstual dan menarik untuk anak kelas 6 SD. (MAKSIMAL 2 kalimat di dalam question_text).
+- Format Teks & Instruksi: Di bawah stimulus, berikan kalimat instruksi (contoh: "Tentukan apakah pernyataan berikut benar atau salah berdasarkan teks di atas.").
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam bentuk teks biasa (contoh: "2 1/4 bagian", "3 x 4").
+- Pernyataan: Buatlah TEPAT 4 pernyataan (options) terpisah yang berkaitan dengan stimulus tersebut. Tuliskan teks pernyataannya langsung di dalam array `options`.
+- Pembahasan: JANGAN menyebut abjad opsi (seperti "Jawaban A" atau "Opsi 1"), karena urutan akan diacak sistem. Sebutkan langsung isi teks/nilainya dalam penjelasan.
+{instruction_line}
+
+Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, dengan format persis seperti ini:
+{{
+{image_field_line}  "question_text": "Tuliskan narasi stimulus/kasus diikuti dengan kalimat instruksinya di sini (gabungkan jadi satu string panjang).",
+  "options": [
+    {{"option_code": "1", "option_text": "...", "is_correct": true}},
+    {{"option_code": "2", "option_text": "...", "is_correct": false}},
+    {{"option_code": "3", "option_text": "...", "is_correct": true}},
+    {{"option_code": "4", "option_text": "...", "is_correct": false}}
+  ],
+  "explanation": "Berikan penjelasan singkat dan logis mengapa masing-masing pernyataan tersebut benar atau salah."
+}}"""
+
+    elif question_type == "MULTIPLE_RESPONSE":
+        return f"""Bertindaklah sebagai Ahli Penyusun Kurikulum dan Pembuat Soal Evaluasi Pendidikan (TKA / Tes Kompetensi Akademik) untuk tingkat SD Kelas 6.
+Tolong buatkan SATU butir soal Pilihan Ganda Kompleks (jawaban benar bisa lebih dari satu){image_kind_word} untuk mata pelajaran {subject_name}, dengan topik materi: "{materi.strip()}".
+
+Setiap soal harus mengikuti struktur dan kriteria berikut:
+- Tingkat kesulitan: {difficulty_label}
+{image_instruction_line}- Stimulus: Berikan narasi, kasus pendek, teks informasi, atau ilustrasi situasi yang kontekstual dan menarik untuk anak kelas 6 SD. (MAKSIMAL 2 kalimat di dalam question_text).
+- Format Teks & Tanya: Di bawah stimulus, berikan kalimat tanya/instruksi yang jelas di bagian akhir teks (contoh: "Manakah pernyataan di bawah ini yang benar? Jawaban bisa lebih dari satu.").
 - Kualitas Bahasa: Menggunakan bahasa Indonesia baku, logis, dan ramah anak.
-- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac{{a}}{{b}}, \\times, \\div, \\sqrt, \\^, dan sejenisnya) di question_text maupun options, karena teks ini ditampilkan APA ADANYA ke siswa tanpa ada yang merender LaTeX. Tulis pecahan dan operasi hitung dalam bentuk teks biasa yang mudah dibaca siswa SD, misalnya "2 1/4 bagian" (bukan "$2 \\frac{{1}}{{4}}$"), "3 x 4" (bukan "3 \\times 4"), "12 : 3" (bukan "12 \\div 3"). Untuk kuadrat/pangkat, pakai simbol superscript langsung seperti "5\u00b2" atau eja "5 pangkat 2" / "5 kuadrat" (bukan "5^2" atau "$5^2$").
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam bentuk teks biasa (contoh: "2 1/4 bagian", "3 x 4").
+- Pilihan Jawaban: Buatlah TEPAT 4 pilihan jawaban (A, B, C, D) yang berisi teks berbeda satu sama lain.
+- Pembahasan: JANGAN menyebut abjad opsi (seperti "Jawaban A" atau "Opsi B"), karena urutan akan diacak sistem. Sebutkan langsung isi teks/nilainya dalam penjelasan.
+{instruction_line}
+
+PENTING: Karena ini soal Pilihan Ganda Kompleks, HARUS ADA LEBIH DARI SATU jawaban yang benar (is_correct: true). Tandai mana saja opsi yang benar. Sertakan juga pembahasan singkat yang logis.
+
+Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, dengan format persis seperti ini:
+{{
+{image_field_line}  "question_text": "Tuliskan narasi stimulus/cerita diikuti dengan kalimat pertanyaannya di sini.",
+  "options": [
+    {{"option_code": "A", "option_text": "...", "is_correct": true}},
+    {{"option_code": "B", "option_text": "...", "is_correct": false}},
+    {{"option_code": "C", "option_text": "...", "is_correct": true}},
+    {{"option_code": "D", "option_text": "...", "is_correct": false}}
+  ],
+  "explanation": "Berikan penjelasan singkat dan logis mengapa opsi-opsi tersebut adalah jawaban yang tepat."
+}}"""
+
+    # Default MULTIPLE_CHOICE prompt
+    return f"""Bertindaklah sebagai Ahli Penyusun Kurikulum dan Pembuat Soal Evaluasi Pendidikan (TKA / Tes Kompetensi Akademik) untuk tingkat SD Kelas 6.
+Tolong buatkan SATU butir soal Pilihan Ganda{image_kind_word} untuk mata pelajaran {subject_name}, dengan topik materi: "{materi.strip()}".
+
+Setiap soal harus mengikuti struktur dan kriteria berikut:
+- Tingkat kesulitan: {difficulty_label}
+{image_instruction_line}- Stimulus: Berikan narasi, kasus pendek, teks informasi, atau ilustrasi situasi yang kontekstual dan menarik untuk anak kelas 6 SD. (MAKSIMAL 2 kalimat di dalam question_text).
+- Format Teks & Tanya: Di bawah stimulus, berikan kalimat tanya yang jelas di bagian akhir teks. Hindari kalimat pembuka yang kaku seperti "Baca teks berikut:".
+- Kualitas Bahasa: Menggunakan bahasa Indonesia baku, logis, dan ramah anak.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac{{a}}{{b}}, \\times, \\div, \\sqrt, \\^, dan sejenisnya) di question_text maupun options. Tulis pecahan dan operasi hitung dalam bentuk teks biasa (contoh: "2 1/4 bagian", "3 x 4", "5\u00b2").
 - Pilihan Jawaban: Keempat pilihan (A-D) harus berisi teks yang BERBEDA satu sama lain, jangan ada dua pilihan dengan isi yang sama persis atau hanya beda kata sedikit tapi maknanya identik.
+- Pembahasan: JANGAN menyebut abjad opsi (seperti "Jawaban A" atau "Opsi B"), karena urutan A-D akan diacak otomatis oleh sistem. Sebutkan langsung isi teks/nilainya dalam penjelasan.
 {instruction_line}
 
 Soal harus memiliki tepat 4 pilihan jawaban dengan kode A, B, C, D, dan hanya SATU pilihan yang benar. Sertakan juga pembahasan singkat yang menjelaskan kenapa jawaban itu benar.
@@ -388,7 +528,7 @@ PENTING - urutan berpikir: Tentukan dan HITUNG dulu jawaban yang benar secara ma
 
 Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, dengan format persis seperti ini:
 {{
-{image_field_line}  "question_text": "teks soal di sini",
+{image_field_line}  "question_text": "Tuliskan narasi cerita atau stimulus diikuti dengan kalimat tanya di sini.",
   "correct_answer_text": "isi jawaban yang benar, sama persis dengan salah satu option_text di bawah",
   "options": [
     {{"option_code": "A", "option_text": "...", "is_correct": false}},
@@ -396,7 +536,7 @@ Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, dengan format pe
     {{"option_code": "C", "option_text": "...", "is_correct": true}},
     {{"option_code": "D", "option_text": "...", "is_correct": false}}
   ],
-  "explanation": "pembahasan singkat di sini"
+  "explanation": "Berikan penjelasan singkat dan logis mengapa jawaban tersebut benar."
 }}"""
 
 
@@ -713,6 +853,7 @@ async def preview_ai_prompt(
         materi=request_data.materi,
         additional_instruction=request_data.additional_instruction,
         with_image=request_data.with_image,
+        question_type=request_data.question_type,
     )
 
     return AIPromptPreviewResponse(prompt=prompt)
@@ -783,6 +924,7 @@ async def generate_question_ai(
             materi=request_data.materi,
             additional_instruction=request_data.additional_instruction,
             with_image=request_data.with_image,
+            question_type=request_data.question_type,
         )
 
     ai_result = await ai_providers.call_active_provider(prompt, db)
@@ -807,18 +949,27 @@ async def generate_question_ai(
 
     raw_options = ai_result.get("options", [])
 
-    if (
-        not isinstance(raw_options, list)
-        or len(raw_options) != len(ALLOWED_OPTIONS)
-    ):
-
+    if not isinstance(raw_options, list):
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"AI tidak menghasilkan {len(ALLOWED_OPTIONS)} pilihan "
-                "jawaban. Coba generate ulang."
-            )
+            detail="Format pilihan jawaban dari AI tidak valid. Coba generate ulang."
         )
+
+    if request_data.question_type == "TRUE_FALSE":
+        if len(raw_options) < 2:
+            raise HTTPException(
+                status_code=502,
+                detail="AI tidak menghasilkan minimal 2 pernyataan. Coba generate ulang."
+            )
+    else:
+        if len(raw_options) != len(ALLOWED_OPTIONS):
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"AI tidak menghasilkan {len(ALLOWED_OPTIONS)} pilihan "
+                    "jawaban. Coba generate ulang."
+                )
+            )
 
     options = []
     seen_codes = set()
@@ -849,19 +1000,24 @@ async def generate_question_ai(
             raw_option.get("is_correct", False)
         )
 
-        if (
-            code not in ALLOWED_OPTIONS
-            or code in seen_codes
-            or not text
-        ):
-
+        if not text:
             raise HTTPException(
                 status_code=502,
-                detail=(
-                    "Format pilihan jawaban dari AI tidak valid. "
-                    "Coba generate ulang."
-                )
+                detail="Format pilihan jawaban dari AI tidak valid. Coba generate ulang."
             )
+
+        if request_data.question_type == "TRUE_FALSE":
+            if code in seen_codes:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Format pilihan jawaban dari AI tidak valid (kode ganda). Coba generate ulang."
+                )
+        else:
+            if code not in ALLOWED_OPTIONS or code in seen_codes:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Format pilihan jawaban dari AI tidak valid (kode tidak A-D). Coba generate ulang."
+                )
 
         # Normalisasi teks (huruf kecil semua, spasi berlebih
         # dirapikan) sebelum dibandingkan, supaya "Matahari" dan
@@ -891,35 +1047,40 @@ async def generate_question_ai(
             "is_correct": is_correct,
         })
 
-    if seen_codes != set(ALLOWED_OPTIONS):
-
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Pilihan jawaban dari AI tidak lengkap (harus A-D). "
-                "Coba generate ulang."
+    if request_data.question_type != "TRUE_FALSE":
+        if seen_codes != set(ALLOWED_OPTIONS):
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Pilihan jawaban dari AI tidak lengkap (harus A-D). "
+                    "Coba generate ulang."
+                )
             )
-        )
 
-    # -----------------------------------------------------
-    # Pastikan AI menandai TEPAT SATU jawaban benar. Kalau
-    # dibiarkan lolos (0 atau lebih dari 1 is_correct=True),
-    # guru baru akan tahu masalahnya nanti saat coba simpan
-    # lewat POST /api/questions dan ditolak validate_question_data
-    # — pesan errornya jadi kurang jelas asalnya dari mana. Di
-    # sini kita tolak lebih awal dengan pesan yang eksplisit.
-    # -----------------------------------------------------
+        # -----------------------------------------------------
+        # Pastikan AI menandai TEPAT SATU jawaban benar.
+        # -----------------------------------------------------
 
-    if correct_count != 1:
-
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "AI menghasilkan jumlah jawaban benar yang tidak valid "
-                f"({correct_count} opsi ditandai benar, seharusnya tepat "
-                "1). Coba generate ulang."
-            )
-        )
+        if request_data.question_type == "MULTIPLE_CHOICE":
+            if correct_count != 1:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "AI menghasilkan jumlah jawaban benar yang tidak valid "
+                        f"({correct_count} opsi ditandai benar, seharusnya tepat "
+                        "1). Coba generate ulang."
+                    )
+                )
+        elif request_data.question_type == "MULTIPLE_RESPONSE":
+            if correct_count < 1:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "AI menghasilkan jumlah jawaban benar yang tidak valid "
+                        f"({correct_count} opsi ditandai benar, seharusnya minimal "
+                        "1). Coba generate ulang."
+                    )
+                )
 
     # -----------------------------------------------------
     # Acak urutan opsi & tulis ulang kode A-D berdasarkan urutan
@@ -933,7 +1094,10 @@ async def generate_question_ai(
     random.shuffle(options)
 
     for index, option in enumerate(options):
-        option["option_code"] = ALLOWED_OPTIONS[index]
+        if request_data.question_type == "TRUE_FALSE":
+            option["option_code"] = str(index + 1)
+        else:
+            option["option_code"] = ALLOWED_OPTIONS[index]
 
     explanation = _clean_ai_math_notation(
         str(ai_result.get("explanation", "")).strip()
@@ -960,26 +1124,24 @@ async def generate_question_ai(
     #   menambahkan warning ke draft yang dikembalikan.
     # -----------------------------------------------------
 
-    flagged_code = next(
-        option["option_code"]
-        for option in options
-        if option["is_correct"]
-    )
+    consistency_warning = None
 
-    if _check_self_consistency(ai_result, options):
-
-        consistency_warning = await _verify_answer_consistency(
-            db, question_text, options, flagged_code,
+    if request_data.question_type == "MULTIPLE_CHOICE":
+        flagged_code = next(
+            option["option_code"]
+            for option in options
+            if option["is_correct"]
         )
 
-    else:
-
-        consistency_warning = None
+        if _check_self_consistency(ai_result, options):
+            consistency_warning = await _verify_answer_consistency(
+                db, question_text, options, flagged_code,
+            )
 
     return AIQuestionGenerateResponse(
         subject_id=subject.id,
         question_text=question_text,
-        question_type="MULTIPLE_CHOICE",
+        question_type=request_data.question_type,
         difficulty=request_data.difficulty,
         explanation=explanation,
         points=1,
@@ -1031,6 +1193,7 @@ def build_explanation_prompt(
     subject_name: str | None,
     question_text: str,
     options: list[tuple[str, str]],
+    question_type: str = "MULTIPLE_CHOICE",
 ) -> str:
     options_block = "\n".join(
         f"{code}. {text}" for code, text in options
@@ -1038,7 +1201,39 @@ def build_explanation_prompt(
 
     subject_part = f" mata pelajaran {subject_name}" if subject_name else ""
 
-    return f"""Anda adalah seorang guru{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan SATU jawaban yang paling tepat, lalu tulis pembahasannya.
+    if question_type == "TRUE_FALSE":
+        return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Benar-Salah majemuk beserta pernyataan-pernyataannya (TANPA diberi tahu mana yang benar/salah). Hitung/analisis sendiri dari awal untuk menentukan status Benar atau Salah dari setiap pernyataan, lalu tulis pembahasannya.
+
+Soal: {question_text}
+Pilihan:
+{options_block}
+
+Tulis pembahasan singkat. Bahas satu per satu status (Benar/Salah) dari tiap pernyataan di atas beserta alasannya.
+Ketentuan:
+- Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Evaluasi setiap pernyataan secara eksplisit (misalnya "Pernyataan 1 Benar karena...", "Pernyataan 2 Salah karena...").
+- JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
+Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
+{{"explanation": "pembahasan di sini"}}"""
+
+    elif question_type == "MULTIPLE_RESPONSE":
+        return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Pilihan Ganda Kompleks beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan pilihan-pilihan mana saja yang benar (jawaban benar bisa lebih dari satu), lalu tulis pembahasannya.
+
+Soal: {question_text}
+Pilihan:
+{options_block}
+
+Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya.
+Ketentuan:
+- Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Ingat, jawaban benar bisa LEBIH DARI SATU.
+- JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
+Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
+{{"explanation": "pembahasan di sini"}}"""
+
+    return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan SATU jawaban yang paling tepat, lalu tulis pembahasannya.
 
 Soal: {question_text}
 Pilihan:
@@ -1054,7 +1249,7 @@ Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format
 {{"explanation": "pembahasan di sini"}}"""
 
 
-def _prepare_explanation_input(question_text, raw_options, *, require_answer=True):
+def _prepare_explanation_input(question_text, raw_options, *, require_answer=True, question_type="MULTIPLE_CHOICE"):
     """
     Memvalidasi & merapikan isi form dari frontend.
 
@@ -1088,7 +1283,13 @@ def _prepare_explanation_input(question_text, raw_options, *, require_answer=Tru
         code = (raw.option_code or "").strip().upper()
         option_text = (raw.option_text or "").strip()
 
-        if code not in ALLOWED_OPTIONS or code in seen_codes or not option_text:
+        is_allowed_code = False
+        if question_type == "TRUE_FALSE":
+            is_allowed_code = code in ["1", "2", "3", "4", "5"]
+        else:
+            is_allowed_code = code in ALLOWED_OPTIONS
+
+        if not is_allowed_code or code in seen_codes or not option_text:
             continue
 
         seen_codes.add(code)
@@ -1106,12 +1307,20 @@ def _prepare_explanation_input(question_text, raw_options, *, require_answer=Tru
     if not require_answer:
         return text, options
 
-    if len(correct_codes) != 1:
+    if question_type == "MULTIPLE_CHOICE" and len(correct_codes) != 1:
         raise HTTPException(
             status_code=400,
             detail="Tandai tepat satu jawaban yang benar terlebih dahulu"
         )
+    elif question_type == "MULTIPLE_RESPONSE" and len(correct_codes) < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Tandai minimal satu jawaban yang benar terlebih dahulu"
+        )
 
+    # Untuk TRUE_FALSE dan MULTIPLE_RESPONSE kita kembalikan list of correct codes
+    if question_type in ["TRUE_FALSE", "MULTIPLE_RESPONSE"]:
+        return text, options, correct_codes
     return text, options, correct_codes[0]
 
 
@@ -1150,6 +1359,7 @@ def _clean_explanation_text(text: str) -> str:
 def _build_verification_with_explanation_prompt(
     question_text: str,
     options: list[dict],
+    question_type: str = "MULTIPLE_CHOICE",
 ) -> str:
     """
     Mirip _build_verification_prompt di atas (soal + pilihan, TANPA
@@ -1169,7 +1379,26 @@ def _build_verification_with_explanation_prompt(
         for option in options
     )
 
-    return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan SATU huruf pilihan yang paling benar, lalu tulis pembahasan singkatnya.
+    if question_type == "TRUE_FALSE":
+        return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal Benar-Salah majemuk beserta pernyataan-pernyataannya (TANPA diberi tahu mana yang benar/salah). Hitung/analisis sendiri dari awal, tentukan pernyataan mana saja yang berstatus Benar, lalu tulis pembahasannya.
+
+Soal:
+{question_text}
+
+Pernyataan:
+{options_text}
+
+Tulis pembahasan singkat. Bahas satu per satu status (Benar/Salah) dari tiap pernyataan di atas beserta alasannya.
+Ketentuan:
+- Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Evaluasi setiap pernyataan secara eksplisit (misalnya "Pernyataan 1 Benar karena...", "Pernyataan 2 Salah karena...").
+- JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
+Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
+{{"correct_option_codes": ["1", "3"], "explanation": "pembahasan di sini"}}"""
+
+    elif question_type == "MULTIPLE_RESPONSE":
+        return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal Pilihan Ganda Kompleks beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan pilihan-pilihan mana saja yang benar (jawaban benar bisa lebih dari satu), lalu tulis pembahasannya.
 
 Soal:
 {question_text}
@@ -1177,9 +1406,27 @@ Soal:
 Pilihan:
 {options_text}
 
-Tulis pembahasan singkat (2 sampai 4 kalimat) yang menjelaskan MENGAPA jawaban tersebut benar.
+Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya.
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Ingat, jawaban benar bisa LEBIH DARI SATU.
+- JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
+- Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
+Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
+{{"correct_option_codes": ["A", "C"], "explanation": "pembahasan di sini"}}"""
+
+    return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan SATU huruf pilihan yang paling benar, lalu tulis pembahasannya.
+
+Soal:
+{question_text}
+
+Pilihan:
+{options_text}
+
+Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.
+Ketentuan:
+- Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Sebutkan HANYA SATU huruf sebagai jawaban benar -- jangan ragu-ragu, jangan menyebut lebih dari satu kemungkinan.
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
@@ -1190,7 +1437,10 @@ async def _verify_explanation_answer(
     db: Session,
     question_text: str,
     options: list[tuple[str, str]],
-) -> tuple[str, str] | None:
+    question_type: str = "MULTIPLE_CHOICE",
+    image_bytes: bytes | None = None,
+    mime_type: str | None = None,
+) -> tuple[str | list[str], str] | None:
     """
     Verifikasi independen (panggilan AI ekstra): panggil provider AI
     dengan prompt TERPISAH yang hanya berisi teks soal + pilihan
@@ -1227,22 +1477,42 @@ async def _verify_explanation_answer(
     ]
 
     verification_prompt = _build_verification_with_explanation_prompt(
-        question_text, options_payload
+        question_text, options_payload, question_type
     )
 
     try:
 
-        verification_result = await ai_providers.call_active_provider(
-            verification_prompt, db
-        )
-
-        verified_code = str(
-            verification_result.get("correct_option_code", "")
-        ).strip().upper()
+        if image_bytes:
+            from ai_vision import call_active_vision_provider
+            verification_result = await call_active_vision_provider(
+                verification_prompt, image_bytes, mime_type, db
+            )
+        else:
+            verification_result = await ai_providers.call_active_provider(
+                verification_prompt, db
+            )
 
         suggested_explanation = _clean_explanation_text(
             str(verification_result.get("explanation", ""))
         )
+
+        if question_type in ["TRUE_FALSE", "MULTIPLE_RESPONSE"]:
+            codes = verification_result.get("correct_option_codes", [])
+            if not isinstance(codes, list):
+                return None
+            verified_code = [str(c).strip().upper() for c in codes]
+            # Validasi codes
+            for c in verified_code:
+                if question_type == "TRUE_FALSE" and c not in ["1", "2", "3", "4", "5"]:
+                    return None
+                elif question_type == "MULTIPLE_RESPONSE" and c not in ALLOWED_OPTIONS:
+                    return None
+        else:
+            verified_code = str(
+                verification_result.get("correct_option_code", "")
+            ).strip().upper()
+            if verified_code not in ALLOWED_OPTIONS:
+                return None
 
     except Exception:
 
@@ -1254,7 +1524,7 @@ async def _verify_explanation_answer(
 
         return None
 
-    if verified_code not in ALLOWED_OPTIONS or not suggested_explanation:
+    if not suggested_explanation:
         return None
 
     return verified_code, suggested_explanation
@@ -1278,6 +1548,7 @@ async def generate_explanation_ai(
         request_data.question_text,
         request_data.options,
         require_answer=False,
+        question_type=request_data.question_type,
     )
 
     # Nama mapel hanya konteks tambahan di prompt; kalau tidak ada /
@@ -1298,6 +1569,7 @@ async def generate_explanation_ai(
         subject_name,
         question_text,
         options,
+        request_data.question_type,
     )
 
     image_bytes = None
@@ -1376,10 +1648,24 @@ async def verify_answer_ai(
     question_text, options, correct_code = _prepare_explanation_input(
         request_data.question_text,
         request_data.options,
+        question_type=request_data.question_type,
     )
 
+    image_bytes = None
+    mime_type = None
+
+    if request_data.question_id:
+        question = (
+            db.query(Question)
+            .filter(Question.id == request_data.question_id)
+            .first()
+        )
+        if question and question.has_image and question.image_data:
+            image_bytes = question.image_data
+            mime_type = question.image_mime_type or "image/png"
+
     verification_result = await _verify_explanation_answer(
-        db, question_text, options,
+        db, question_text, options, request_data.question_type, image_bytes, mime_type
     )
 
     if verification_result is None:
@@ -1397,12 +1683,19 @@ async def verify_answer_ai(
 
     verified_code, suggested_explanation = verification_result
 
-    matches = verified_code == correct_code
+    if request_data.question_type in ["TRUE_FALSE", "MULTIPLE_RESPONSE"]:
+        matches = set(verified_code) == set(correct_code)
+        display_verified_code = ", ".join(sorted(verified_code))
+        display_correct_code = ", ".join(sorted(correct_code))
+    else:
+        matches = verified_code == correct_code
+        display_verified_code = verified_code
+        display_correct_code = correct_code
 
     if matches:
         message = (
             "Pengecekan ulang independen oleh AI (tanpa diberi tahu "
-            f"kunci jawaban) juga menyimpulkan opsi {correct_code} -- "
+            f"kunci jawaban) juga menyimpulkan opsi {display_correct_code} -- "
             "sejalan dengan kunci yang ditandai di form."
         )
 
@@ -1410,7 +1703,7 @@ async def verify_answer_ai(
         # ada sudah sejalan dengan kesimpulan independen AI.
         return AIVerifyAnswerResponse(
             checked=True,
-            verified_option_code=verified_code,
+            verified_option_code=display_verified_code,
             matches=True,
             message=message,
             suggested_explanation=None,
@@ -1418,15 +1711,15 @@ async def verify_answer_ai(
 
     message = (
         "Pengecekan ulang independen oleh AI (tanpa diberi tahu "
-        f"kunci jawaban) menghasilkan opsi {verified_code}, "
-        f"berbeda dari kunci yang ditandai di form ({correct_code}"
+        f"kunci jawaban) menghasilkan opsi {display_verified_code}, "
+        f"berbeda dari kunci yang ditandai di form ({display_correct_code}"
         "). Ini bisa berarti kunci jawabannya keliru -- periksa "
         "kembali sebelum menyimpan."
     )
 
     return AIVerifyAnswerResponse(
         checked=True,
-        verified_option_code=verified_code,
+        verified_option_code=display_verified_code,
         matches=False,
         message=message,
         # Dikirim HANYA saat mismatch -- pembahasan versi AI untuk
@@ -1494,7 +1787,7 @@ def _get_active_subject_or_404(db: Session, subject_id: int) -> Subject:
     return subject
 
 
-def build_document_extract_prompt(subject_name: str, chunk_text: str) -> str:
+def build_document_extract_prompt(subject_name: str, chunk_text: str, question_type: str = "MULTIPLE_CHOICE") -> str:
     """
     Impor Soal dari Dokumen SEKARANG MURNI menyalin teks soal +
     pilihan jawaban -- TIDAK diminta mendeteksi/menandai jawaban
@@ -1520,6 +1813,73 @@ def build_document_extract_prompt(subject_name: str, chunk_text: str) -> str:
     independen -- lihat build_explanation_prompt).
     """
 
+    if question_type == "TRUE_FALSE":
+        return f"""Anda sedang membantu seorang guru mata pelajaran {subject_name} memindahkan soal-soal BENAR-SALAH MAJEMUK (Pilihan Ganda Kompleks) yang SUDAH ADA di sebuah dokumen lama ke sistem baru.
+
+PENTING: Anda TIDAK membuat soal baru. Tugas Anda HANYA membaca teks di bawah ini dan menyalin ulang setiap soal Benar-Salah yang benar-benar ADA di dalamnya, apa adanya, ke dalam format JSON. Jangan mengarang, mengubah, atau menambah isi soal/pernyataan.
+
+Teks dokumen (satu potongan, mungkin berisi beberapa soal):
+---
+{chunk_text}
+---
+
+Untuk SETIAP soal Benar-Salah yang Anda temukan di teks di atas (bisa 0 kalau memang tidak ada soal valid di potongan ini):
+- Salin teks soal/stimulusnya persis seperti di dokumen ke "question_text".
+- Salin SEMUA pernyataan yang ada (antara 2 hingga 5 pernyataan) ke "options", masing-masing dengan "option_code" (angka berurutan 1, 2, 3, dst) dan "option_text" (isi pernyataan).
+- Untuk soal dengan pilihan/kategori benar/salah (mis. "Sesuai / Tidak Sesuai", "Fakta / Opini"), salin label positifnya ke "true_label" (mis. "Sesuai") dan label negatifnya ke "false_label" (mis. "Tidak Sesuai"). Jika tidak disebutkan eksplisit di soal, isi dengan "Benar" dan "Salah".
+- JANGAN menandai atau menebak pernyataan mana yang benar atau salah, walaupun dokumen mencantumkannya -- itu akan ditentukan guru secara manual setelah diimpor.
+- JANGAN sertakan pembahasan/penjelasan apa pun.
+
+Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis seperti ini:
+{{
+  "questions": [
+    {{
+      "question_text": "...",
+      "true_label": "Benar",
+      "false_label": "Salah",
+      "options": [
+        {{"option_code": "1", "option_text": "..."}}
+      ]
+    }}
+  ]
+}}"""
+
+    elif question_type == "MULTIPLE_RESPONSE":
+        return f"""Anda sedang membantu seorang guru mata pelajaran {subject_name} memindahkan soal-soal PILIHAN GANDA KOMPLEKS (jawaban benar bisa lebih dari satu) yang SUDAH ADA di sebuah dokumen lama ke sistem baru.
+
+PENTING: Anda TIDAK membuat soal baru. Tugas Anda HANYA membaca teks di bawah ini dan menyalin ulang setiap soal yang benar-benar ADA di dalamnya, apa adanya, ke dalam format JSON. Jangan mengarang, mengubah, atau menambah isi soal.
+
+Teks dokumen (satu potongan, mungkin berisi beberapa soal):
+---
+{chunk_text}
+---
+
+Untuk SETIAP soal Pilihan Ganda Kompleks yang Anda temukan di teks di atas (bisa 0 kalau memang tidak ada soal valid di potongan ini):
+- Salin teks soalnya persis seperti di dokumen ke "question_text".
+- Salin SETIAP opsi/pilihan jawabannya (A, B, C, D) ke dalam array "options", masing-masing dengan "option_code" (A/B/C/D) dan "option_text" (isi pilihannya).
+- Walaupun ini soal pilihan ganda kompleks, JANGAN menandai atau menebak opsi mana yang benar, biarkan guru yang menandainya nanti.
+- JANGAN sertakan pembahasan/penjelasan apa pun.
+
+Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis seperti ini:
+{{
+  "questions": [
+    {{
+      "question_text": "...",
+      "options": [
+        {{
+          "option_code": "A",
+          "option_text": "..."
+        }},
+        {{
+          "option_code": "B",
+          "option_text": "..."
+        }}
+      ]
+    }}
+  ]
+}}"""
+
+    # MULTIPLE_CHOICE
     return f"""Anda sedang membantu seorang guru mata pelajaran {subject_name} memindahkan soal-soal PILIHAN GANDA yang SUDAH ADA di sebuah dokumen lama ke sistem baru.
 
 PENTING: Anda TIDAK membuat soal baru. Tugas Anda HANYA membaca teks di bawah ini dan menyalin ulang setiap soal pilihan ganda yang benar-benar ADA di dalamnya, apa adanya, ke dalam format JSON. Jangan mengarang, mengubah, atau menambah isi soal/opsi.
@@ -1550,6 +1910,7 @@ Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis se
 
 def _normalize_extracted_options(
     raw_options,
+    question_type: str = "MULTIPLE_CHOICE",
 ) -> tuple[list[dict], str | None]:
     """
     Versi LONGGAR dari validasi opsi di generate_question_ai(): tidak
@@ -1566,116 +1927,85 @@ def _normalize_extracted_options(
     """
 
     warnings: list[str] = []
-
     options_by_code: dict[str, dict] = {}
-
-    # Teks opsi yang PUNYA isi tapi kode-nya tidak bisa dipakai
-    # langsung (bukan A-D, atau duplikat kode yang sudah kepakai).
-    # Ini SERING terjadi kalau dokumen sumber tidak memakai huruf
-    # A-D untuk labelnya (mis. diberi angka "1)/2)/3)/4)", bullet
-    # "-", atau AI salah membaca label karena tata letak dokumen
-    # tidak standar) -- BUKAN berarti opsi itu tidak ada di
-    # dokumen. Sebelumnya teks ini langsung dibuang (`continue`)
-    # kalau kode-nya tidak cocok, sehingga jawaban yang sebenarnya
-    # ADA di dokumen hilang begitu saja dari hasil impor. Sekarang
-    # disimpan dulu sebagai cadangan, dipakai mengisi slot A-D yang
-    # masih kosong di bawah -- supaya isi jawabannya tetap masuk,
-    # cuma urutannya yang mungkin perlu guru cek ulang manual.
     leftover_texts: list[str] = []
+    
+    allowed_codes = ALLOWED_OPTIONS if question_type in ("MULTIPLE_CHOICE", "MULTIPLE_RESPONSE") else ["1", "2", "3", "4", "5"]
 
     if isinstance(raw_options, list):
-
         for raw_option in raw_options:
-
             if not isinstance(raw_option, dict):
                 continue
-
-            code = str(
-                raw_option.get("option_code", "")
-            ).strip().upper()
-
-            text = _clean_ai_math_notation(
-                str(raw_option.get("option_text", "")).strip()
-            )
-
+            code = str(raw_option.get("option_code", "")).strip().upper()
+            text = _clean_ai_math_notation(str(raw_option.get("option_text", "")).strip())
+            
             if not text:
                 continue
 
-            if code not in ALLOWED_OPTIONS or code in options_by_code:
+            if code not in allowed_codes or code in options_by_code:
                 leftover_texts.append(text)
                 continue
 
             options_by_code[code] = {
                 "option_code": code,
                 "option_text": text,
-                # SELALU False -- build_document_extract_prompt
-                # sekarang sengaja TIDAK meminta AI mendeteksi/
-                # menandai jawaban benar sama sekali (lihat
-                # docstring-nya), jadi tidak ada is_correct dari AI
-                # untuk dibaca di sini. Guru menandai manual untuk
-                # SEMUA soal hasil impor.
-                "is_correct": False,
+                "is_correct": bool(raw_option.get("is_correct", False)),
             }
 
-    # Isi slot A-D yang masih kosong pakai cadangan di atas (kalau
-    # ada), berurutan sesuai urutan aslinya di dokumen -- daripada
-    # slot itu dibiarkan kosong padahal sebenarnya ada teksnya.
     used_leftover = False
 
-    for code in ALLOWED_OPTIONS:
-
+    # Pad with empty options if missing
+    for code in allowed_codes:
         if code in options_by_code or not leftover_texts:
             continue
-
         options_by_code[code] = {
             "option_code": code,
             "option_text": leftover_texts.pop(0),
             "is_correct": False,
         }
-
         used_leftover = True
 
     if used_leftover:
-
         warnings.append(
-            "Sebagian pilihan jawaban labelnya tidak terbaca sesuai "
-            "format A-D oleh AI (mis. dokumen memakai angka/simbol "
-            "lain), jadi urutannya diisi otomatis -- cek ulang urutan "
-            "A-D di bawah sesuai dokumen aslinya."
+            "Sebagian pilihan/pernyataan labelnya tidak terbaca sesuai format oleh AI, "
+            "jadi urutannya diisi otomatis -- cek ulang urutannya sesuai dokumen aslinya."
         )
 
-    # Teks tersisa (kalau dokumen ternyata punya lebih dari 4 pilihan
-    # jawaban) tidak bisa ditampung -- sistem cuma mendukung A-D.
     if leftover_texts:
-
         warnings.append(
-            f"Ditemukan {len(leftover_texts)} pilihan jawaban tambahan "
-            "di dokumen yang tidak ikut diimpor karena sistem hanya "
-            "mendukung 4 pilihan (A-D)."
+            f"Ditemukan {len(leftover_texts)} pilihan/pernyataan tambahan "
+            f"di dokumen yang tidak ikut diimpor karena sistem hanya mendukung maksimal {len(allowed_codes)} pilihan."
         )
 
-    missing_codes = [
-        code for code in ALLOWED_OPTIONS if code not in options_by_code
-    ]
-
-    if missing_codes:
-
-        warnings.append(
-            "Pilihan "
-            + ", ".join(missing_codes)
-            + " tidak ditemukan di dokumen, lengkapi manual."
-        )
-
-    ordered_options = [
-        options_by_code.get(
-            code,
-            {"option_code": code, "option_text": "", "is_correct": False},
-        )
-        for code in ALLOWED_OPTIONS
-    ]
+    if question_type in ("MULTIPLE_CHOICE", "MULTIPLE_RESPONSE"):
+        missing_codes = [code for code in allowed_codes if code not in options_by_code]
+        if missing_codes:
+            warnings.append(
+                "Pilihan " + ", ".join(missing_codes) + " tidak ditemukan di dokumen, lengkapi manual."
+            )
+        
+        ordered_options = [
+            options_by_code.get(
+                code,
+                {"option_code": code, "option_text": "", "is_correct": False},
+            )
+            for code in allowed_codes
+        ]
+    else:
+        # TRUE_FALSE logic: only return the codes that were actually populated,
+        # but ensure there are at least 2 options.
+        ordered_options = []
+        for code in allowed_codes:
+            if code in options_by_code:
+                ordered_options.append(options_by_code[code])
+        
+        # Ensure at least 2 options for TRUE_FALSE
+        while len(ordered_options) < 2:
+            next_code = str(len(ordered_options) + 1)
+            ordered_options.append({"option_code": next_code, "option_text": "", "is_correct": False})
+            warnings.append(f"Pernyataan {next_code} ditambahkan otomatis karena soal B-S harus memiliki minimal 2 pernyataan.")
 
     warning_text = " ".join(warnings) if warnings else None
-
     return ordered_options, warning_text
 
 
@@ -1766,6 +2096,7 @@ async def process_document_chunk(
     prompt = build_document_extract_prompt(
         subject_name=subject.name,
         chunk_text=payload.chunk_text,
+        question_type=payload.question_type,
     )
 
     try:
@@ -1871,7 +2202,8 @@ async def process_document_chunk(
             continue
 
         options, options_warning = _normalize_extracted_options(
-            raw_question.get("options", [])
+            raw_question.get("options", []),
+            question_type=payload.question_type,
         )
 
         explanation = _clean_ai_math_notation(
@@ -1881,6 +2213,7 @@ async def process_document_chunk(
         extracted_questions.append(
             AIExtractedQuestion(
                 question_text=question_text,
+                question_type=payload.question_type,
                 difficulty="MEDIUM",
                 explanation=explanation,
                 points=1,
@@ -1952,6 +2285,8 @@ def create_question(
         difficulty=question_data.difficulty,
         explanation=question_data.explanation,
         points=question_data.points,
+        true_label=getattr(question_data, "true_label", None),
+        false_label=getattr(question_data, "false_label", None),
         is_active=question_data.is_active,
         created_by=current_user.id
     )
@@ -2092,6 +2427,12 @@ def update_question(
     question.points = (
         question_data.points
     )
+
+    if hasattr(question_data, "true_label"):
+        question.true_label = question_data.true_label
+    
+    if hasattr(question_data, "false_label"):
+        question.false_label = question_data.false_label
 
     question.is_active = (
         question_data.is_active

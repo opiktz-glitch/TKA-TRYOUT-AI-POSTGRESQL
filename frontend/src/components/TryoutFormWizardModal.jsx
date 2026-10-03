@@ -186,6 +186,63 @@ export default function TryoutFormWizardModal({
                       </div>
                     </div>
 
+                    <div className="form-group" style={{ marginTop: '5px', marginBottom: '15px' }}>
+                      <label><strong>Konfigurasi Bobot Penilaian (%) *</strong></label>
+                      <small style={{ color: "#777", display: "block", marginBottom: "10px" }}>
+                        Total bobot dari ketiga jenis soal harus berjumlah 100%.
+                      </small>
+                      
+                      <div className="form-row" style={{ gap: '10px' }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "13px" }}>Pilihan Ganda</label>
+                          <input
+                            type="number"
+                            name="weight_pg"
+                            min="0"
+                            max="100"
+                            value={form.weight_pg}
+                            onChange={handleChange}
+                            disabled={saving}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "13px" }}>PG Kompleks (MCMA)</label>
+                          <input
+                            type="number"
+                            name="weight_mcma"
+                            min="0"
+                            max="100"
+                            value={form.weight_mcma}
+                            onChange={handleChange}
+                            disabled={saving}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "13px" }}>Benar/Salah</label>
+                          <input
+                            type="number"
+                            name="weight_bs"
+                            min="0"
+                            max="100"
+                            value={form.weight_bs}
+                            onChange={handleChange}
+                            disabled={saving}
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      {(parseFloat(form.weight_pg || 0) + parseFloat(form.weight_mcma || 0) + parseFloat(form.weight_bs || 0)) !== 100 && (
+                        <div style={{ color: "red", fontSize: "13px", marginTop: "5px" }}>
+                          Peringatan: Total bobot saat ini adalah {parseFloat(form.weight_pg || 0) + parseFloat(form.weight_mcma || 0) + parseFloat(form.weight_bs || 0)}%. Total bobot harus pas 100%.
+                        </div>
+                      )}
+                    </div>
+
                     <div className="form-group">
                       <label>Keterangan</label>
                       <input
@@ -257,10 +314,6 @@ export default function TryoutFormWizardModal({
                         <strong>{form.questions.length}</strong>
                       </div>
                       <div className="tw-stat">
-                        <span>Total bobot</span>
-                        <strong>{totalPoints}</strong>
-                      </div>
-                      <div className="tw-stat">
                         <span>Nilai maksimal</span>
                         <strong>{form.max_score}</strong>
                       </div>
@@ -301,35 +354,6 @@ export default function TryoutFormWizardModal({
                       </div>
                     </dl>
 
-                    <div className="tw-bulk">
-                      <label htmlFor="tw-bulk-points">
-                        Samakan bobot semua soal
-                      </label>
-                      <input
-                        id="tw-bulk-points"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={bulkPoints}
-                        onChange={(e) => setBulkPoints(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            applyBulkPoints();
-                          }
-                        }}
-                        disabled={saving}
-                      />
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={applyBulkPoints}
-                        disabled={saving}
-                      >
-                        Terapkan
-                      </button>
-                    </div>
-
                     <div className="tw-review-list">
                       {form.questions.map((item) => (
                         <div key={item.question_id} className="tw-review-row">
@@ -350,10 +374,6 @@ export default function TryoutFormWizardModal({
                               {getDifficultyLabel(item.difficulty)}
                             </span>
                           )}
-
-                          <span className="tw-review-points">
-                            Bobot {item.points}
-                          </span>
                         </div>
                       ))}
                     </div>

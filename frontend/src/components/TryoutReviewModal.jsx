@@ -100,7 +100,9 @@ export default function TryoutReviewModal({
                 </div>
 
                 <div className="review-print-questions">
-                  {reviewData.questions.map((question) => (
+                  {reviewData.questions.map((question) => {
+                    const isTrueFalse = question.question_type === "TRUE_FALSE";
+                    return (
                     <div
                       key={question.question_id}
                       className="review-print-question"
@@ -121,20 +123,47 @@ export default function TryoutReviewModal({
                       </div>
 
                       <div className="review-print-options">
-                        {question.options.map((option) => (
-                          <div
-                            key={option.option_code}
-                            className="review-print-option"
-                          >
-                            <span className="review-print-option-code">
-                              {option.option_code}.
-                            </span>
-                            <span>{option.option_text}</span>
-                          </div>
-                        ))}
+                        {isTrueFalse ? (
+                          <table className="tf-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
+                            <thead>
+                              <tr>
+                                <th style={{ border: "1px solid #e5e7eb", padding: "8px 12px", textAlign: "left", backgroundColor: "#f9fafb" }}>Pernyataan</th>
+                                <th style={{ border: "1px solid #e5e7eb", padding: "8px 12px", width: "80px", textAlign: "center", backgroundColor: "#f9fafb" }}>{question.true_label || "Benar"}</th>
+                                <th style={{ border: "1px solid #e5e7eb", padding: "8px 12px", width: "80px", textAlign: "center", backgroundColor: "#f9fafb" }}>{question.false_label || "Salah"}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {question.options.map((option) => (
+                                <tr key={option.option_code}>
+                                  <td style={{ border: "1px solid #e5e7eb", padding: "8px 12px" }}>
+                                    {option.option_text}
+                                  </td>
+                                  <td style={{ border: "1px solid #e5e7eb", padding: "8px 12px", textAlign: "center" }}>
+                                    <span style={{ border: "1px solid #6b7280", padding: "2px 8px", borderRadius: "4px", fontSize: "14px", color: "#374151" }}>{(question.true_label || "Benar").charAt(0).toUpperCase()}</span>
+                                  </td>
+                                  <td style={{ border: "1px solid #e5e7eb", padding: "8px 12px", textAlign: "center" }}>
+                                    <span style={{ border: "1px solid #6b7280", padding: "2px 8px", borderRadius: "4px", fontSize: "14px", color: "#374151" }}>{(question.false_label || "Salah").charAt(0).toUpperCase()}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          question.options.map((option) => (
+                            <div
+                              key={option.option_code}
+                              className="review-print-option"
+                            >
+                              <span className="review-print-option-code">
+                                {option.option_code}.
+                              </span>
+                              <span>{option.option_text}</span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
-                  ))}
+                  )})}
 
                   {reviewData.questions.length === 0 && (
                     <div className="empty-message">
@@ -157,9 +186,11 @@ export default function TryoutReviewModal({
 
                 <div className="review-print-questions">
                   {reviewData.questions.map((question) => {
-                    const correctOption = question.options.find(
-                      (option) => option.is_correct
-                    );
+                    const isTrueFalse = question.question_type === "TRUE_FALSE";
+                    const isMultipleResponse = question.question_type === "MULTIPLE_RESPONSE";
+                    const correctOption = isTrueFalse || isMultipleResponse
+                      ? null
+                      : question.options.find((option) => option.is_correct);
 
                     return (
                       <div
@@ -184,9 +215,13 @@ export default function TryoutReviewModal({
                         <div className="review-answer-correct">
                           Jawaban:{" "}
                           <strong>
-                            {correctOption
-                              ? `${correctOption.option_code}. ${correctOption.option_text}`
-                              : "-"}
+                            {isTrueFalse
+                              ? question.options.map(opt => `${opt.option_code}: ${opt.is_correct ? (question.true_label || "Benar").charAt(0).toUpperCase() : (question.false_label || "Salah").charAt(0).toUpperCase()}`).join(", ")
+                              : isMultipleResponse
+                              ? question.options.filter(opt => opt.is_correct).map(opt => `${opt.option_code}`).join(", ")
+                              : (correctOption
+                                ? `${correctOption.option_code}. ${correctOption.option_text}`
+                                : "-")}
                           </strong>
                         </div>
 

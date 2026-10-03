@@ -53,7 +53,7 @@ import { generateAIExplanation, verifyAIAnswer } from "../services/api";
 
 // Dipakai KEDUA tombol: cek dasar yang sama-sama berlaku (soal
 // bergambar, teks soal kosong, kurang dari 2 pilihan terisi).
-function getBaseBlockReason({ questionText, options, hasImage, questionId }) {
+function getBaseBlockReason({ questionText, options, hasImage, questionId, questionType }) {
   if (hasImage && !questionId) {
     return "Anda baru saja menambahkan gambar baru. Silakan Simpan soal ini terlebih dahulu, lalu buka Edit kembali untuk bisa menggunakan Pembahasan AI bergambar.";
   }
@@ -64,6 +64,7 @@ function getBaseBlockReason({ questionText, options, hasImage, questionId }) {
 
   const filledOptions = options.filter((option) => option.option_text.trim());
 
+  // Untuk B-S kita butuh ke-4 pernyataan diisi, tapi sementara batas amannya "minimal 2" sama seperti Pilihan Ganda.
   if (filledOptions.length < 2) {
     return "Isi minimal dua pilihan jawaban terlebih dahulu.";
   }
@@ -71,29 +72,16 @@ function getBaseBlockReason({ questionText, options, hasImage, questionId }) {
   return "";
 }
 
-// "✨ Pembahasan dengan AI" -- SEKARANG dibuat SEBELUM kunci jawaban
-// ditandai, jadi TIDAK mensyaratkan satu pilihan benar. Nonaktif
-// selama kolom Pembahasan masih terisi, supaya tidak menimpa draf
-// yang sudah ada/ditulis guru tanpa sadar.
-function getGenerateBlockReason({ value, questionText, options, hasImage, questionId }) {
+function getGenerateBlockReason({ value, questionText, options, hasImage, questionId, questionType }) {
   if (value.trim()) {
     return "Kolom pembahasan sudah terisi. Kosongkan dulu untuk membuat draf baru dengan AI.";
   }
 
-  return getBaseBlockReason({ questionText, options, hasImage, questionId });
+  return getBaseBlockReason({ questionText, options, hasImage, questionId, questionType });
 }
 
-// "🔍 Verifikasi Jawaban" -- selain butuh kunci yang SUDAH ditandai
-// guru untuk dibandingkan, sekarang juga butuh kolom Pembahasan
-// SUDAH terisi (kebalikan dari getGenerateBlockReason): dua tombol
-// ini jadi saling eksklusif -- kosong -> cuma tombol "Pembahasan
-// dengan AI" aktif, sudah terisi -> cuma tombol "Verifikasi Jawaban"
-// aktif. Sejalan dengan alurnya: verifikasi juga menawarkan pengganti
-// isi Pembahasan (lihat suggested_explanation), jadi tidak relevan
-// dijalankan kalau belum ada pembahasan sama sekali untuk dicek/
-// diganti.
-function getVerifyBlockReason({ value, questionText, options, hasImage, questionId }) {
-  const baseReason = getBaseBlockReason({ questionText, options, hasImage, questionId });
+function getVerifyBlockReason({ value, questionText, options, hasImage, questionId, questionType }) {
+  const baseReason = getBaseBlockReason({ questionText, options, hasImage, questionId, questionType });
 
   if (baseReason) {
     return baseReason;
@@ -103,15 +91,20 @@ function getVerifyBlockReason({ value, questionText, options, hasImage, question
     return "Isi kolom Pembahasan terlebih dahulu (tulis manual atau pakai tombol \"Pembahasan dengan AI\").";
   }
 
-  const filledOptions = options.filter((option) => option.option_text.trim());
-
-  if (filledOptions.filter((option) => option.is_correct).length !== 1) {
-    return "Tandai satu jawaban yang benar terlebih dahulu.";
+  if (questionType === "MULTIPLE_CHOICE") {
+    const filledOptions = options.filter((option) => option.option_text.trim());
+    if (filledOptions.filter((option) => option.is_correct).length !== 1) {
+      return "Tandai satu jawaban yang benar terlebih dahulu.";
+    }
+  } else if (questionType === "MULTIPLE_RESPONSE") {
+    const filledOptions = options.filter((option) => option.option_text.trim());
+    if (filledOptions.filter((option) => option.is_correct).length < 1) {
+      return "Tandai minimal satu jawaban yang benar terlebih dahulu.";
+    }
   }
 
   return "";
 }
-
 
 function ExplanationField({
   value,
@@ -122,6 +115,7 @@ function ExplanationField({
   subjectId,
   hasImage = false,
   questionId = null,
+  questionType = "MULTIPLE_CHOICE",
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -137,13 +131,16 @@ function ExplanationField({
     options,
     hasImage,
     questionId,
+    questionType,
   });
+
   const verifyBlockReason = getVerifyBlockReason({
     value,
     questionText,
     options,
     hasImage,
     questionId,
+    questionType,
   });
 
   const optionsKey = options
@@ -178,6 +175,7 @@ function ExplanationField({
         question_text: questionText,
         subject_id: subjectId ? Number(subjectId) : null,
         question_id: questionId ? Number(questionId) : null,
+        question_type: questionType,
         options: options.map((option) => ({
           option_code: option.option_code,
           option_text: option.option_text,
@@ -205,6 +203,7 @@ function ExplanationField({
       const data = await verifyAIAnswer({
         question_text: questionText,
         question_id: questionId ? Number(questionId) : null,
+        question_type: questionType,
         options: options.map((option) => ({
           option_code: option.option_code,
           option_text: option.option_text,

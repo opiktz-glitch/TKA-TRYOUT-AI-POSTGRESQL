@@ -33,7 +33,7 @@ import { blobToFile, cropToBlob } from "../services/imageCrop";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // sama dengan batas di backend
-const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
 
 // Pesan yang berganti-ganti tiap beberapa detik SEKEDAR untuk memberi
 // kesan "masih berjalan" selama menunggu SATU gambar dibaca AI --
@@ -87,6 +87,7 @@ function ImportImageModal({ subjects, onClose, onImported }) {
   const [step, setStep] = useState("upload");
 
   const [subjectId, setSubjectId] = useState("");
+  const [questionType, setQuestionType] = useState("MULTIPLE_CHOICE");
 
   // { id, file, previewUrl, status: "pending"|"processing"|"done"|
   //   "error"|"cancelled", count, message }
@@ -215,7 +216,7 @@ function ImportImageModal({ subjects, onClose, onImported }) {
   // TAMBAH GAMBAR: pilih file, seret-lepas, atau tempel (Ctrl+V)
   // ======================================================
 
-  function addFiles(fileList) {
+  async function addFiles(fileList) {
     const incoming = Array.from(fileList || []);
 
     if (incoming.length === 0) {
@@ -223,51 +224,82 @@ function ImportImageModal({ subjects, onClose, onImported }) {
     }
 
     const problems = [];
-
-    const accepted = [];
-
+    const processedFiles = [];
     let slots = MAX_IMAGES - imagesRef.current.length;
 
     for (const file of incoming) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        problems.push(`"${file.name}" bukan PNG/JPG/WebP`);
-
-        continue;
-      }
-
-      if (file.size > MAX_FILE_BYTES) {
-        problems.push(`"${file.name}" lebih dari ${MAX_FILE_BYTES / (1024 * 1024)} MB`);
-
-        continue;
-      }
-
       if (slots <= 0) {
-        problems.push(`"${file.name}" melebihi batas ${MAX_IMAGES} gambar`);
-
-        continue;
+        problems.push(`"${file.name}" ditolak karena melebihi batas sisa ${slots} slot`);
+        continue; // or break
       }
 
-      slots -= 1;
+      if (file.type === "application/pdf") {
+        try {
+          // Dynamic import untuk menghemat bundle size saat tidak memproses PDF
+          const pdfjsLib = await import("pdfjs-dist");
+          // Gunakan worker dari minified build
+          const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.mjs?url");
+          pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
 
-      accepted.push({
+          const arrayBuffer = await file.arrayBuffer();
+          const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+          const pdf = await loadingTask.promise;
+
+          let numPagesToProcess = pdf.numPages;
+          if (numPagesToProcess > slots) {
+            problems.push(`PDF "${file.name}" punya ${numPagesToProcess} halaman tapi hanya sisa ${slots} slot. Sebagian halaman diabaikan.`);
+            numPagesToProcess = slots;
+          }
+
+          for (let pageNum = 1; pageNum <= numPagesToProcess; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            // Skala 2.0 agar tulisan kecil dan rumus tetap tajam saat difoto
+            const viewport = page.getViewport({ scale: 2.0 });
+            
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+            const pngFile = new File([blob], `${file.name.replace('.pdf', '')}_Halaman_${pageNum}.png`, { type: "image/png" });
+            
+            processedFiles.push(pngFile);
+            slots -= 1;
+          }
+        } catch (err) {
+          console.error("Gagal merender PDF:", err);
+          problems.push(`Gagal membaca PDF "${file.name}"`);
+        }
+      } else if (ALLOWED_TYPES.includes(file.type)) {
+        if (file.size > MAX_FILE_BYTES) {
+          problems.push(`"${file.name}" lebih dari ${MAX_FILE_BYTES / (1024 * 1024)} MB`);
+          continue;
+        }
+        processedFiles.push(file);
+        slots -= 1;
+      } else {
+        problems.push(`"${file.name}" bukan PNG/JPG/WebP/PDF`);
+      }
+    }
+
+    const accepted = processedFiles.map((f) => ({
         id: nextImageIdRef.current++,
-        file,
-        previewUrl: URL.createObjectURL(file),
+        file: f,
+        previewUrl: URL.createObjectURL(f),
         status: "pending",
         count: 0,
         message: "",
-      });
-    }
+    }));
 
     if (accepted.length > 0) {
-      // Ref diperbarui SEKARANG (bukan menunggu render berikutnya) supaya
-      // dua tempelan beruntun tetap menghitung sisa slot dengan benar.
       imagesRef.current = [...imagesRef.current, ...accepted];
-
       setImages((prev) => [...prev, ...accepted]);
     }
 
-    setError(problems.length > 0 ? `Tidak ditambahkan: ${problems.join("; ")}.` : "");
+    setError(problems.length > 0 ? `Catatan: ${problems.join("; ")}.` : "");
   }
 
   addFilesRef.current = addFiles;
@@ -427,6 +459,7 @@ function ImportImageModal({ subjects, onClose, onImported }) {
       try {
         const result = await extractQuestionsFromImage(
           Number(subjectId),
+          questionType,
           image.file,
           controller.signal,
         );
@@ -444,15 +477,25 @@ function ImportImageModal({ subjects, onClose, onImported }) {
 
           points: question.points ?? 1,
 
-          options: OPTION_CODES.map((code) => {
-            const found = question.options.find((option) => option.option_code === code);
+          question_type: questionType,
 
-            return {
-              option_code: code,
-              option_text: found?.option_text || "",
-              is_correct: found?.is_correct || false,
-            };
-          }),
+          true_label: question.true_label || "Benar",
+          false_label: question.false_label || "Salah",
+
+          options: questionType === "TRUE_FALSE" 
+            ? question.options.map(o => ({
+                option_code: o.option_code,
+                option_text: o.option_text || "",
+                is_correct: o.is_correct || false,
+              }))
+            : OPTION_CODES.map((code) => {
+                const found = question.options.find((option) => option.option_code === code);
+                return {
+                  option_code: code,
+                  option_text: found?.option_text || "",
+                  is_correct: found?.is_correct || false,
+                };
+              }),
 
           warning: question.warning || null,
 
@@ -588,17 +631,19 @@ function ImportImageModal({ subjects, onClose, onImported }) {
 
   function setCorrectOption(key, optionIndex) {
     setItems((prev) =>
-      prev.map((item) =>
-        item.key !== key
-          ? item
-          : {
-              ...item,
-              options: item.options.map((option, index) => ({
-                ...option,
-                is_correct: index === optionIndex,
-              })),
-            },
-      ),
+      prev.map((item) => {
+        if (item.key !== key) return item;
+        const isMultipleAnswer = item.question_type === "TRUE_FALSE" || item.question_type === "MULTIPLE_RESPONSE";
+        return {
+          ...item,
+          options: item.options.map((option, index) => ({
+            ...option,
+            is_correct: isMultipleAnswer 
+              ? (index === optionIndex ? !option.is_correct : option.is_correct)
+              : (index === optionIndex),
+          })),
+        };
+      })
     );
   }
 
@@ -755,7 +800,9 @@ function ImportImageModal({ subjects, onClose, onImported }) {
         const created = await createQuestion({
           subject_id: Number(subjectId),
           question_text: item.question_text,
-          question_type: "MULTIPLE_CHOICE",
+          question_type: item.question_type || questionType,
+          true_label: item.true_label,
+          false_label: item.false_label,
           difficulty: item.difficulty,
           explanation: item.explanation || null,
           points: item.points,
@@ -987,6 +1034,15 @@ function ImportImageModal({ subjects, onClose, onImported }) {
             </div>
 
             <div className="form-group">
+              <label>Jenis Soal *</label>
+              <select value={questionType} onChange={(e) => setQuestionType(e.target.value)} required>
+                <option value="MULTIPLE_CHOICE">Pilihan Ganda (PG)</option>
+                <option value="MULTIPLE_RESPONSE">Pilihan Ganda Kompleks - Pilihan Jamak (PGK-MCMA)</option>
+                <option value="TRUE_FALSE">Pilihan Ganda Kompleks - Kategori (Benar/Salah)</option>
+              </select>
+            </div>
+
+            <div className="form-group">
               <label>Gambar Soal *</label>
 
               <div
@@ -1021,8 +1077,8 @@ function ImportImageModal({ subjects, onClose, onImported }) {
                 </div>
 
                 <small style={{ color: "#6b7280", fontSize: "13px" }}>
-                  PNG, JPG, atau WebP · maks {MAX_FILE_BYTES / (1024 * 1024)} MB per gambar · maks{" "}
-                  {MAX_IMAGES} gambar
+                  PDF, PNG, JPG, WebP · maks {MAX_FILE_BYTES / (1024 * 1024)} MB per halaman · maks{" "}
+                  {MAX_IMAGES} halaman
                 </small>
               </div>
 
@@ -1352,6 +1408,10 @@ function ImportImageModal({ subjects, onClose, onImported }) {
                     options={item.options}
                     name={`image-import-correct-${item.key}`}
                     disabled={saving}
+                    isTrueFalse={item.question_type === "TRUE_FALSE"}
+                    isMultipleResponse={item.question_type === "MULTIPLE_RESPONSE"}
+                    trueLabel={item.true_label}
+                    falseLabel={item.false_label}
                     onTextChange={(optionIndex, value) =>
                       updateOption(item.key, optionIndex, { option_text: value })
                     }

@@ -24,6 +24,8 @@ showModal,
   handleRemoveImageClick,
   handleOptionTextChange,
   handleCorrectAnswer,
+  addOption,
+  removeOption,
   IconBook,
   setShowGuideModal,
   editAiGate
@@ -156,6 +158,53 @@ showModal,
                 </div>
               </div>
 
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Jenis Soal *</label>
+
+                  <select
+                    name="question_type"
+                    value={form.question_type}
+                    onChange={handleChange}
+                    disabled={saving}
+                    required
+                  >
+                    <option value="MULTIPLE_CHOICE">Pilihan Ganda (PG)</option>
+                    <option value="MULTIPLE_RESPONSE">Pilihan Ganda Kompleks - Pilihan Jamak (PGK-MCMA)</option>
+                    <option value="TRUE_FALSE">Pilihan Ganda Kompleks - Kategori (Benar/Salah)</option>
+                  </select>
+                </div>
+              </div>
+
+              {form.question_type === "TRUE_FALSE" && (
+                <div className="form-row" style={{ display: "flex", gap: "15px", marginBottom: "15px" }}>
+                  <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                    <label>Label Kolom Kiri (Positif) *</label>
+                    <input
+                      type="text"
+                      name="true_label"
+                      value={form.true_label}
+                      onChange={handleChange}
+                      placeholder="Misal: Benar, Fakta, Sesuai"
+                      disabled={saving}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                    <label>Label Kolom Kanan (Negatif) *</label>
+                    <input
+                      type="text"
+                      name="false_label"
+                      value={form.false_label}
+                      onChange={handleChange}
+                      placeholder="Misal: Salah, Opini, Tidak Sesuai"
+                      disabled={saving}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Pertanyaan *</label>
 
@@ -228,19 +277,30 @@ showModal,
                 name="correct_answer"
                 required
                 disabled={saving}
+                isTrueFalse={form.question_type === "TRUE_FALSE"}
+                isMultipleResponse={form.question_type === "MULTIPLE_RESPONSE"}
                 onTextChange={handleOptionTextChange}
                 onCorrectChange={handleCorrectAnswer}
+                onAddOption={addOption}
+                onRemoveOption={removeOption}
+                trueLabel={form.true_label}
+                falseLabel={form.false_label}
               />
 
               <ExplanationField
                 value={form.explanation}
                 onTextChange={(text) =>
-                  handleChange({ target: { name: "explanation", value: text } })
+                  handleChange(
+                    typeof text === "string" 
+                      ? { target: { name: "explanation", value: text } }
+                      : text
+                  )
                 }
                 disabled={saving}
                 questionText={form.question_text}
                 options={form.options}
                 subjectId={form.subject_id}
+                questionType={form.question_type}
                 hasImage={
                   Boolean(imagePreviewUrl) ||
                   Boolean(editingQuestion?.has_image && !removeExistingImage) ||

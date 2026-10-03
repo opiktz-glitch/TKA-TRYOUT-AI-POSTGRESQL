@@ -204,8 +204,30 @@ def finalize_attempt(
     unanswered_count = 0
 
     total_points = 0
+    
+    pg_points = 0.0
+    pg_max = 0.0
+    mcma_points = 0.0
+    mcma_max = 0.0
+    bs_points = 0.0
+    bs_max = 0.0
 
     for tq in tryout_questions:
+        question = db.query(Question).filter(Question.id == tq.question_id).first()
+        q_type = question.question_type if question else "MULTIPLE_CHOICE"
+
+        all_options = (
+            db.query(QuestionOption)
+            .filter(QuestionOption.question_id == tq.question_id)
+            .all()
+        )
+
+        if q_type == "TRUE_FALSE":
+            bs_max += float(len(all_options))
+        elif q_type == "MULTIPLE_RESPONSE":
+            mcma_max += 2.0
+        else:
+            pg_max += tq.points
 
         answer = (
             db.query(Answer)
@@ -220,55 +242,115 @@ def finalize_attempt(
             not answer
             or not answer.selected_option
         ):
-
             unanswered_count += 1
-
             if answer:
                 answer.is_correct = False
                 answer.points_earned = 0
-
             continue
 
-        correct_option = (
-            db.query(QuestionOption)
-            .filter(
-                QuestionOption.question_id
-                == tq.question_id,
+        is_true_false = q_type == "TRUE_FALSE"
 
-                QuestionOption.is_correct == True,
+        if is_true_false:
+            # Format selected_option expected: "1:T,2:F,3:T"
+            # Parse it:
+            student_answers = {}
+            if answer.selected_option:
+                parts = answer.selected_option.split(",")
+                for p in parts:
+                    if ":" in p:
+                        k, v = p.split(":", 1)
+                        student_answers[k] = (v == "T")
+
+            # Format selected_option expected: "1:T,2:F,3:T"
+
+            correct_statements = 0
+            for opt in all_options:
+                expected_ans = opt.is_correct
+                student_ans = student_answers.get(opt.option_code)
+
+                if student_ans == expected_ans:
+                    correct_statements += 1
+
+            # Rule: Tiap baris bernilai 1 poin.
+            earned = float(correct_statements)
+
+            if correct_statements == len(all_options) and len(all_options) > 0:
+                correct_count += 1
+                answer.is_correct = True
+            else:
+                wrong_count += 1
+                answer.is_correct = False
+
+            answer.points_earned = earned
+            total_points += earned
+            bs_points += earned
+
+        elif question and question.question_type == "MULTIPLE_RESPONSE":
+            all_options = (
+                db.query(QuestionOption)
+                .filter(QuestionOption.question_id == tq.question_id)
+                .all()
             )
-            .first()
-        )
+            correct_codes = set(opt.option_code for opt in all_options if opt.is_correct)
+            
+            student_codes = set()
+            if answer.selected_option:
+                student_codes = set(answer.selected_option.split(","))
 
-        if not correct_option:
+            # Rule:
+            # Skor Max (2 poin): Menjawab semua opsi benar tanpa memilih opsi salah
+            # Skor Parsial (1 poin): Menjawab sebagian opsi benar tanpa memilih opsi salah
+            # Skor 0: Memilih salah satu opsi salah atau tidak menjawab
 
-            wrong_count += 1
+            has_wrong_checked = any(code not in correct_codes for code in student_codes)
+            correct_checked = [code for code in student_codes if code in correct_codes]
 
-            answer.is_correct = False
-            answer.points_earned = 0
+            if has_wrong_checked or len(student_codes) == 0:
+                earned = 0.0
+            elif len(correct_checked) == len(correct_codes):
+                earned = 2.0  # Max poin
+            else:
+                earned = 1.0  # Parsial poin
 
-            continue
+            if earned == 2.0:
+                correct_count += 1
+                answer.is_correct = True
+            else:
+                wrong_count += 1
+                answer.is_correct = False
 
-        if (
-            answer.selected_option
-            == correct_option.option_code
-        ):
-
-            correct_count += 1
-
-            answer.is_correct = True
-
-            answer.points_earned = tq.points
-
-            total_points += tq.points
+            answer.points_earned = earned
+            total_points += earned
+            mcma_points += earned
 
         else:
+            correct_option = (
+                db.query(QuestionOption)
+                .filter(
+                    QuestionOption.question_id
+                    == tq.question_id,
 
-            wrong_count += 1
+                    QuestionOption.is_correct == True,
+                )
+                .first()
+            )
 
-            answer.is_correct = False
+            if not correct_option:
+                wrong_count += 1
+                answer.is_correct = False
+                answer.points_earned = 0
+                continue
 
-            answer.points_earned = 0
+            if answer.selected_option == correct_option.option_code:
+                correct_count += 1
+                answer.is_correct = True
+                answer.points_earned = tq.points
+                total_points += tq.points
+                pg_points += tq.points
+            else:
+                wrong_count += 1
+                answer.is_correct = False
+                answer.points_earned = 0
 
     if total_questions > 0:
 
@@ -283,19 +365,26 @@ def finalize_attempt(
 
     effective_max_score = tryout.max_score or 100
 
-    if total_questions > 0 and sum(tq.points for tq in tryout_questions) > 0:
+    weight_pg = tryout.weight_pg if tryout.weight_pg is not None else 40.0
+    weight_mcma = tryout.weight_mcma if tryout.weight_mcma is not None else 35.0
+    weight_bs = tryout.weight_bs if tryout.weight_bs is not None else 25.0
 
-        score = (
-            total_points
-            / sum(
-                tq.points
-                for tq in tryout_questions
-            )
-            * effective_max_score
-        )
+    score_pg = (pg_points / pg_max) * weight_pg if pg_max > 0 else 0
+    score_mcma = (mcma_points / mcma_max) * weight_mcma if mcma_max > 0 else 0
+    score_bs = (bs_points / bs_max) * weight_bs if bs_max > 0 else 0
 
+    total_weights_present = 0
+    if pg_max > 0:
+        total_weights_present += weight_pg
+    if mcma_max > 0:
+        total_weights_present += weight_mcma
+    if bs_max > 0:
+        total_weights_present += weight_bs
+
+    raw_score = score_pg + score_mcma + score_bs
+    if total_weights_present > 0:
+        score = (raw_score / total_weights_present) * effective_max_score
     else:
-
         score = 0
 
     attempt.status = "SUBMITTED"
@@ -1753,6 +1842,9 @@ def get_attempt(
 
             "difficulty": question.difficulty,
 
+            "true_label": getattr(question, "true_label", "Benar") or "Benar",
+            "false_label": getattr(question, "false_label", "Salah") or "Salah",
+
             "points": tq.points,
 
             "has_image": question.image_data is not None,
@@ -1902,24 +1994,39 @@ def save_answer(
     # --------------------------------------------------------
 
     if data.selected_option is not None:
+        question = db.query(Question).filter(Question.id == data.question_id).first()
+        if question and question.question_type == "TRUE_FALSE":
+            # For TRUE_FALSE, selected_option is a string like "1:T,2:F,3:T"
+            # It can be anything from frontend right now, we just ensure it's not empty string
+            if not data.selected_option.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Jawaban tidak boleh kosong",
+                )
+        elif question and question.question_type == "MULTIPLE_RESPONSE":
+            if not data.selected_option.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Jawaban tidak boleh kosong",
+                )
+        else:
+            option = (
+                db.query(QuestionOption)
+                .filter(
+                    QuestionOption.question_id
+                    == data.question_id,
 
-        option = (
-            db.query(QuestionOption)
-            .filter(
-                QuestionOption.question_id
-                == data.question_id,
-
-                QuestionOption.option_code
-                == data.selected_option,
+                    QuestionOption.option_code
+                    == data.selected_option,
+                )
+                .first()
             )
-            .first()
-        )
 
-        if not option:
-            raise HTTPException(
-                status_code=400,
-                detail="Pilihan jawaban tidak valid",
-            )
+            if not option:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Pilihan jawaban tidak valid",
+                )
 
     # --------------------------------------------------------
     # Cari jawaban lama

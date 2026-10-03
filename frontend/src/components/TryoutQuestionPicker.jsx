@@ -15,7 +15,7 @@ import {
 // Dua panel: bank soal (kiri, dipaginasi & dicari di server) dan
 // soal terpilih (kanan, bisa diurutkan dengan drag & drop).
 //
-// Komponen ini TIDAK memegang daftar soal terpilih sendiri —
+// Komponen ini TIDAK memegang daftar soal terpilih sendiri ””
 // daftarnya milik form induk (TryoutManagement.jsx) dan dikirim
 // lewat props `selected`; setiap perubahan dikembalikan lewat
 // `onChange(daftarBaru)` dengan nomor soal sudah diurutkan ulang.
@@ -64,23 +64,30 @@ function toSelectedItem(question, position) {
     points: 1,
     question_text: question.question_text || "",
     difficulty: question.difficulty || "",
+    question_type: question.question_type || "MULTIPLE_CHOICE",
     has_image: Boolean(question.has_image),
     is_active: true,
   };
 }
 
-function toCount(value) {
+function toCount(value, totalAvailable = RANDOM_MAX_PER_DIFFICULTY) {
+  if (typeof value === "string" && value.trim().endsWith("%")) {
+    const percent = parseFloat(value);
+    if (!Number.isFinite(percent) || percent < 0) return 0;
+    return Math.floor((Math.min(percent, 100) / 100) * totalAvailable);
+  }
+
   const parsed = parseInt(value, 10);
 
   if (!Number.isFinite(parsed) || parsed < 0) {
     return 0;
   }
 
-  return Math.min(parsed, RANDOM_MAX_PER_DIFFICULTY);
+  return Math.min(parsed, totalAvailable);
 }
 
 // Halaman pertama, terakhir, dan yang di sekitar halaman aktif;
-// sisanya diringkas jadi "…" supaya baris nomor halaman tidak
+// sisanya diringkas jadi "”¦" supaya baris nomor halaman tidak
 // melebar untuk bank yang punya puluhan halaman.
 function buildPageList(current, total) {
   if (total <= 7) {
@@ -166,9 +173,9 @@ function TryoutQuestionPicker({
 
   const [showRandom, setShowRandom] = useState(false);
   const [randomCounts, setRandomCounts] = useState({
-    easy: "",
-    medium: "",
-    hard: "",
+    pg: "",
+    pgk: "",
+    bs: "",
   });
   const [randomLoading, setRandomLoading] = useState(false);
   const [randomError, setRandomError] = useState("");
@@ -499,15 +506,16 @@ function TryoutQuestionPicker({
   }
 
   async function handleRandomPick() {
-    const easy = toCount(randomCounts.easy);
-    const medium = toCount(randomCounts.medium);
-    const hard = toCount(randomCounts.hard);
+    const typeCounts = data?.question_type_counts || {};
+    const pg = toCount(randomCounts.pg, typeCounts.MULTIPLE_CHOICE || 0);
+    const pgk = toCount(randomCounts.pgk, typeCounts.MULTIPLE_RESPONSE || 0);
+    const bs = toCount(randomCounts.bs, typeCounts.TRUE_FALSE || 0);
 
     setRandomError("");
     setRandomMessage("");
 
-    if (easy + medium + hard === 0) {
-      setRandomError("Isi jumlah soal untuk minimal satu tingkat kesulitan.");
+    if (pg + pgk + bs === 0) {
+      setRandomError("Isi jumlah soal untuk minimal satu jenis soal.");
       return;
     }
 
@@ -521,23 +529,29 @@ function TryoutQuestionPicker({
         excludeIds: selectedRef.current.map((item) =>
           Number(item.question_id)
         ),
-        easy,
-        medium,
-        hard,
+        pg,
+        pgk,
+        bs,
       });
 
       const added = addQuestions(response.items || []);
 
-      const shortages = DIFFICULTIES.filter((difficulty) => {
-        const requested = response.requested?.[difficulty.value] || 0;
-        const picked = response.picked?.[difficulty.value] || 0;
+      const qTypes = [
+        { key: "MULTIPLE_CHOICE", label: "Pilihan Ganda (PG)" },
+        { key: "MULTIPLE_RESPONSE", label: "Pilihan Ganda Kompleks - Pilihan Jamak (PGK-MCMA)" },
+        { key: "TRUE_FALSE", label: "Pilihan Ganda Kompleks - Kategori (Benar/Salah)" },
+      ];
+
+      const shortages = qTypes.filter((typeInfo) => {
+        const requested = response.requested?.[typeInfo.key] || 0;
+        const picked = response.picked?.[typeInfo.key] || 0;
 
         return picked < requested;
-      }).map((difficulty) => {
-        const requested = response.requested[difficulty.value];
-        const picked = response.picked[difficulty.value];
+      }).map((typeInfo) => {
+        const requested = response.requested[typeInfo.key];
+        const picked = response.picked[typeInfo.key];
 
-        return `${difficulty.label}: hanya ${picked} dari ${requested}`;
+        return `${typeInfo.label}: hanya ${picked} dari ${requested}`;
       });
 
       setRandomMessage(
@@ -559,6 +573,12 @@ function TryoutQuestionPicker({
   // =====================================================
 
   const counts = data?.difficulty_counts || {};
+  const typeCounts = data?.question_type_counts || {};
+
+  const totalAllTypes = 
+    (typeCounts.MULTIPLE_CHOICE || 0) +
+    (typeCounts.MULTIPLE_RESPONSE || 0) +
+    (typeCounts.TRUE_FALSE || 0);
 
   const totalAllDifficulties = DIFFICULTIES.reduce(
     (sum, difficulty) => sum + (counts[difficulty.value] || 0),
@@ -680,38 +700,58 @@ function TryoutQuestionPicker({
 
       {showRandom && (
         <div className="tqp-random">
-          <div className="tqp-random-title">
-            <strong>Pilih soal acak</strong>
-            <span>
-              Memakai cakupan &amp; pencarian yang sedang aktif. Soal yang
-              sudah dipilih dilewati.
-            </span>
-          </div>
-
           <div className="tqp-random-fields">
-            {DIFFICULTIES.map((difficulty) => {
-              const name = difficulty.value.toLowerCase();
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <strong style={{ fontSize: 13 }}>Pilih soal acak</strong>
+                <span style={{ fontSize: 11, color: '#6b7280' }}>Berdasarkan filter aktif. Dilewati jika sudah terpilih.</span>
+            </div>
+            <label style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <span style={{ fontSize: 12 }}>
+                PG {data ? `(${formatNumber(typeCounts.MULTIPLE_CHOICE || 0)})` : ""}
+              </span>
+              <input
+                type="text"
+                placeholder="0 / 50%"
+                value={randomCounts.pg}
+                onChange={(event) =>
+                  handleRandomCountChange("pg", event.target.value)
+                }
+                disabled={disabled || randomLoading}
+                style={{ width: 70 }}
+              />
+            </label>
 
-              return (
-                <label key={difficulty.value}>
-                  <span>
-                    {difficulty.label}
-                    {data ? ` · tersedia ${formatNumber(counts[difficulty.value])}` : ""}
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    max={RANDOM_MAX_PER_DIFFICULTY}
-                    placeholder="0"
-                    value={randomCounts[name]}
-                    onChange={(event) =>
-                      handleRandomCountChange(name, event.target.value)
-                    }
-                    disabled={disabled || randomLoading}
-                  />
-                </label>
-              );
-            })}
+            <label style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <span style={{ fontSize: 12 }}>
+                PGK {data ? `(${formatNumber(typeCounts.MULTIPLE_RESPONSE || 0)})` : ""}
+              </span>
+              <input
+                type="text"
+                placeholder="0 / 50%"
+                value={randomCounts.pgk}
+                onChange={(event) =>
+                  handleRandomCountChange("pgk", event.target.value)
+                }
+                disabled={disabled || randomLoading}
+                style={{ width: 70 }}
+              />
+            </label>
+
+            <label style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <span style={{ fontSize: 12 }}>
+                B/S {data ? `(${formatNumber(typeCounts.TRUE_FALSE || 0)})` : ""}
+              </span>
+              <input
+                type="text"
+                placeholder="0 / 50%"
+                value={randomCounts.bs}
+                onChange={(event) =>
+                  handleRandomCountChange("bs", event.target.value)
+                }
+                disabled={disabled || randomLoading}
+                style={{ width: 70 }}
+              />
+            </label>
 
             <button
               type="button"
@@ -854,6 +894,10 @@ function TryoutQuestionPicker({
                           <span className="tqp-tag">Gambar</span>
                         )}
 
+                        <span className="tqp-tag">
+                          {question.question_type === "TRUE_FALSE" ? "B-S" : question.question_type === "MULTIPLE_RESPONSE" ? "PGK" : "PG"}
+                        </span>
+
                         {query.scope === "all" &&
                           (question.is_mine ? (
                             <span className="tqp-tag tqp-tag-mine">Saya</span>
@@ -910,7 +954,7 @@ function TryoutQuestionPicker({
                                     <span>{option.option_code}.</span>
                                     <span>
                                       {option.option_text}
-                                      {option.is_correct ? "  ✓ kunci" : ""}
+                                      {option.is_correct ? "  âœ“ kunci" : ""}
                                     </span>
                                   </li>
                                 ))}
@@ -939,7 +983,7 @@ function TryoutQuestionPicker({
           {data && data.total > 0 && (
             <div className="tqp-pager">
               <span>
-                {formatNumber(firstShown)}–{formatNumber(lastShown)} dari{" "}
+                {formatNumber(firstShown)}”“{formatNumber(lastShown)} dari{" "}
                 {formatNumber(data.total)}
               </span>
 
@@ -951,13 +995,13 @@ function TryoutQuestionPicker({
                   disabled={data.page <= 1}
                   aria-label="Halaman sebelumnya"
                 >
-                  ‹
+                  ”¹
                 </button>
 
                 {buildPageList(data.page, data.total_pages).map((item) =>
                   typeof item === "string" ? (
                     <span key={item} className="tqp-gap">
-                      …
+                      ”¦
                     </span>
                   ) : (
                     <button
@@ -980,7 +1024,7 @@ function TryoutQuestionPicker({
                   disabled={data.page >= data.total_pages}
                   aria-label="Halaman berikutnya"
                 >
-                  ›
+                  ”º
                 </button>
 
                 <select
@@ -1023,9 +1067,6 @@ function TryoutQuestionPicker({
                   {item.label} {item.count}
                 </span>
               ))}
-              <span className="tqp-breakdown-total">
-                Total bobot {totalPoints}
-              </span>
             </div>
           )}
 
@@ -1033,7 +1074,7 @@ function TryoutQuestionPicker({
             {selected.length === 0 && (
               <div className="tqp-empty">
                 Belum ada soal dipilih. Centang soal di daftar kiri atau pakai
-                “Pilih acak”.
+                “Pilih acak”.
               </div>
             )}
 
@@ -1072,6 +1113,10 @@ function TryoutQuestionPicker({
                       </span>
                     )}
 
+                    <span className="tqp-tag">
+                      {item.question_type === "TRUE_FALSE" ? "B-S" : item.question_type === "MULTIPLE_RESPONSE" ? "PGK" : "PG"}
+                    </span>
+
                     {item.is_active === false && (
                       <span
                         className="tqp-tag tqp-tag-warn"
@@ -1087,19 +1132,7 @@ function TryoutQuestionPicker({
                   </div>
                 </div>
 
-                <input
-                  type="number"
-                  className="tqp-points"
-                  min="0.01"
-                  step="0.01"
-                  value={item.points}
-                  onChange={(event) =>
-                    updatePoints(item.question_id, event.target.value)
-                  }
-                  disabled={disabled}
-                  aria-label={`Bobot soal nomor ${item.question_number}`}
-                  title="Bobot"
-                />
+
 
                 <div className="tqp-sel-actions">
                   <button
@@ -1143,3 +1176,4 @@ function TryoutQuestionPicker({
 }
 
 export default TryoutQuestionPicker;
+

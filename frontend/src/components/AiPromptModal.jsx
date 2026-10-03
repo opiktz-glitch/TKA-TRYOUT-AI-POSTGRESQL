@@ -79,13 +79,17 @@ export default function AiPromptModal({
                 <div className="form-group">
                   <label>Jenis Soal</label>
 
-                  <select value="MULTIPLE_CHOICE" disabled>
-                    <option value="MULTIPLE_CHOICE">Pilihan Ganda</option>
+                  <select
+                    name="question_type"
+                    value={aiForm.question_type}
+                    onChange={handleAiFormChange}
+                    disabled={aiPromptLoading}
+                    required
+                  >
+                    <option value="MULTIPLE_CHOICE">Pilihan Ganda (PG)</option>
+                    <option value="MULTIPLE_RESPONSE">Pilihan Ganda Kompleks - Pilihan Jamak (PGK-MCMA)</option>
+                    <option value="TRUE_FALSE">Pilihan Ganda Kompleks - Kategori (Benar/Salah)</option>
                   </select>
-
-                  <small style={{ color: "#6b7280" }}>
-                    Jenis soal lain (Benar/Salah, Isian Singkat) belum didukung sistem ini.
-                  </small>
                 </div>
 
                 <div className="form-group">

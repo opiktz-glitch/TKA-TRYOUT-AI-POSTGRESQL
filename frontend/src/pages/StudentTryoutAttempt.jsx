@@ -203,8 +203,18 @@ function StudentTryoutAttempt() {
   // =====================================================
 
   const answeredCount = useMemo(() => {
-    return Object.values(answers).filter(Boolean).length;
-  }, [answers]);
+    return questions.filter(q => {
+      const ans = answers[q.question_id];
+      if (!ans) return false;
+      if (q.question_type === "TRUE_FALSE") {
+        return ans.split(",").length === q.options.length;
+      }
+      if (q.question_type === "MULTIPLE_RESPONSE") {
+        return ans !== "";
+      }
+      return true;
+    }).length;
+  }, [answers, questions]);
 
   // =====================================================
   // PILIH JAWABAN
@@ -218,8 +228,64 @@ function StudentTryoutAttempt() {
 
     try {
       setSavingQuestionId(questionId);
-
       await saveStudentAnswer(attemptId, questionId, optionCode);
+    } catch (err) {
+      console.error("SAVE ANSWER ERROR:", err);
+      setError(err.message || "Gagal menyimpan jawaban, coba lagi.");
+    } finally {
+      setSavingQuestionId(null);
+    }
+  }
+
+  async function handleSelectMultipleResponseOption(questionId, optionCode) {
+    const currentAnswer = answers[questionId] || "";
+    let parts = currentAnswer ? currentAnswer.split(",") : [];
+
+    if (parts.includes(optionCode)) {
+      parts = parts.filter((code) => code !== optionCode);
+    } else {
+      parts.push(optionCode);
+    }
+    parts.sort();
+
+    const newAnswerString = parts.join(",");
+
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: newAnswerString,
+    }));
+
+    try {
+      setSavingQuestionId(questionId);
+      await saveStudentAnswer(attemptId, questionId, newAnswerString);
+    } catch (err) {
+      console.error("SAVE ANSWER ERROR:", err);
+      setError(err.message || "Gagal menyimpan jawaban, coba lagi.");
+    } finally {
+      setSavingQuestionId(null);
+    }
+  }
+
+  async function handleSelectTrueFalseOption(questionId, optionCode, isTrue) {
+    const currentAnswer = answers[questionId] || "";
+    const parts = currentAnswer ? currentAnswer.split(",") : [];
+    const parsed = {};
+    parts.forEach(p => {
+      const [k, v] = p.split(":");
+      if (k) parsed[k] = v;
+    });
+
+    parsed[optionCode] = isTrue ? "T" : "F";
+    const newAnswerString = Object.keys(parsed).map(k => `${k}:${parsed[k]}`).join(",");
+
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: newAnswerString,
+    }));
+
+    try {
+      setSavingQuestionId(questionId);
+      await saveStudentAnswer(attemptId, questionId, newAnswerString);
     } catch (err) {
       console.error("SAVE ANSWER ERROR:", err);
       setError(err.message || "Gagal menyimpan jawaban, coba lagi.");
@@ -522,61 +588,191 @@ function StudentTryoutAttempt() {
                   )}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {currentQuestion.options.map((option) => {
-                      const isSelected =
-                        answers[currentQuestion.question_id] === option.code;
+                    {currentQuestion.question_type === "TRUE_FALSE" ? (
+                      <div style={{ overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                          <thead style={{ backgroundColor: "#f9fafb" }}>
+                            <tr>
+                              <th style={{ textAlign: "left", padding: "12px 16px", borderBottom: "1px solid #e5e7eb", color: "#4b5563", fontWeight: 600 }}>Pernyataan</th>
+                              <th style={{ textAlign: "center", padding: "12px 16px", borderBottom: "1px solid #e5e7eb", color: "#4b5563", fontWeight: 600, width: "80px" }}>{currentQuestion.true_label || "Benar"}</th>
+                              <th style={{ textAlign: "center", padding: "12px 16px", borderBottom: "1px solid #e5e7eb", color: "#4b5563", fontWeight: 600, width: "80px" }}>{currentQuestion.false_label || "Salah"}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentQuestion.options.map((option, idx) => {
+                              const currentAnswer = answers[currentQuestion.question_id] || "";
+                              const parsed = {};
+                              currentAnswer.split(",").forEach(p => {
+                                const [k, v] = p.split(":");
+                                if (k) parsed[k] = v;
+                              });
+                              const isBenar = parsed[option.code] === "T";
+                              const isSalah = parsed[option.code] === "F";
+                              
+                              const isLast = idx === currentQuestion.options.length - 1;
 
-                      return (
-                        <button
-                          key={option.code}
-                          onClick={() =>
-                            handleSelectOption(
-                              currentQuestion.question_id,
-                              option.code
-                            )
-                          }
-                          disabled={
-                            savingQuestionId === currentQuestion.question_id
-                          }
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                            textAlign: "left",
-                            padding: "12px 16px",
-                            borderRadius: 8,
-                            border: isSelected
-                              ? "1.5px solid var(--accent)"
-                              : "1px solid #e5e7eb",
-                            background: isSelected
-                              ? "var(--accent-soft)"
-                              : "white",
-                            cursor: "pointer",
-                            fontSize: 14,
-                          }}
-                        >
-                          <span
+                              return (
+                                <tr key={option.code} style={{ backgroundColor: "white" }}>
+                                  <td style={{ padding: "12px 16px", borderBottom: isLast ? "none" : "1px solid #e5e7eb" }}>{option.text}</td>
+                                  <td style={{ padding: "12px 16px", textAlign: "center", borderBottom: isLast ? "none" : "1px solid #e5e7eb" }}>
+                                    <label style={{ display: "flex", justifyContent: "center", width: "100%", cursor: "pointer" }}>
+                                      <input
+                                        type="radio"
+                                        name={`tf_${currentQuestion.question_id}_${option.code}`}
+                                        checked={isBenar}
+                                        onChange={() => handleSelectTrueFalseOption(currentQuestion.question_id, option.code, true)}
+                                        disabled={savingQuestionId === currentQuestion.question_id}
+                                        style={{ transform: "scale(1.2)", cursor: "pointer" }}
+                                      />
+                                    </label>
+                                  </td>
+                                  <td style={{ padding: "12px 16px", textAlign: "center", borderBottom: isLast ? "none" : "1px solid #e5e7eb" }}>
+                                    <label style={{ display: "flex", justifyContent: "center", width: "100%", cursor: "pointer" }}>
+                                      <input
+                                        type="radio"
+                                        name={`tf_${currentQuestion.question_id}_${option.code}`}
+                                        checked={isSalah}
+                                        onChange={() => handleSelectTrueFalseOption(currentQuestion.question_id, option.code, false)}
+                                        disabled={savingQuestionId === currentQuestion.question_id}
+                                        style={{ transform: "scale(1.2)", cursor: "pointer" }}
+                                      />
+                                    </label>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : currentQuestion.question_type === "MULTIPLE_RESPONSE" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "flex-start", paddingLeft: 10, fontSize: 13, color: "#6b7280" }}>
+                          <span style={{ fontStyle: "italic", fontSize: 12, opacity: 0.8 }}>Bisa pilih lebih dari satu jawaban yang benar</span>
+                        </div>
+                        {currentQuestion.options.map((option) => {
+                          const currentAnswer = answers[currentQuestion.question_id] || "";
+                          const isSelected = currentAnswer.split(",").includes(option.code);
+
+                          return (
+                            <button
+                              key={option.code}
+                              onClick={() =>
+                                handleSelectMultipleResponseOption(
+                                  currentQuestion.question_id,
+                                  option.code
+                                )
+                              }
+                              disabled={
+                                savingQuestionId === currentQuestion.question_id
+                              }
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12,
+                                textAlign: "left",
+                                padding: "12px 16px",
+                                borderRadius: 8,
+                                border: isSelected
+                                  ? "1.5px solid var(--accent)"
+                                  : "1px solid #e5e7eb",
+                                background: isSelected
+                                  ? "var(--accent-soft)"
+                                  : "white",
+                                cursor:
+                                  savingQuestionId === currentQuestion.question_id
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity:
+                                  savingQuestionId === currentQuestion.question_id
+                                    ? 0.7
+                                    : 1,
+                                transition: "all 0.2s",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: 4,
+                                  border: isSelected
+                                    ? "2px solid var(--accent)"
+                                    : "2px solid #d1d5db",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: isSelected ? "var(--accent)" : "transparent",
+                                  color: "white",
+                                  fontWeight: "bold",
+                                  fontSize: 14,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {isSelected && "✓"}
+                              </div>
+                              <div style={{ flex: 1, fontSize: 15, color: "#1f2937", lineHeight: 1.5 }}>
+                                {option.text}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      currentQuestion.options.map((option) => {
+                        const isSelected =
+                          answers[currentQuestion.question_id] === option.code;
+
+                        return (
+                          <button
+                            key={option.code}
+                            onClick={() =>
+                              handleSelectOption(
+                                currentQuestion.question_id,
+                                option.code
+                              )
+                            }
+                            disabled={
+                              savingQuestionId === currentQuestion.question_id
+                            }
                             style={{
-                              width: 24,
-                              height: 24,
-                              flexShrink: 0,
-                              borderRadius: "50%",
                               display: "flex",
                               alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 12,
-                              fontWeight: 600,
-                              background: isSelected ? "var(--accent)" : "#f3f4f6",
-                              color: isSelected ? "white" : "#6b7280",
+                              gap: 12,
+                              textAlign: "left",
+                              padding: "12px 16px",
+                              borderRadius: 8,
+                              border: isSelected
+                                ? "1.5px solid var(--accent)"
+                                : "1px solid #e5e7eb",
+                              background: isSelected
+                                ? "var(--accent-soft)"
+                                : "white",
+                              cursor: "pointer",
+                              fontSize: 14,
                             }}
                           >
-                            {option.code}
-                          </span>
+                            <span
+                              style={{
+                                width: 24,
+                                height: 24,
+                                flexShrink: 0,
+                                borderRadius: "50%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                background: isSelected ? "var(--accent)" : "#f3f4f6",
+                                color: isSelected ? "white" : "#6b7280",
+                              }}
+                            >
+                              {option.code}
+                            </span>
 
-                          {option.text}
-                        </button>
-                      );
-                    })}
+                            {option.text}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
 
                   <div
@@ -639,7 +835,17 @@ function StudentTryoutAttempt() {
                 }}
               >
                 {questions.map((q, index) => {
-                  const isAnswered = Boolean(answers[q.question_id]);
+                  const ans = answers[q.question_id];
+                  let isAnswered = false;
+                  if (ans) {
+                    if (q.question_type === "TRUE_FALSE") {
+                      isAnswered = ans.split(",").length === q.options.length;
+                    } else if (q.question_type === "MULTIPLE_RESPONSE") {
+                      isAnswered = ans !== "";
+                    } else {
+                      isAnswered = true;
+                    }
+                  }
                   const isActive = index === currentIndex;
 
                   return (

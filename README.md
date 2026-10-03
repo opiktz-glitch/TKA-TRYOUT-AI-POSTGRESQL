@@ -31,7 +31,9 @@ Platform ujian/tryout online berbasis sekolah dengan dukungan tiga peran penggun
 
 **Backend**
 - FastAPI + SQLAlchemy (ORM)
-- SQLite (dev & produksi saat ini). Migrasi ke PostgreSQL/MySQL untuk skala konkurensi lebih tinggi masih berupa rencana ke depan, belum ada script migrasinya
+- Mendukung dua mode Database secara native:
+  - **SQLite** (lokal development) otomatis menggunakan WAL mode untuk performa konkurensi optimal.
+  - **PostgreSQL** (seperti Neon Tech) untuk kebutuhan produksi dengan konkurensi tinggi. Cukup isi `DATABASE_URL` di `.env` (mis. `postgresql://user:pass@host/db`).
 - `bcrypt` (hashing password, dipanggil langsung tanpa `passlib`)
 - `python-jose` (JWT)
 - `cryptography` (Fernet, enkripsi API key AI)
@@ -170,7 +172,9 @@ Ketiganya **dinonaktifkan otomatis** saat `APP_MODE=production` (mis. lewat Dock
 
 ## Backup Database
 
-- **Otomatis**: aktif sendiri tiap 24 jam lewat service `backup` di `docker-compose.yml`.
+*(Catatan: Fitur backup lokal ini dirancang khusus untuk **SQLite**. Jika Anda menggunakan PostgreSQL seperti Neon Tech, manajemen backup dan Point-in-Time Recovery ditangani langsung oleh layanan cloud tersebut).*
+
+- **Otomatis**: aktif sendiri tiap 24 jam lewat service `backup` di `docker-compose.yml` (jika Anda menggunakan setup Docker).
 - **Manual**: tombol "Backup Sekarang" di halaman *Pengaturan Admin*.
 - **CLI**: `python backend/scripts/backup_db.py`
 

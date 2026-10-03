@@ -43,7 +43,7 @@ export default function QuestionTable({
                                 {question.question_text}
                               </div>
                               <div className="score-secondary score-ellipsis">
-                                #{question.id} · {getSubjectName(question.subject_id)}
+                                #{question.id} · {getSubjectName(question.subject_id)} · {question.question_type === 'TRUE_FALSE' ? 'PGK-Kategori' : question.question_type === 'MULTIPLE_RESPONSE' ? 'PGK-MCMA' : 'PG'}
                               </div>
 
                               {question.has_image && (

@@ -97,9 +97,11 @@ export async function getImageImportCapability() {
 // `cancelSignal` (AbortSignal, opsional): kalau di-abort pemanggil
 // (tombol "Batalkan"), error yang dilempar punya `cancelled = true`
 // supaya bisa dibedakan dari timeout.
-export async function extractQuestionsFromImage(subjectId, file, cancelSignal) {
+export async function extractQuestionsFromImage(subjectId, questionType, file, cancelSignal) {
   const formData = new FormData();
 
+  formData.append("subject_id", subjectId);
+  formData.append("question_type", questionType);
   formData.append("file", file);
 
   const controller = new AbortController();
@@ -124,7 +126,7 @@ export async function extractQuestionsFromImage(subjectId, file, cancelSignal) {
 
   try {
     return await request(
-      `/api/image-import/extract?subject_id=${encodeURIComponent(subjectId)}`,
+      `/api/image-import/extract`,
       {
         method: "POST",
         body: formData,

@@ -231,6 +231,18 @@ class Question(Base):
         default="MEDIUM"
     )
 
+    true_label = Column(
+        String(50),
+        nullable=False,
+        default="Benar"
+    )
+
+    false_label = Column(
+        String(50),
+        nullable=False,
+        default="Salah"
+    )
+
     # Ada di database versi terbaru
     correct_answer = Column(
         String(50),
@@ -392,6 +404,21 @@ class Tryout(Base):
     max_score = Column(
         Float,
         default=100
+    )
+
+    weight_pg = Column(
+        Float,
+        default=40
+    )
+
+    weight_mcma = Column(
+        Float,
+        default=35
+    )
+
+    weight_bs = Column(
+        Float,
+        default=25
     )
 
     # Awalnya field ini untuk tingkat kesulitan (EASY/MEDIUM/HARD),
