@@ -3630,9 +3630,10 @@ button {
 .review-answer-explanation {
   font-size: 12.5px;
   color: #4b5563;
-  line-height: 1.55;
+  line-height: 1.6;
   text-align: justify;
   padding-left: 18px;
+  white-space: pre-wrap; /* Mencegah teks nyambung jadi satu, mempertahankan jarak paragraf / enter dari AI */
 }
 
 .review-print-page {
