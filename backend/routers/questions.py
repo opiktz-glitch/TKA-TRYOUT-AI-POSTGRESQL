@@ -1227,6 +1227,7 @@ Pilihan:
 {instruction_text}
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Format Paragraf: BAGI pembahasan Anda menjadi beberapa paragraf. Gunakan karakter baris baru (\n\n) untuk memisahkan langkah pengerjaan atau gagasan yang berbeda agar tidak menumpuk jadi satu.
 - Evaluasi setiap pernyataan secara eksplisit (misalnya "Pernyataan 1 Benar karena...", "Pernyataan 2 Salah karena...").
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
@@ -1243,6 +1244,7 @@ Pilihan:
 {instruction_text}
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Format Paragraf: BAGI pembahasan Anda menjadi beberapa paragraf. Gunakan karakter baris baru (\n\n) untuk memisahkan langkah pengerjaan atau gagasan yang berbeda agar tidak menumpuk jadi satu.
 - Ingat, jawaban benar bisa LEBIH DARI SATU.
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
@@ -1258,6 +1260,7 @@ Pilihan:
 {instruction_text}
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Format Paragraf: BAGI pembahasan Anda menjadi beberapa paragraf. Gunakan karakter baris baru (\n\n) untuk memisahkan langkah pengerjaan atau gagasan yang berbeda agar tidak menumpuk jadi satu.
 - Sebutkan HANYA SATU huruf sebagai jawaban benar -- jangan ragu-ragu, jangan menyebut lebih dari satu kemungkinan.
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
@@ -1442,6 +1445,7 @@ Pilihan:
 Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
+- Format Paragraf: BAGI pembahasan Anda menjadi beberapa paragraf. Gunakan karakter baris baru (\n\n) untuk memisahkan langkah pengerjaan atau gagasan yang berbeda agar tidak menumpuk jadi satu.
 - Sebutkan HANYA SATU huruf sebagai jawaban benar -- jangan ragu-ragu, jangan menyebut lebih dari satu kemungkinan.
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
