@@ -1186,7 +1186,7 @@ async def generate_question_ai(
 # 60 detik) -- jauh lebih cepat daripada generate soal.
 # =========================================================
 
-MAX_EXPLANATION_CHARS = 1000
+MAX_EXPLANATION_CHARS = 4000
 
 
 def build_explanation_prompt(
