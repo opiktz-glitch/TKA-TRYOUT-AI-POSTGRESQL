@@ -22,18 +22,6 @@ import QuestionImage from "./QuestionImage";
 // ======================================================
 
 function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose }) {
-  const formatExplanation = (text) => {
-    if (!text) return null;
-    // Jika teks sudah memiliki baris baru ganda, ubah jadi tunggal agar rapat
-    if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
-    
-    // 1. Paksa pindah baris setiap kali sebelum angka berformat list (misal " 1. ", " 2. ")
-    let formatted = text.replace(/\s+(?=\d+\.\s)/g, "\n");
-    
-    // 2. Ganti akhir kalimat biasa dengan SATU baris baru
-    return formatted.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
-  };
-
   return (
     <div className="modal-overlay review-modal-overlay">
       <div className="modal review-modal" style={{ width: "700px", maxWidth: "96vw" }}>
@@ -149,7 +137,7 @@ function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose 
 
               {question.explanation && (
                 <div className="review-answer-explanation">
-                  <em>Pembahasan:</em> {formatExplanation(question.explanation)}
+                  <em>Pembahasan:</em> {question.explanation}
                 </div>
               )}
             </div>

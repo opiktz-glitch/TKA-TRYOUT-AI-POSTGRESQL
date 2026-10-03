@@ -12,14 +12,6 @@ export default function TryoutReviewModal({
 }) {
   if (!showReviewModal) return null;
 
-  const formatExplanation = (text) => {
-    if (!text) return null;
-    if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
-    
-    let formatted = text.replace(/\s+(?=\d+\.\s)/g, "\n");
-    return formatted.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
-  };
-
   return (
     <>
       {/* =====================================================
@@ -235,7 +227,7 @@ export default function TryoutReviewModal({
 
                         {question.explanation && (
                           <div className="review-answer-explanation">
-                            <em>Pembahasan:</em> {formatExplanation(question.explanation)}
+                            <em>Pembahasan:</em> {question.explanation}
                           </div>
                         )}
                       </div>

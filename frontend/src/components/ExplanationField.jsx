@@ -183,15 +183,7 @@ function ExplanationField({
         detail_level: detailLevel,
       });
 
-      const formatExplanation = (text) => {
-        if (!text) return text;
-        if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
-        
-        let formatted = text.replace(/\s+(?=\d+\.\s)/g, "\n");
-        return formatted.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
-      };
-
-      onTextChange(formatExplanation(data.explanation));
+      onTextChange(data.explanation);
       setDraftNotice(true);
     } catch (err) {
       console.error("GENERATE AI EXPLANATION ERROR:", err);
