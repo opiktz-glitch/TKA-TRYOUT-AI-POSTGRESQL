@@ -187,7 +187,8 @@ function ExplanationField({
         if (!text) return text;
         if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
         
-        return text.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
+        let formatted = text.replace(/\s+(?=\d+\.\s)/g, "\n");
+        return formatted.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
       };
 
       onTextChange(formatExplanation(data.explanation));
