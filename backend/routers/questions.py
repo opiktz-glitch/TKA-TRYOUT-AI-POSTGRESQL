@@ -1194,12 +1194,28 @@ def build_explanation_prompt(
     question_text: str,
     options: list[tuple[str, str]],
     question_type: str = "MULTIPLE_CHOICE",
+    detail_level: str = "short",
 ) -> str:
     options_block = "\n".join(
         f"{code}. {text}" for code, text in options
     )
 
     subject_part = f" mata pelajaran {subject_name}" if subject_name else ""
+
+    if detail_level == "detailed":
+        if question_type == "MULTIPLE_CHOICE":
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Kemudian jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah (step-by-step) memecahkannya, dan jelaskan mengapa opsi lain salah."
+        elif question_type == "TRUE_FALSE":
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Bahas secara detail status Benar/Salah dari setiap pernyataan, konsep dasarnya, dan panduan langkah demi langkah mengapa pernyataan tersebut bernilai benar atau salah."
+        else:
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Sebutkan dengan jelas huruf pilihan apa saja yang benar. Jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah untuk setiap opsi yang benar, dan jelaskan mengapa opsi lain salah."
+    else:
+        if question_type == "MULTIPLE_CHOICE":
+            instruction_text = 'Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.'
+        elif question_type == "TRUE_FALSE":
+            instruction_text = "Tulis pembahasan singkat. Bahas satu per satu status (Benar/Salah) dari tiap pernyataan di atas beserta alasannya."
+        else:
+            instruction_text = "Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya."
 
     if question_type == "TRUE_FALSE":
         return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Benar-Salah majemuk beserta pernyataan-pernyataannya (TANPA diberi tahu mana yang benar/salah). Hitung/analisis sendiri dari awal untuk menentukan status Benar atau Salah dari setiap pernyataan, lalu tulis pembahasannya.
@@ -1208,7 +1224,7 @@ Soal: {question_text}
 Pilihan:
 {options_block}
 
-Tulis pembahasan singkat. Bahas satu per satu status (Benar/Salah) dari tiap pernyataan di atas beserta alasannya.
+{instruction_text}
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
 - Evaluasi setiap pernyataan secara eksplisit (misalnya "Pernyataan 1 Benar karena...", "Pernyataan 2 Salah karena...").
@@ -1224,7 +1240,7 @@ Soal: {question_text}
 Pilihan:
 {options_block}
 
-Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya.
+{instruction_text}
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
 - Ingat, jawaban benar bisa LEBIH DARI SATU.
@@ -1239,7 +1255,7 @@ Soal: {question_text}
 Pilihan:
 {options_block}
 
-Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.
+{instruction_text}
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
 - Sebutkan HANYA SATU huruf sebagai jawaban benar -- jangan ragu-ragu, jangan menyebut lebih dari satu kemungkinan.
@@ -1570,6 +1586,7 @@ async def generate_explanation_ai(
         question_text,
         options,
         request_data.question_type,
+        request_data.detail_level,
     )
 
     image_bytes = None
@@ -1591,7 +1608,8 @@ async def generate_explanation_ai(
             prompt, image_bytes, mime_type, db
         )
     else:
-        ai_result = await ai_providers.call_active_provider(prompt, db)
+        larger_output = (request_data.detail_level == "detailed")
+        ai_result = await ai_providers.call_active_provider(prompt, db, larger_output)
 
     raw_explanation = ""
 

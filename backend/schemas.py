@@ -262,6 +262,7 @@ class AIExplanationRequest(BaseModel):
     # Opsional: nama mapel dipakai sebagai konteks tambahan di prompt.
     subject_id: int | None = None
     question_id: int | None = None
+    detail_level: str = "short"  # "short" atau "detailed"
 
 
 class AIExplanationResponse(BaseModel):

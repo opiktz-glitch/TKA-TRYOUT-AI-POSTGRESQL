@@ -155,7 +155,7 @@ function ExplanationField({
   }, [questionText, optionsKey]);
 
 
-  async function handleGenerate() {
+  async function handleGenerate(detailLevel = "short") {
     // Tombol otomatis nonaktif selama kolom Pembahasan masih
     // terisi (lihat getGenerateBlockReason), jadi fungsi ini hanya
     // bisa terpanggil saat value memang kosong -- tidak perlu lagi
@@ -180,6 +180,7 @@ function ExplanationField({
           option_code: option.option_code,
           option_text: option.option_text,
         })),
+        detail_level: detailLevel,
       });
 
       onTextChange(data.explanation);
@@ -294,11 +295,22 @@ function ExplanationField({
             type="button"
             className="secondary-button"
             style={{ padding: "4px 12px", fontSize: 12 }}
-            onClick={handleGenerate}
+            onClick={() => handleGenerate("short")}
             disabled={disabled || loading || Boolean(generateBlockReason)}
-            title={generateBlockReason || "Buat draf pembahasan dengan AI"}
+            title={generateBlockReason || "Buat draf pembahasan singkat (2-4 kalimat)"}
           >
-            {loading ? "Menyusun pembahasan..." : "✨ Pembahasan dengan AI"}
+            {loading ? "Menyusun..." : "✨ Bahas Singkat"}
+          </button>
+
+          <button
+            type="button"
+            className="secondary-button"
+            style={{ padding: "4px 12px", fontSize: 12 }}
+            onClick={() => handleGenerate("detailed")}
+            disabled={disabled || loading || Boolean(generateBlockReason)}
+            title={generateBlockReason || "Buat draf pembahasan sangat detail (langkah-demi-langkah)"}
+          >
+            {loading ? "Menyusun..." : "📚 Bahas Detail"}
           </button>
         </div>
       </div>
