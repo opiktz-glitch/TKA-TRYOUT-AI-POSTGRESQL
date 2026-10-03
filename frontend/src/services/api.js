@@ -136,16 +136,27 @@ async function apiFetch(
     }
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body:
-      body === undefined
-        ? undefined
-        : (isFormData ? body : JSON.stringify(body)),
-    ...rest,
-  });
-
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body:
+        body === undefined
+          ? undefined
+          : (isFormData ? body : JSON.stringify(body)),
+      ...rest,
+    });
+  } catch (err) {
+    if (err.message && err.message.includes("Failed to fetch")) {
+      throw new Error(
+        "Koneksi terputus atau proses AI terlalu lama (timeout). " +
+        "Ini biasanya terjadi jika pemrosesan memakan waktu lebih dari 10 detik. " +
+        "Silakan coba lagi atau gunakan model AI yang lebih ringan."
+      );
+    }
+    throw err;
+  }
 
   // -----------------------------------------------------
   // SESI KEDALUWARSA / TOKEN TIDAK VALID
