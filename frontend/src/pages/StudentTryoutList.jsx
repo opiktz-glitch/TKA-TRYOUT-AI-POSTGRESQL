@@ -280,7 +280,7 @@ function StudentTryoutList() {
 
       const result = await startStudentTryout(tryout.id);
 
-      console.log("START TRYOUT RESULT:", result);
+
 
       if (!result?.attempt_id) {
         throw new Error("Server tidak mengembalikan attempt_id.");

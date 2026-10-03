@@ -251,16 +251,7 @@ function ExplanationField({
     setVerifyResult(null);
   }
 
-  // DEBUG OUTPUT
-  const debugInfo = {
-    hasImage,
-    questionId,
-    baseReason: getBaseBlockReason({ questionText, options, hasImage, questionId }),
-    generateBlockReason,
-    verifyBlockReason,
-    value: value,
-    filledOptions: options.filter((option) => option.option_text.trim()).map(o => o.is_correct),
-  };
+
 
   return (
     <div className="form-group">
