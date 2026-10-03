@@ -1202,13 +1202,17 @@ def build_explanation_prompt(
 
     subject_part = f" mata pelajaran {subject_name}" if subject_name else ""
 
+    math_instruction = ""
+    if subject_name and "matematika" in subject_name.lower():
+        math_instruction = " Karena ini pelajaran Matematika, jelaskan perhitungan angka-angkanya secara sistematis menggunakan format daftar bernomor (1. ..., 2. ..., 3. ...)."
+
     if detail_level == "detailed":
         if question_type == "MULTIPLE_CHOICE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Kemudian jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah (step-by-step) memecahkannya, dan jelaskan mengapa opsi lain salah."
+            instruction_text = f"Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Kemudian jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah (step-by-step) memecahkannya, dan jelaskan mengapa opsi lain salah.{math_instruction}"
         elif question_type == "TRUE_FALSE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Bahas secara detail status Benar/Salah dari setiap pernyataan, konsep dasarnya, dan panduan langkah demi langkah mengapa pernyataan tersebut bernilai benar atau salah."
+            instruction_text = f"Tulis pembahasan secara mendalam dan terperinci. Bahas secara detail status Benar/Salah dari setiap pernyataan, konsep dasarnya, dan panduan langkah demi langkah mengapa pernyataan tersebut bernilai benar atau salah.{math_instruction}"
         else:
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Sebutkan dengan jelas huruf pilihan apa saja yang benar. Jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah untuk setiap opsi yang benar, dan jelaskan mengapa opsi lain salah."
+            instruction_text = f"Tulis pembahasan secara mendalam dan terperinci. Sebutkan dengan jelas huruf pilihan apa saja yang benar. Jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah untuk setiap opsi yang benar, dan jelaskan mengapa opsi lain salah.{math_instruction}"
     else:
         if question_type == "MULTIPLE_CHOICE":
             instruction_text = 'Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.'

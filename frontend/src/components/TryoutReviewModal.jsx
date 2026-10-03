@@ -16,7 +16,7 @@ export default function TryoutReviewModal({
     if (!text) return null;
     if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
     
-    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n");
+    return text.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
   };
 
   return (

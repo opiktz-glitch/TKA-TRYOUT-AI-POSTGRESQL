@@ -27,8 +27,8 @@ function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose 
     // Jika teks sudah memiliki baris baru ganda, ubah jadi tunggal agar rapat
     if (text.includes('\n\n')) text = text.replace(/\n\n/g, '\n');
     
-    // Ganti setiap akhir kalimat dengan SATU baris baru (tanpa jarak kosong)
-    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n");
+    // Ganti akhir kalimat (huruf kecil diikuti titik/tanya/seru, lalu spasi dan huruf kapital) dengan SATU baris baru
+    return text.replace(/([a-z][.?!])\s+(?=[A-Z])/g, "$1\n");
   };
 
   return (
