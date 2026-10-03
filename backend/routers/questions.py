@@ -1232,7 +1232,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"explanation": "pembahasan di sini"}}"""
+{{"explanation": "paragraf 1...\\n\\nparagraf 2..."}}"""
 
     elif question_type == "MULTIPLE_RESPONSE":
         return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Pilihan Ganda Kompleks beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan pilihan-pilihan mana saja yang benar (jawaban benar bisa lebih dari satu), lalu tulis pembahasannya.
@@ -1249,7 +1249,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"explanation": "pembahasan di sini"}}"""
+{{"explanation": "paragraf 1...\\n\\nparagraf 2..."}}"""
 
     return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan SATU jawaban yang paling tepat, lalu tulis pembahasannya.
 
@@ -1265,7 +1265,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"explanation": "pembahasan di sini"}}"""
+{{"explanation": "paragraf 1...\\n\\nparagraf 2..."}}"""
 
 
 def _prepare_explanation_input(question_text, raw_options, *, require_answer=True, question_type="MULTIPLE_CHOICE"):
@@ -1414,7 +1414,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"correct_option_codes": ["1", "3"], "explanation": "pembahasan di sini"}}"""
+{{"correct_option_codes": ["1", "3"], "explanation": "paragraf 1...\\n\\nparagraf 2..."}}"""
 
     elif question_type == "MULTIPLE_RESPONSE":
         return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal Pilihan Ganda Kompleks beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan pilihan-pilihan mana saja yang benar (jawaban benar bisa lebih dari satu), lalu tulis pembahasannya.
@@ -1432,7 +1432,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"correct_option_codes": ["A", "C"], "explanation": "pembahasan di sini"}}"""
+{{"correct_option_codes": ["A", "C"], "explanation": "paragraf 1...\\n\\nparagraf 2..."}}"""
 
     return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan SATU huruf pilihan yang paling benar, lalu tulis pembahasannya.
 
@@ -1450,7 +1450,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"correct_option_code": "A", "explanation": "pembahasan di sini"}}"""
+{{"correct_option_code": "A", "explanation": "paragraf 1...\\n\\nparagraf 2..."}}"""
 
 
 async def _verify_explanation_answer(
