@@ -22,6 +22,13 @@ import QuestionImage from "./QuestionImage";
 // ======================================================
 
 function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose }) {
+  const formatExplanation = (text) => {
+    if (!text) return null;
+    if (text.includes('\n')) return text;
+    // Tambahkan baris ganda setiap akhir kalimat (titik/tanya/seru yang diikuti spasi dan huruf kapital)
+    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n\n");
+  };
+
   return (
     <div className="modal-overlay review-modal-overlay">
       <div className="modal review-modal" style={{ width: "700px", maxWidth: "96vw" }}>
@@ -137,7 +144,7 @@ function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose 
 
               {question.explanation && (
                 <div className="review-answer-explanation">
-                  <em>Pembahasan:</em> {question.explanation}
+                  <em>Pembahasan:</em> {formatExplanation(question.explanation)}
                 </div>
               )}
             </div>

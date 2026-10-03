@@ -12,6 +12,13 @@ export default function TryoutReviewModal({
 }) {
   if (!showReviewModal) return null;
 
+  const formatExplanation = (text) => {
+    if (!text) return null;
+    if (text.includes('\n')) return text;
+    // Tambahkan baris ganda setiap akhir kalimat (titik/tanya/seru yang diikuti spasi dan huruf kapital)
+    return text.replace(/([.?!])\s+(?=[A-Z])/g, "$1\n\n");
+  };
+
   return (
     <>
       {/* =====================================================
@@ -227,7 +234,7 @@ export default function TryoutReviewModal({
 
                         {question.explanation && (
                           <div className="review-answer-explanation">
-                            <em>Pembahasan:</em> {question.explanation}
+                            <em>Pembahasan:</em> {formatExplanation(question.explanation)}
                           </div>
                         )}
                       </div>
