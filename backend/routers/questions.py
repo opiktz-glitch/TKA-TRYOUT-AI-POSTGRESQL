@@ -1204,11 +1204,11 @@ def build_explanation_prompt(
 
     if detail_level == "detailed":
         if question_type == "MULTIPLE_CHOICE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Susun pembahasan Anda menjadi 3 alur yang runut: (1) Identifikasi inti soal atau apa yang diketahui, (2) Jabarkan panduan langkah-langkah penyelesaiannya, dan (3) Tarik kesimpulan serta jelaskan mengapa opsi lain salah."
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Susun pembahasan Anda menjadi 3 alur yang runut: (1) Identifikasi inti soal atau apa yang diketahui, (2) Jabarkan panduan langkah-langkah penyelesaiannya, dan (3) Tarik kesimpulan serta jelaskan mengapa opsi lain salah. PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation'."
         elif question_type == "TRUE_FALSE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Susun pembahasan Anda menjadi 2 alur yang jelas: (1) Awali dengan menjelaskan konsep dasar atau rumus utama yang dibutuhkan untuk soal ini, (2) Bahas SETIAP pernyataan satu per satu secara berurutan. Untuk tiap pernyataan, sebutkan statusnya (Benar/Salah) dengan tegas di awal kalimat, lalu berikan alasan atau langkah-langkah detail mengapa pernyataan tersebut bernilai benar atau salah."
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Susun pembahasan Anda menjadi 2 alur yang jelas: (1) Awali dengan menjelaskan konsep dasar atau rumus utama yang dibutuhkan untuk soal ini, (2) Bahas SETIAP pernyataan satu per satu secara berurutan. Untuk tiap pernyataan, sebutkan statusnya (Benar/Salah) dengan tegas di awal kalimat, lalu berikan alasan atau langkah-langkah detail mengapa pernyataan tersebut bernilai benar atau salah. PASTIKAN seluruh alur dan poin pembahasan pernyataan digabungkan menjadi SATU teks panjang di dalam satu field 'explanation' (jangan pisahkan menjadi field JSON yang berbeda-beda)."
         else:
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Sebutkan dengan jelas huruf pilihan apa saja yang benar. Jabarkan konsep dasar materi ini, berikan panduan langkah demi langkah untuk setiap opsi yang benar, dan jelaskan mengapa opsi lain salah."
+            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Susun pembahasan Anda menjadi 3 alur yang jelas: (1) Sebutkan dengan tegas pilihan apa saja (huruf opsi) yang benar, (2) Jelaskan konsep materi utama yang terkait, dan (3) Bahas secara spesifik mengapa pilihan yang benar itu tepat dan mengapa pilihan lainnya salah. PASTIKAN seluruh alur digabungkan menjadi SATU teks panjang di dalam satu field 'explanation'."
     else:
         if question_type == "MULTIPLE_CHOICE":
             instruction_text = 'Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.'
@@ -1216,6 +1216,22 @@ def build_explanation_prompt(
             instruction_text = "Tulis pembahasan singkat. Bahas satu per satu status (Benar/Salah) dari tiap pernyataan di atas beserta alasannya."
         else:
             instruction_text = "Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya."
+            
+    # Tentukan template JSON berdasarkan tingkat detail dan tipe soal
+    if detail_level == "detailed":
+        if question_type == "MULTIPLE_CHOICE":
+            json_template = '{"explanation": "[Sebutkan JAWABAN BENAR di sini] \\n[Jelaskan KONSEP DASAR di sini] \\n[Bahas LANGKAH PENYELESAIAN dan KESIMPULAN di sini]"}'
+        elif question_type == "TRUE_FALSE":
+            json_template = '{"explanation": "[Tuliskan PENDAHULUAN/KONSEP DASAR di sini] \\n[Tuliskan PEMBAHASAN PERNYATAAN 1 di sini] \\n[Tuliskan PEMBAHASAN PERNYATAAN 2 di sini] \\n[dst...]"}'
+        else:
+            json_template = '{"explanation": "[Sebutkan OPSI YANG BENAR di sini] \\n[Jelaskan KONSEP MATERI di sini] \\n[Bahas ALASAN SPECIFIK untuk tiap opsi di sini]"}'
+    else:
+        if question_type == "MULTIPLE_CHOICE":
+            json_template = '{"explanation": "[Jawaban benar adalah X karena ...] \\n[Alasan singkat]"}'
+        elif question_type == "TRUE_FALSE":
+            json_template = '{"explanation": "[Pernyataan 1 Benar/Salah karena ...] \\n[Pernyataan 2 Benar/Salah karena ...] \\n[dst...]"}'
+        else:
+            json_template = '{"explanation": "[Opsi benar adalah X dan Y karena ...] \\n[Alasan singkat]"}'
 
     if question_type == "TRUE_FALSE":
         return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Benar-Salah majemuk beserta pernyataan-pernyataannya (TANPA diberi tahu mana yang benar/salah). Hitung/analisis sendiri dari awal untuk menentukan status Benar atau Salah dari setiap pernyataan, lalu tulis pembahasannya.
@@ -1231,7 +1247,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"explanation": "pembahasan di sini"}}"""
+{json_template}"""
 
     elif question_type == "MULTIPLE_RESPONSE":
         return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Pilihan Ganda Kompleks beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan pilihan-pilihan mana saja yang benar (jawaban benar bisa lebih dari satu), lalu tulis pembahasannya.
@@ -1247,7 +1263,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"explanation": "pembahasan di sini"}}"""
+{json_template}"""
 
     return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal untuk menentukan SATU jawaban yang paling tepat, lalu tulis pembahasannya.
 
@@ -1262,7 +1278,7 @@ Ketentuan:
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali (tanda $, \\frac, \\times, \\div, \\sqrt, ^, dan sejenisnya), karena teks ini ditampilkan APA ADANYA ke siswa. Tulis pecahan dan operasi hitung dalam teks biasa, misalnya "2 1/4", "3 x 4", "12 : 3", dan untuk pangkat pakai simbol seperti "5\u00b2" atau eja "5 pangkat 2".
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"explanation": "pembahasan di sini"}}"""
+{json_template}"""
 
 
 def _prepare_explanation_input(question_text, raw_options, *, require_answer=True, question_type="MULTIPLE_CHOICE"):
@@ -1355,7 +1371,7 @@ def _clean_explanation_text(text: str) -> str:
         r"^\s*pembahasan\s*:\s*", "", cleaned, flags=re.IGNORECASE
     )
 
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    cleaned = re.sub(r"\n{2,}", "\n", cleaned).strip()
 
     if len(cleaned) > MAX_EXPLANATION_CHARS:
         cut = cleaned[:MAX_EXPLANATION_CHARS]
@@ -1614,11 +1630,17 @@ async def generate_explanation_ai(
     raw_explanation = ""
 
     if isinstance(ai_result, dict):
-        raw_explanation = (
-            ai_result.get("explanation")
-            or ai_result.get("pembahasan")
-            or ""
-        )
+        parts = []
+        if "explanation" in ai_result and isinstance(ai_result["explanation"], str):
+            parts.append(ai_result.pop("explanation"))
+        elif "pembahasan" in ai_result and isinstance(ai_result["pembahasan"], str):
+            parts.append(ai_result.pop("pembahasan"))
+            
+        for key, value in ai_result.items():
+            if isinstance(value, str):
+                parts.append(f"{value}")
+                
+        raw_explanation = "\n".join(parts)
 
     explanation = _clean_explanation_text(str(raw_explanation))
 
