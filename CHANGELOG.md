@@ -16,3 +16,5 @@ Semua perubahan penting pada proyek **TKA-AI (TKA Tryout)** akan didokumentasika
 
 ### Diperbaiki
 - Sinkronisasi waktu di sisi server (mencatat kapan attempt *start* dan *finish*) untuk secara ketat menolak submisi jawaban yang dilakukan di luar batas *duration_minutes* yang sah.
+- **Pembahasan AI (Ollama & Gemini)**: Memperbaiki kendala pemotongan (*truncation*) teks penjelasan AI pada soal Benar-Salah dan Pilihan Ganda Kompleks. Sistem kini menggabungkan seluruh respons JSON secara robust dan menerapkan cetakan (*template*) instruksi terstruktur agar model yang lebih kecil (seperti Ollama) tidak terhenti di tengah jalan.
+- **Spasi Pembahasan**: Menghilangkan spasi/baris kosong berlebih (`\n\n`) dari output JSON AI secara otomatis, menjadikan tampilan draf pembahasan lebih padat dan rapi di sisi frontend.

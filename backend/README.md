@@ -37,6 +37,7 @@ Biasanya backend dijalankan lewat script `run.py` atau `run_server.py` di root p
 Proyek ini dirancang secara modular agar *engine* pembuat soal (AI) bisa ditukar sewaktu-waktu:
 - Konfigurasi penyedia layanan AI (`AI_PROVIDER`) disimpan secara aman di database (`t_app_setting`) agar Admin bisa merubahnya tanpa perlu merestart server.
 - API Key (misalnya untuk Gemini) dienkripsi menggunakan `cryptography.Fernet` sebelum disimpan ke database, sehingga mencegah kebocoran kunci secara kasat mata.
+- **Pembahasan Otomatis**: Dilengkapi dengan logika *fallback* & *JSON merging* yang kuat di modul API (lihat `routers/questions.py`) untuk menjamin penjelasan langkah demi langkah (terutama B-S dan PG Kompleks) bisa di- *generate* secara konsisten tanpa terpotong, baik oleh model berkapasitas besar maupun kecil (Ollama).
 
 ## 🛡️ Penegakan Keamanan Ujian (Server-side Timer)
 
