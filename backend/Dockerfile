@@ -15,7 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # psycopg2-binary sudah bawa wheel pre-compiled sendiri, jadi TIDAK
 # butuh libpq-dev di sini -- beda dari psycopg2 versi non-binary.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc \
+    && apt-get install -y --no-install-recommends gcc tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements.txt duluan (terpisah dari COPY kode di bawah)
