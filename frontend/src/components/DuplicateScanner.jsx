@@ -50,61 +50,63 @@ const DuplicateScanner = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Pembersih Soal Duplikat (Kemiripan &gt;85%)</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl font-bold leading-none">
-            &times;
+    <div className="modal-overlay">
+      <div className="modal" style={{ width: '900px', maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-header">
+          <div>
+            <h2>Pembersih Soal Duplikat</h2>
+            <p>Sistem memindai soal dengan kemiripan teks &gt;85%.</p>
+          </div>
+          <button type="button" className="modal-close" onClick={onClose}>
+            ✕
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
+        <div className="modal-content" style={{ overflowY: 'auto', padding: '20px', flex: 1, backgroundColor: '#f9fafb' }}>
           {loading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600 dark:text-gray-300">Sedang memindai ribuan soal...</span>
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+              <p>Sedang memindai ribuan soal...</p>
             </div>
           ) : duplicateGroups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="text-6xl mb-4">✅</div>
-              <h3 className="text-xl font-medium text-gray-700 dark:text-gray-200">Bank Soal Bersih!</h3>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">Tidak ditemukan soal kembar atau duplikat.</p>
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+              <div style={{ fontSize: '64px', marginBottom: '20px' }}>✅</div>
+              <h3>Bank Soal Bersih!</h3>
+              <p>Tidak ditemukan soal kembar atau duplikat.</p>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {duplicateGroups.map((group, groupIdx) => (
-                <div key={groupIdx} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-yellow-500">
-                  <h3 className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">Grup Duplikat #{groupIdx + 1}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div key={groupIdx} style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', borderLeft: '4px solid #eab308', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                  <h3 style={{ marginTop: 0, marginBottom: '15px' }}>Grup Duplikat #{groupIdx + 1}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
                     {group.map((q) => (
                       <div 
                         key={q.id} 
-                        className={`p-3 border rounded relative transition-colors ${
-                          selectedForDeletion.includes(q.id) 
-                            ? 'bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-800' 
-                            : 'bg-white border-gray-200 dark:bg-gray-700 dark:border-gray-600'
-                        }`}
+                        style={{
+                          padding: '15px',
+                          border: '1px solid',
+                          borderColor: selectedForDeletion.includes(q.id) ? '#fca5a5' : '#e5e7eb',
+                          borderRadius: '6px',
+                          backgroundColor: selectedForDeletion.includes(q.id) ? '#fef2f2' : 'white',
+                          position: 'relative'
+                        }}
                       >
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex justify-between">
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
                           <span>ID: {q.id}</span>
                           <span>{new Date(q.created_at).toLocaleDateString('id-ID')}</span>
                         </div>
-                        <div className="text-sm text-gray-800 dark:text-gray-200 mb-4 line-clamp-4">
+                        <div style={{ fontSize: '14px', marginBottom: '40px', maxHeight: '100px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {q.text}
                         </div>
                         
-                        <div className="absolute bottom-3 right-3">
-                          <label className="flex items-center space-x-2 cursor-pointer bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-sm border border-gray-200 dark:border-gray-600">
+                        <div style={{ position: 'absolute', bottom: '15px', right: '15px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px', border: '1px solid #e5e7eb' }}>
                             <input 
                               type="checkbox" 
-                              className="w-4 h-4 text-red-600 focus:ring-red-500 rounded cursor-pointer"
                               checked={selectedForDeletion.includes(q.id)}
                               onChange={() => handleToggleDelete(q.id)}
                             />
-                            <span className="text-xs font-medium text-red-600 dark:text-red-400">Hapus Ini</span>
+                            <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 'bold' }}>Hapus Ini</span>
                           </label>
                         </div>
                       </div>
@@ -116,25 +118,24 @@ const DuplicateScanner = ({ onClose }) => {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Terpilih untuk dihapus: <strong className="text-red-600 dark:text-red-400">{selectedForDeletion.length}</strong> soal
-          </span>
-          <div className="space-x-3">
-            <button 
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            >
+        <div className="modal-actions" style={{ padding: '20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white' }}>
+          <div>
+            <span style={{ color: '#4b5563' }}>
+              Terpilih untuk dihapus: <strong style={{ color: '#dc2626' }}>{selectedForDeletion.length}</strong> soal
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="button" className="secondary-button" onClick={onClose}>
               Tutup
             </button>
             <button 
+              type="button"
               onClick={handleBulkDelete}
               disabled={selectedForDeletion.length === 0 || isDeleting}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded font-medium flex items-center space-x-2"
+              className="primary-button"
+              style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
             >
-              <span className="text-xl">🗑️</span> 
-              <span>{isDeleting ? 'Menghapus...' : 'Hapus Terpilih'}</span>
+              {isDeleting ? 'Menghapus...' : 'Hapus Terpilih'}
             </button>
           </div>
         </div>
