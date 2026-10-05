@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FiX, FiTrash2, FiCheckCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const DuplicateScanner = ({ onClose }) => {
@@ -56,8 +55,8 @@ const DuplicateScanner = ({ onClose }) => {
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">Pembersih Soal Duplikat (Kemiripan &gt;85%)</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-            <FiX size={24} />
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl font-bold leading-none">
+            &times;
           </button>
         </div>
 
@@ -70,7 +69,7 @@ const DuplicateScanner = ({ onClose }) => {
             </div>
           ) : duplicateGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <FiCheckCircle size={64} className="text-green-500 mb-4" />
+              <div className="text-6xl mb-4">✅</div>
               <h3 className="text-xl font-medium text-gray-700 dark:text-gray-200">Bank Soal Bersih!</h3>
               <p className="text-gray-500 dark:text-gray-400 mt-2">Tidak ditemukan soal kembar atau duplikat.</p>
             </div>
@@ -134,7 +133,7 @@ const DuplicateScanner = ({ onClose }) => {
               disabled={selectedForDeletion.length === 0 || isDeleting}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded font-medium flex items-center space-x-2"
             >
-              <FiTrash2 /> 
+              <span className="text-xl">🗑️</span> 
               <span>{isDeleting ? 'Menghapus...' : 'Hapus Terpilih'}</span>
             </button>
           </div>
