@@ -1261,7 +1261,7 @@ def build_explanation_prompt(
                 "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (PENTING: JANGAN menekan tombol enter/baris baru secara langsung! Gunakan teks literal \\n untuk memisahkan baris agar format JSON tetap valid)."
             )
         else:
-            instruction_text = "Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya."
+            instruction_text = "Tulis pembahasan singkat. Sebutkan dengan jelas nomor/angka pilihan apa saja yang Anda simpulkan benar beserta alasannya."
             
     # Tentukan template JSON berdasarkan tingkat detail dan tipe soal
     if detail_level == "detailed":
@@ -1270,14 +1270,14 @@ def build_explanation_prompt(
         elif question_type == "TRUE_FALSE":
             json_template = '{"explanation": "**Konsep Dasar:**\\n...\\n\\n**Pembahasan Pernyataan:**\\n- **Pernyataan 1:** BENAR/SALAH. ...\\n- **Pernyataan 2:** BENAR/SALAH. ...\\n- **Pernyataan 3:** BENAR/SALAH. ..."}'
         else:
-            json_template = '{"explanation": "**Kunci Jawaban:** X dan Y\\n\\n**Konsep Dasar:**\\n...\\n\\n**Analisis Pilihan Benar:**\\n- **Opsi X:** ...\\n- **Opsi Y:** ...\\n\\n**Analisis Pilihan Salah:**\\n- **Opsi Z:** ...\\n- **Opsi W:** ..."}'
+            json_template = '{"explanation": "**Kunci Jawaban:** 1 dan 3\\n\\n**Konsep Dasar:**\\n...\\n\\n**Analisis Pilihan Benar:**\\n- **Opsi X:** ...\\n- **Opsi Y:** ...\\n\\n**Analisis Pilihan Salah:**\\n- **Opsi Z:** ...\\n- **Opsi W:** ..."}'
     else:
         if question_type == "MULTIPLE_CHOICE":
             json_template = '{"explanation": "**Jawaban Benar:** X\\n\\n**Alasan Singkat:**\\n- ...\\n- ..."}'
         elif question_type == "TRUE_FALSE":
             json_template = '{"explanation": "- **Pernyataan 1:** BENAR/SALAH. ...\\n- **Pernyataan 2:** BENAR/SALAH. ...\\n- **Pernyataan 3:** BENAR/SALAH. ..."}'
         else:
-            json_template = '{"explanation": "[Opsi benar adalah X dan Y karena ...] \\n[Alasan singkat]"}'
+            json_template = '{"explanation": "[Opsi benar adalah 1 dan 3 karena ...] \\n[Alasan singkat]"}'
 
     if question_type == "TRUE_FALSE":
         return f"""Anda adalah pemeriksa soal yang teliti{subject_part} untuk siswa kelas 6 SD. Berikut sebuah soal Benar-Salah majemuk beserta pernyataan-pernyataannya (TANPA diberi tahu mana yang benar/salah). Hitung/analisis sendiri dari awal untuk menentukan status Benar atau Salah dari setiap pernyataan, lalu tulis pembahasannya.
@@ -1484,14 +1484,14 @@ Soal:
 Pilihan:
 {options_text}
 
-Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya.
+Tulis pembahasan singkat. Sebutkan dengan jelas nomor/angka pilihan apa saja yang Anda simpulkan benar beserta alasannya.
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
 - Ingat, jawaban benar bisa LEBIH DARI SATU.
 - JANGAN menambahkan fakta di luar informasi soal, kecuali pengetahuan umum yang memang dibutuhkan untuk menjelaskan jawabannya.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam teks biasa.
 Jawab HANYA dengan JSON valid, tanpa teks lain dan tanpa markdown, dengan format persis seperti ini:
-{{"correct_option_codes": ["A", "C"], "explanation": "pembahasan di sini"}}"""
+{{"correct_option_codes": ["1", "3"], "explanation": "pembahasan di sini"}}"""
 
     return f"""Anda adalah pemeriksa soal yang teliti untuk siswa kelas 6 SD. Berikut sebuah soal pilihan ganda beserta pilihan jawabannya (TANPA diberi tahu mana yang benar). Hitung/analisis sendiri dari awal, tentukan SATU huruf pilihan yang paling benar, lalu tulis pembahasannya.
 
@@ -1501,7 +1501,7 @@ Soal:
 Pilihan:
 {options_text}
 
-Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.
+Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas opsi yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.
 Ketentuan:
 - Gunakan bahasa Indonesia baku yang sederhana dan ramah anak SD.
 - Sebutkan HANYA SATU huruf sebagai jawaban benar -- jangan ragu-ragu, jangan menyebut lebih dari satu kemungkinan.
