@@ -570,7 +570,7 @@ def _parse_ai_json(content: str, provider_name: str) -> dict:
     for attempt in attempts:
 
         try:
-            return json.loads(attempt)
+            return json.loads(attempt, strict=False)
         except (json.JSONDecodeError, TypeError):
             continue
 
