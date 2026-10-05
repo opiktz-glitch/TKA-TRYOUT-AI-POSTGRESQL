@@ -160,6 +160,14 @@ function QuestionManagement() {
               <button
                 type="button"
                 className="secondary-button"
+                onClick={() => setShowDuplicateScanner(true)}
+              >
+                🔍 Cari Soal Kembar
+              </button>
+
+              <button
+                type="button"
+                className="secondary-button"
                 onClick={() => importGate.run(() => setShowImportModal(true))}
                 disabled={importGate.checking}
               >
@@ -175,14 +183,6 @@ function QuestionManagement() {
                 disabled={aiGate.checking}
               >
                 {aiGate.checking ? "Mengecek AI..." : "✨ Tambah Soal AI"}
-              </button>
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setShowDuplicateScanner(true)}
-              >
-                🔍 Cari Soal Kembar
               </button>
 
               <button className="primary-button" onClick={openAddModal}>
