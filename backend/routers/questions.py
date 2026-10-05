@@ -1212,7 +1212,7 @@ def build_explanation_prompt(
                 "3. **Langkah Penyelesaian:** (Uraikan proses perhitungan atau penalaran secara step-by-step).\n"
                 "4. **Kesimpulan Singkat:** (Berikan SATU kalimat kesimpulan akhir tanpa mengulang-ulang frasa 'Jadi jawaban yang tepat...').\n"
                 "5. **Analisis Opsi Lain (Opsional):** (Jelaskan secara singkat mengapa opsi pengecoh salah).\n"
-                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin agar rapi)."
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (PENTING: JANGAN menekan tombol enter/baris baru secara langsung! Gunakan teks literal \\n untuk memisahkan baris agar format JSON tetap valid)."
             )
         elif question_type == "TRUE_FALSE":
             instruction_text = (
@@ -1221,7 +1221,7 @@ def build_explanation_prompt(
                 "Susun pembahasan Anda mematuhi format berikut ini:\n"
                 "1. **Konsep Dasar:** (Jelaskan 1-2 kalimat singkat tentang konsep dasar, rumus utama, atau perhitungan awal yang dibutuhkan untuk soal ini).\n"
                 "2. **Pembahasan Pernyataan:** (Bahas setiap pernyataan secara berurutan. Sebutkan status BENAR atau SALAH dengan tegas, lalu jelaskan singkat 1 kalimat alasan/buktinya).\n"
-                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin)."
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (PENTING: JANGAN menekan tombol enter/baris baru secara langsung! Gunakan teks literal \\n untuk memisahkan baris agar format JSON tetap valid)."
             )
         else:
             instruction_text = (
@@ -1232,7 +1232,7 @@ def build_explanation_prompt(
                 "2. **Konsep Dasar:** (Jelaskan 1-2 kalimat konsep utama atau rumus singkat yang dipakai).\n"
                 "3. **Analisis Pilihan Benar:** (Bahas tiap opsi benar sebagai poin terpisah dan jelaskan singkat dengan angka/logika mengapa opsi ini benar).\n"
                 "4. **Analisis Pilihan Salah:** (Bahas tiap opsi salah sebagai poin terpisah dan jelaskan singkat mengapa opsi ini salah).\n"
-                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin agar rapi)."
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (PENTING: JANGAN menekan tombol enter/baris baru secara langsung! Gunakan teks literal \\n untuk memisahkan baris agar format JSON tetap valid)."
             )
     else:
         if question_type == "MULTIPLE_CHOICE":
@@ -1246,7 +1246,7 @@ def build_explanation_prompt(
                 "- [Langkah perhitungan 1 atau konsep ringkas]\n"
                 "- [Langkah perhitungan 2]\n"
                 "- [Kesimpulan/Total akhir]\n"
-                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap baris/poin)."
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (PENTING: JANGAN menekan tombol enter/baris baru secara langsung! Gunakan teks literal \\n untuk memisahkan baris agar format JSON tetap valid)."
             )
         elif question_type == "TRUE_FALSE":
             instruction_text = (
@@ -1256,7 +1256,7 @@ def build_explanation_prompt(
                 "- **Pernyataan 1:** [BENAR/SALAH]. [Alasan maksimal 1 kalimat pendek].\n"
                 "- **Pernyataan 2:** [BENAR/SALAH]. [Alasan maksimal 1 kalimat pendek].\n"
                 "- [dan seterusnya...]\n"
-                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin)."
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (PENTING: JANGAN menekan tombol enter/baris baru secara langsung! Gunakan teks literal \\n untuk memisahkan baris agar format JSON tetap valid)."
             )
         else:
             instruction_text = "Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya."
