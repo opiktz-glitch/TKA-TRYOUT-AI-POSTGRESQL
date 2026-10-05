@@ -64,6 +64,21 @@ ALLOWED_OPTIONS = [
     "D"
 ]
 
+ALLOWED_OPTIONS_MCMA = [
+    "1",
+    "2",
+    "3",
+    "4"
+]
+
+def get_allowed_options(question_type: str) -> list[str]:
+    if question_type == "MULTIPLE_RESPONSE":
+        return ALLOWED_OPTIONS_MCMA
+    elif question_type == "TRUE_FALSE":
+        return ["1", "2", "3", "4", "5"]
+    return ALLOWED_OPTIONS
+
+
 
 # =========================================================
 # VALIDATE QUESTION
