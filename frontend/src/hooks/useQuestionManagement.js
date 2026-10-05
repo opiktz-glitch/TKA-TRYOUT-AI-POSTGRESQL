@@ -396,10 +396,14 @@ export function useQuestionManagement(OPTION_CODES, OPTION_CODES_MCMA, DIFFICULT
   // OPEN EDIT MODAL
   // ======================================================
 
-  function openEditModal(question) {
+    function openEditModal(question) {
     const isTrueFalse = question.question_type === "TRUE_FALSE";
-    const optionCodesToMap = isTrueFalse 
-      ? (question.options?.map(o => o.option_code) || [])
+    const isMcma = question.question_type === "MULTIPLE_RESPONSE";
+    
+    const optionCodesToMap = isTrueFalse
+      ? (question.options?.map((o) => o.option_code) || [])
+      : isMcma
+      ? OPTION_CODES_MCMA
       : OPTION_CODES;
 
     const options = optionCodesToMap.map((code) => {
