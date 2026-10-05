@@ -311,7 +311,8 @@ function ExplanationField({
         value={value}
         onChange={handleTextChange}
         placeholder="Tuliskan pembahasan atau penjelasan jawaban..."
-        rows="3"
+        rows="10"
+        style={{ resize: "vertical", minHeight: "200px", lineHeight: "1.5" }}
         disabled={disabled}
       />
 

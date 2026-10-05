@@ -96,6 +96,8 @@ function QuestionManagement() {
     setCurrentPage,
     setDeletingId,
     setDifficultyFilter,
+    questionTypeFilter,
+    setQuestionTypeFilter,
     setEditingQuestion,
     setExplanationFilter,
     setForm,
@@ -197,6 +199,8 @@ function QuestionManagement() {
               setShowAdvancedFilter={setShowAdvancedFilter}
               difficultyFilter={difficultyFilter}
               setDifficultyFilter={setDifficultyFilter}
+              questionTypeFilter={questionTypeFilter}
+              setQuestionTypeFilter={setQuestionTypeFilter}
               statusFilter={statusFilter}
               setStatusFilter={setStatusFilter}
               explanationFilter={explanationFilter}

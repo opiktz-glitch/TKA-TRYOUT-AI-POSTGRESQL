@@ -180,6 +180,8 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
   const [difficultyFilter, setDifficultyFilter] = useState("");
 
+  const [questionTypeFilter, setQuestionTypeFilter] = useState("");
+
   const [statusFilter, setStatusFilter] = useState("");
 
   // Kelengkapan pembahasan: "" | "COMPLETE" | "INCOMPLETE" -- cocok
@@ -1120,6 +1122,8 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
 
       const matchesDifficulty = !difficultyFilter || question.difficulty === difficultyFilter;
 
+      const matchesQuestionType = !questionTypeFilter || question.question_type === questionTypeFilter;
+
       const matchesStatus =
         !statusFilter || (statusFilter === "ACTIVE" ? question.is_active : !question.is_active);
 
@@ -1139,6 +1143,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
         matchesSearch &&
         matchesSubject &&
         matchesDifficulty &&
+        matchesQuestionType &&
         matchesStatus &&
         matchesExplanation &&
         matchesMine &&
@@ -1150,6 +1155,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     search,
     subjectFilter,
     difficultyFilter,
+    questionTypeFilter,
     statusFilter,
     explanationFilter,
     onlyMine,
@@ -1162,6 +1168,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     search,
     subjectFilter,
     difficultyFilter,
+    questionTypeFilter,
     statusFilter,
     explanationFilter,
     onlyMine,
@@ -1203,6 +1210,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     setSearch("");
     setSubjectFilter("");
     setDifficultyFilter("");
+    setQuestionTypeFilter("");
     setStatusFilter("");
     setExplanationFilter("");
     setOnlyMine(false);
@@ -1292,6 +1300,8 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     setCurrentPage,
     setDeletingId,
     setDifficultyFilter,
+    questionTypeFilter,
+    setQuestionTypeFilter,
     setEditingQuestion,
     setExplanationFilter,
     setForm,

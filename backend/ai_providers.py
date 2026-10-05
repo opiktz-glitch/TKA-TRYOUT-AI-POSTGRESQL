@@ -955,7 +955,7 @@ async def check_gemini_key(api_key: str) -> tuple[bool, str | None]:
 # waktu panjang; retry akan melewati batas timeout frontend).
 # =========================================================
 
-GEMINI_RETRYABLE_STATUS = frozenset({500, 502, 503, 504})
+GEMINI_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 # Jeda (detik) sebelum percobaan ke-2, ke-3, ke-4 pada model utama
 # (total 4 percobaan), dan sebelum percobaan ke-2 pada model cadangan.
@@ -1064,10 +1064,15 @@ async def gemini_post_with_retry(
 
                 delay = _retry_after_seconds(exc.response)
 
-                if delay is None:
-                    delay = delays[attempt]
-
-                delay = min(delay, 20.0) + random.uniform(0.0, 1.5)
+                if exc.response.status_code == 429:
+                    # Spesifik untuk 429 (kuota habis/3 RPM), harus tunggu minimal 60 detik.
+                    # Kita set 65 detik agar aman dari jeda reset kuota AI Studio.
+                    delay = 65.0
+                    logger.info("Gemini HTTP 429 (Batas Kuota) terdeteksi. Aplikasi otomatis menunggu %s detik...", delay)
+                else:
+                    if delay is None:
+                        delay = delays[attempt]
+                    delay = min(delay, 20.0) + random.uniform(0.0, 1.5)
 
                 if (time.monotonic() - started) + delay >= GEMINI_RETRY_BUDGET_SECONDS:
                     break
@@ -1097,10 +1102,9 @@ def gemini_error_detail(status_code: int) -> str | None:
 
     if status_code == 429:
         return (
-            "Batas permintaan/kuota Gemini terlampaui (terlalu banyak "
-            "permintaan dalam waktu singkat, atau kuota harian habis). "
-            "Tunggu beberapa menit lalu coba lagi, atau periksa kuota API "
-            "key di Google AI Studio."
+            "Batas kuota Gemini (3 Permintaan per Menit atau 10.000 Token per Menit) telah melampaui batas maksimal. "
+            "Sistem sudah mencoba menunggu otomatis, namun antrean masih terlalu penuh. "
+            "Harap tunggu sekitar 1-2 menit sebelum mengulangi proses ini, atau gunakan API Key berbayar."
         )
 
     return None
@@ -1159,7 +1163,9 @@ async def call_gemini_provider(
 
     try:
 
-        # Retry otomatis untuk 500/502/503/504 (+ model cadangan kalau
+        logger.info("Mengirim permintaan ke AI Gemini (Model: %s) mematuhi batas 3 RPM dan 10k TPM...", model)
+
+        # Retry otomatis untuk 429/500/502/503/504 (+ model cadangan kalau
         # diisi) -- lihat gemini_post_with_retry().
         response = await gemini_post_with_retry(
             model=model,

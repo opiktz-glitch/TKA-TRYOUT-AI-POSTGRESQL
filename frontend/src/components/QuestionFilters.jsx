@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function QuestionFilters({
-  search, setSearch, subjectFilter, setSubjectFilter, subjects, showAdvancedFilter, setShowAdvancedFilter, difficultyFilter, setDifficultyFilter, statusFilter, setStatusFilter, explanationFilter, setExplanationFilter, hasImageFilter, setHasImageFilter, DIFFICULTIES
+  search, setSearch, subjectFilter, setSubjectFilter, subjects, showAdvancedFilter, setShowAdvancedFilter, difficultyFilter, setDifficultyFilter, questionTypeFilter, setQuestionTypeFilter, statusFilter, setStatusFilter, explanationFilter, setExplanationFilter, hasImageFilter, setHasImageFilter, DIFFICULTIES
 }) {
   return (
             <div className="question-filter" style={{ marginBottom: 0, padding: "12px 14px 12px", borderBottom: "1px solid #e5e7eb" }}>
@@ -46,6 +46,19 @@ export default function QuestionFilters({
                   showAdvancedFilter ? " is-open" : ""
                 }`}
               >
+                <div className="filter-group">
+                  <select
+                    value={questionTypeFilter}
+                    onChange={(e) => setQuestionTypeFilter(e.target.value)}
+                    className="search-input"
+                  >
+                    <option value="">Semua Jenis Soal</option>
+                    <option value="MULTIPLE_CHOICE">Pilihan Ganda</option>
+                    <option value="MULTIPLE_RESPONSE">Pilihan Ganda Kompleks</option>
+                    <option value="TRUE_FALSE">Benar / Salah</option>
+                  </select>
+                </div>
+
                 <div className="filter-group">
                   <select
                     value={difficultyFilter}

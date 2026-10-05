@@ -3218,7 +3218,7 @@ button {
    query di bawah), biar tidak makan tempat vertikal di layar besar. */
 .question-filter {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr;
   gap: 14px 15px;
   padding: 16px;
 }

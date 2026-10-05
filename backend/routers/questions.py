@@ -1204,32 +1204,76 @@ def build_explanation_prompt(
 
     if detail_level == "detailed":
         if question_type == "MULTIPLE_CHOICE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang benar. Susun pembahasan Anda menjadi 3 alur yang runut: (1) Identifikasi inti soal atau apa yang diketahui, (2) Jabarkan panduan langkah-langkah penyelesaiannya, dan (3) Tarik kesimpulan serta jelaskan mengapa opsi lain salah. PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation'."
+            instruction_text = (
+                "Tulis pembahasan secara mendalam, terperinci, dan sangat terstruktur. "
+                "Susun pembahasan Anda mematuhi format berikut ini:\n"
+                "1. **Kunci Jawaban:** (Sebutkan opsi yang benar secara lugas di awal, misal: 'Jawaban Benar: B').\n"
+                "2. **Konsep Dasar:** (Jelaskan secara singkat konsep, teori, atau rumus yang digunakan).\n"
+                "3. **Langkah Penyelesaian:** (Uraikan proses perhitungan atau penalaran secara step-by-step).\n"
+                "4. **Kesimpulan Singkat:** (Berikan SATU kalimat kesimpulan akhir tanpa mengulang-ulang frasa 'Jadi jawaban yang tepat...').\n"
+                "5. **Analisis Opsi Lain (Opsional):** (Jelaskan secara singkat mengapa opsi pengecoh salah).\n"
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin agar rapi)."
+            )
         elif question_type == "TRUE_FALSE":
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Susun pembahasan Anda menjadi 2 alur yang jelas: (1) Awali dengan menjelaskan konsep dasar atau rumus utama yang dibutuhkan untuk soal ini, (2) Bahas SETIAP pernyataan satu per satu secara berurutan. Untuk tiap pernyataan, sebutkan statusnya (Benar/Salah) dengan tegas di awal kalimat, lalu berikan alasan atau langkah-langkah detail mengapa pernyataan tersebut bernilai benar atau salah. PASTIKAN seluruh alur dan poin pembahasan pernyataan digabungkan menjadi SATU teks panjang di dalam satu field 'explanation' (jangan pisahkan menjadi field JSON yang berbeda-beda)."
+            instruction_text = (
+                "Tulis pembahasan secara mendalam, padat, dan langsung ke intinya. "
+                "Hindari membuat paragraf panjang yang bertele-tele dan jangan menggunakan sapaan pembuka. "
+                "Susun pembahasan Anda mematuhi format berikut ini:\n"
+                "1. **Konsep Dasar:** (Jelaskan 1-2 kalimat singkat tentang konsep dasar, rumus utama, atau perhitungan awal yang dibutuhkan untuk soal ini).\n"
+                "2. **Pembahasan Pernyataan:** (Bahas setiap pernyataan secara berurutan. Sebutkan status BENAR atau SALAH dengan tegas, lalu jelaskan singkat 1 kalimat alasan/buktinya).\n"
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin)."
+            )
         else:
-            instruction_text = "Tulis pembahasan secara mendalam dan terperinci. Susun pembahasan Anda menjadi 3 alur yang jelas: (1) Sebutkan dengan tegas pilihan apa saja (huruf opsi) yang benar, (2) Jelaskan konsep materi utama yang terkait, dan (3) Bahas secara spesifik mengapa pilihan yang benar itu tepat dan mengapa pilihan lainnya salah. PASTIKAN seluruh alur digabungkan menjadi SATU teks panjang di dalam satu field 'explanation'."
+            instruction_text = (
+                "Tulis pembahasan secara mendalam, padat, dan langsung ke intinya (to the point). "
+                "Jangan bertele-tele dan gunakan gaya bahasa yang mudah dipahami. "
+                "Susun pembahasan Anda mematuhi format berikut ini:\n"
+                "1. **Kunci Jawaban:** (Sebutkan semua opsi yang benar).\n"
+                "2. **Konsep Dasar:** (Jelaskan 1-2 kalimat konsep utama atau rumus singkat yang dipakai).\n"
+                "3. **Analisis Pilihan Benar:** (Bahas tiap opsi benar sebagai poin terpisah dan jelaskan singkat dengan angka/logika mengapa opsi ini benar).\n"
+                "4. **Analisis Pilihan Salah:** (Bahas tiap opsi salah sebagai poin terpisah dan jelaskan singkat mengapa opsi ini salah).\n"
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin agar rapi)."
+            )
     else:
         if question_type == "MULTIPLE_CHOICE":
-            instruction_text = 'Tulis pembahasan singkat (2 sampai 4 kalimat). Kalimat PERTAMA harus menyebutkan dengan jelas huruf pilihan yang Anda simpulkan benar (misalnya "Jawaban yang benar adalah B karena ..."), lalu kalimat berikutnya menjelaskan alasannya.'
+            instruction_text = (
+                "Tulis pembahasan sangat singkat, padat, dan to the point. "
+                "Jangan menggabungkan banyak angka/perhitungan ke dalam satu kalimat paragraf panjang. "
+                "Gunakan simbol matematika baku (seperti +, -, ×, =, dsb.) dan pisahkan tiap langkah perhitungan ke baris baru.\n"
+                "Susun pembahasan Anda mematuhi format berikut ini:\n"
+                "**Jawaban Benar:** [Huruf Opsi]\n\n"
+                "**Alasan Singkat:**\n"
+                "- [Langkah perhitungan 1 atau konsep ringkas]\n"
+                "- [Langkah perhitungan 2]\n"
+                "- [Kesimpulan/Total akhir]\n"
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap baris/poin)."
+            )
         elif question_type == "TRUE_FALSE":
-            instruction_text = "Tulis pembahasan singkat. Bahas satu per satu status (Benar/Salah) dari tiap pernyataan di atas beserta alasannya."
+            instruction_text = (
+                "Tulis pembahasan sangat singkat, padat, dan to the point. "
+                "Jangan mengulang-ulang penjelasan rumus atau perhitungan yang sama pada setiap pernyataan. "
+                "Susun pembahasan Anda menggunakan format berpoin:\n"
+                "- **Pernyataan 1:** [BENAR/SALAH]. [Alasan maksimal 1 kalimat pendek].\n"
+                "- **Pernyataan 2:** [BENAR/SALAH]. [Alasan maksimal 1 kalimat pendek].\n"
+                "- [dan seterusnya...]\n"
+                "PASTIKAN seluruh alur pembahasan ini digabungkan ke dalam SATU teks panjang di dalam field 'explanation' (gunakan karakter baris baru atau \\n untuk memisahkan setiap poin)."
+            )
         else:
             instruction_text = "Tulis pembahasan singkat. Sebutkan dengan jelas huruf pilihan apa saja yang Anda simpulkan benar beserta alasannya."
             
     # Tentukan template JSON berdasarkan tingkat detail dan tipe soal
     if detail_level == "detailed":
         if question_type == "MULTIPLE_CHOICE":
-            json_template = '{"explanation": "[Sebutkan JAWABAN BENAR di sini] \\n[Jelaskan KONSEP DASAR di sini] \\n[Bahas LANGKAH PENYELESAIAN dan KESIMPULAN di sini]"}'
+            json_template = '{"explanation": "**Kunci Jawaban:** X\\n\\n**Konsep Dasar:**\\n...\\n\\n**Langkah Penyelesaian:**\\n...\\n\\n**Kesimpulan Singkat:**\\n...\\n\\n**Analisis Opsi Lain (Opsional):**\\n..."}'
         elif question_type == "TRUE_FALSE":
-            json_template = '{"explanation": "[Tuliskan PENDAHULUAN/KONSEP DASAR di sini] \\n[Tuliskan PEMBAHASAN PERNYATAAN 1 di sini] \\n[Tuliskan PEMBAHASAN PERNYATAAN 2 di sini] \\n[dst...]"}'
+            json_template = '{"explanation": "**Konsep Dasar:**\\n...\\n\\n**Pembahasan Pernyataan:**\\n- **Pernyataan 1:** BENAR/SALAH. ...\\n- **Pernyataan 2:** BENAR/SALAH. ...\\n- **Pernyataan 3:** BENAR/SALAH. ..."}'
         else:
-            json_template = '{"explanation": "[Sebutkan OPSI YANG BENAR di sini] \\n[Jelaskan KONSEP MATERI di sini] \\n[Bahas ALASAN SPECIFIK untuk tiap opsi di sini]"}'
+            json_template = '{"explanation": "**Kunci Jawaban:** X dan Y\\n\\n**Konsep Dasar:**\\n...\\n\\n**Analisis Pilihan Benar:**\\n- **Opsi X:** ...\\n- **Opsi Y:** ...\\n\\n**Analisis Pilihan Salah:**\\n- **Opsi Z:** ...\\n- **Opsi W:** ..."}'
     else:
         if question_type == "MULTIPLE_CHOICE":
-            json_template = '{"explanation": "[Jawaban benar adalah X karena ...] \\n[Alasan singkat]"}'
+            json_template = '{"explanation": "**Jawaban Benar:** X\\n\\n**Alasan Singkat:**\\n- ...\\n- ..."}'
         elif question_type == "TRUE_FALSE":
-            json_template = '{"explanation": "[Pernyataan 1 Benar/Salah karena ...] \\n[Pernyataan 2 Benar/Salah karena ...] \\n[dst...]"}'
+            json_template = '{"explanation": "- **Pernyataan 1:** BENAR/SALAH. ...\\n- **Pernyataan 2:** BENAR/SALAH. ...\\n- **Pernyataan 3:** BENAR/SALAH. ..."}'
         else:
             json_template = '{"explanation": "[Opsi benar adalah X dan Y karena ...] \\n[Alasan singkat]"}'
 
