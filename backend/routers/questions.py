@@ -296,7 +296,7 @@ def find_duplicates(db: Session = Depends(get_db)):
     # Pre-clean text to speed up processing
     cleaned_texts = {}
     for q in questions:
-        cleaned_texts[q.id] = clean_html(q.text)
+        cleaned_texts[q.id] = clean_html(q.question_text)
 
     duplicates_groups = []
     processed_ids = set()
@@ -324,9 +324,9 @@ def find_duplicates(db: Session = Depends(get_db)):
             ratio = difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
             if ratio > 0.85:
                 if not group:
-                    group.append({"id": q1.id, "text": text1, "subject": q1.subject, "created_at": q1.created_at})
+                    group.append({"id": q1.id, "text": text1, "subject": None, "created_at": None})
                     processed_ids.add(q1.id)
-                group.append({"id": q2.id, "text": text2, "subject": q2.subject, "created_at": q2.created_at})
+                group.append({"id": q2.id, "text": text2, "subject": None, "created_at": None})
                 processed_ids.add(q2.id)
                 
         if group:

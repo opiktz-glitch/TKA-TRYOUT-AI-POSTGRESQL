@@ -87,7 +87,7 @@ const DuplicateScanner = ({ onClose }) => {
                       >
                         <div className="duplicate-scanner-meta">
                           <span>ID: {q.id}</span>
-                          <span>{new Date(q.created_at).toLocaleDateString('id-ID')}</span>
+                          {q.created_at && <span>{new Date(q.created_at).toLocaleDateString('id-ID')}</span>}
                         </div>
                         <div className="duplicate-scanner-text">
                           {q.text}
