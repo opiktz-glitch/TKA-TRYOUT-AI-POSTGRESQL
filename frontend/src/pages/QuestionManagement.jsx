@@ -180,7 +180,6 @@ function QuestionManagement() {
               <button
                 type="button"
                 className="secondary-button"
-                style={{ backgroundColor: '#eab308', color: 'white', border: 'none' }}
                 onClick={() => setShowDuplicateScanner(true)}
               >
                 🔍 Cari Soal Kembar

@@ -1,0 +1,131 @@
+/* DuplicateScanner.css */
+
+.duplicate-scanner-modal {
+  width: 900px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.duplicate-scanner-content {
+  overflow-y: auto;
+  padding: 20px;
+  flex: 1;
+  background-color: #f9fafb;
+}
+
+.duplicate-scanner-loading,
+.duplicate-scanner-empty {
+  text-align: center;
+  padding: 50px;
+}
+
+.duplicate-scanner-empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.duplicate-scanner-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.duplicate-scanner-group {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #eab308;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.duplicate-scanner-group h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.duplicate-scanner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.duplicate-scanner-card {
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background-color: white;
+  position: relative;
+}
+
+.duplicate-scanner-card.selected {
+  border-color: #fca5a5;
+  background-color: #fef2f2;
+}
+
+.duplicate-scanner-meta {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.duplicate-scanner-text {
+  font-size: 14px;
+  margin-bottom: 40px;
+  max-height: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.duplicate-scanner-checkbox-wrapper {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+}
+
+.duplicate-scanner-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  background-color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.duplicate-scanner-checkbox-text {
+  font-size: 12px;
+  color: #dc2626;
+  font-weight: bold;
+}
+
+.duplicate-scanner-actions {
+  padding: 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+}
+
+.duplicate-scanner-summary {
+  color: #4b5563;
+}
+
+.duplicate-scanner-count {
+  color: #dc2626;
+}
+
+.duplicate-scanner-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.duplicate-scanner-delete-btn {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
