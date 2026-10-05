@@ -84,7 +84,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 # fallback ini.
 CORS_ORIGINS = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173"
+    "http://localhost:5173,http://127.0.0.1:5173,https://tryout.pojokberkah.online"
 )
 
 ALLOWED_ORIGINS = [
@@ -92,6 +92,8 @@ ALLOWED_ORIGINS = [
     for origin in CORS_ORIGINS.split(",")
     if origin.strip()
 ]
+if "https://tryout.pojokberkah.online" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append("https://tryout.pojokberkah.online")
 
 
 if not SECRET_KEY:
