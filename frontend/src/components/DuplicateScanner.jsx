@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { getDuplicates, bulkDeleteQuestions } from '../services/api';
 import toast from 'react-hot-toast';
 
 const DuplicateScanner = ({ onClose }) => {
@@ -15,8 +15,8 @@ const DuplicateScanner = ({ onClose }) => {
   const fetchDuplicates = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/questions/find-duplicates');
-      setDuplicateGroups(res.data);
+      const data = await getDuplicates();
+      setDuplicateGroups(data);
     } catch (err) {
       toast.error('Gagal mencari duplikat.');
     } finally {
@@ -38,7 +38,7 @@ const DuplicateScanner = ({ onClose }) => {
 
     try {
       setIsDeleting(true);
-      await api.post('/questions/bulk-delete', { question_ids: selectedForDeletion });
+      await bulkDeleteQuestions(selectedForDeletion);
       toast.success('Soal berhasil dihapus.');
       setSelectedForDeletion([]);
       fetchDuplicates();

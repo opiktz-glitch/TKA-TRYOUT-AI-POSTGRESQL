@@ -1206,3 +1206,6 @@ export async function markAllNotificationsRead() {
 export async function getTryoutLeaderboard(tryoutId) {
   return await apiFetch(`/api/tryouts/${tryoutId}/leaderboard`);
 }
+
+export async function getDuplicates() { return await apiFetch('/api/questions/find-duplicates'); }
+export async function bulkDeleteQuestions(question_ids) { return await apiFetch('/api/questions/bulk-delete', { method: 'POST', body: { question_ids } }); }
