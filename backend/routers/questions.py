@@ -96,12 +96,13 @@ def validate_question_data(question_data):
         )
 
     if question_data.question_type == "MULTIPLE_CHOICE":
-        if len(question_data.options) != len(ALLOWED_OPTIONS):
+        allowed = get_allowed_options(question_data.question_type)
+        if len(question_data.options) != len(allowed):
             raise HTTPException(
                 status_code=400,
                 detail=(
                     "Soal pilihan ganda harus memiliki "
-                    f"{len(ALLOWED_OPTIONS)} pilihan"
+                    ff"{len(allowed)} pilihan"
                 )
             )
 
@@ -111,7 +112,7 @@ def validate_question_data(question_data):
         for option in question_data.options:
             code = option.option_code.strip().upper()
 
-            if code not in ALLOWED_OPTIONS:
+            if code not in allowed:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Pilihan {code} tidak valid"
@@ -134,7 +135,7 @@ def validate_question_data(question_data):
             if option.is_correct:
                 correct_count += 1
 
-        if set(option_codes) != set(ALLOWED_OPTIONS):
+        if set(option_codes) != set(allowed):
             raise HTTPException(
                 status_code=400,
                 detail="Pilihan harus terdiri dari A, B, C, dan D"
@@ -147,12 +148,13 @@ def validate_question_data(question_data):
             )
 
     elif question_data.question_type == "MULTIPLE_RESPONSE":
-        if len(question_data.options) != len(ALLOWED_OPTIONS):
+        allowed = get_allowed_options(question_data.question_type)
+        if len(question_data.options) != len(allowed):
             raise HTTPException(
                 status_code=400,
                 detail=(
                     "Soal pilihan ganda kompleks harus memiliki "
-                    f"{len(ALLOWED_OPTIONS)} pilihan"
+                    ff"{len(allowed)} pilihan"
                 )
             )
 
@@ -162,7 +164,7 @@ def validate_question_data(question_data):
         for option in question_data.options:
             code = option.option_code.strip().upper()
 
-            if code not in ALLOWED_OPTIONS:
+            if code not in allowed:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Pilihan {code} tidak valid"
@@ -185,7 +187,7 @@ def validate_question_data(question_data):
             if option.is_correct:
                 correct_count += 1
 
-        if set(option_codes) != set(ALLOWED_OPTIONS):
+        if set(option_codes) != set(allowed):
             raise HTTPException(
                 status_code=400,
                 detail="Pilihan harus terdiri dari A, B, C, dan D"
@@ -775,7 +777,7 @@ async def _verify_answer_consistency(
 
         return None
 
-    if verified_code not in ALLOWED_OPTIONS:
+    if verified_code not in get_allowed_options(question_type):
         # Verifier tidak menjawab format yang diminta -> tidak
         # cukup andal untuk dijadikan dasar warning, lewati saja.
         return None
@@ -962,11 +964,11 @@ async def generate_question_ai(
                 detail="AI tidak menghasilkan minimal 2 pernyataan. Coba generate ulang."
             )
     else:
-        if len(raw_options) != len(ALLOWED_OPTIONS):
+        if len(raw_options) != len(get_allowed_options(question_type)):
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    f"AI tidak menghasilkan {len(ALLOWED_OPTIONS)} pilihan "
+                    f"AI tidak menghasilkan {len(get_allowed_options(question_type))} pilihan "
                     "jawaban. Coba generate ulang."
                 )
             )
@@ -1013,7 +1015,7 @@ async def generate_question_ai(
                     detail="Format pilihan jawaban dari AI tidak valid (kode ganda). Coba generate ulang."
                 )
         else:
-            if code not in ALLOWED_OPTIONS or code in seen_codes:
+            if code not in get_allowed_options(question_type) or code in seen_codes:
                 raise HTTPException(
                     status_code=502,
                     detail="Format pilihan jawaban dari AI tidak valid (kode tidak A-D). Coba generate ulang."
@@ -1048,7 +1050,7 @@ async def generate_question_ai(
         })
 
     if request_data.question_type != "TRUE_FALSE":
-        if seen_codes != set(ALLOWED_OPTIONS):
+        if seen_codes != set(get_allowed_options(question_type)):
             raise HTTPException(
                 status_code=502,
                 detail=(
@@ -1097,7 +1099,7 @@ async def generate_question_ai(
         if request_data.question_type == "TRUE_FALSE":
             option["option_code"] = str(index + 1)
         else:
-            option["option_code"] = ALLOWED_OPTIONS[index]
+            option["option_code"] = get_allowed_options(question_type)[index]
 
     explanation = _clean_ai_math_notation(
         str(ai_result.get("explanation", "")).strip()
@@ -1363,7 +1365,7 @@ def _prepare_explanation_input(question_text, raw_options, *, require_answer=Tru
         if question_type == "TRUE_FALSE":
             is_allowed_code = code in ["1", "2", "3", "4", "5"]
         else:
-            is_allowed_code = code in ALLOWED_OPTIONS
+            is_allowed_code = code in get_allowed_options(question_type)
 
         if not is_allowed_code or code in seen_codes or not option_text:
             continue
@@ -1581,13 +1583,13 @@ async def _verify_explanation_answer(
             for c in verified_code:
                 if question_type == "TRUE_FALSE" and c not in ["1", "2", "3", "4", "5"]:
                     return None
-                elif question_type == "MULTIPLE_RESPONSE" and c not in ALLOWED_OPTIONS:
+                elif question_type == "MULTIPLE_RESPONSE" and c not in get_allowed_options(question_type):
                     return None
         else:
             verified_code = str(
                 verification_result.get("correct_option_code", "")
             ).strip().upper()
-            if verified_code not in ALLOWED_OPTIONS:
+            if verified_code not in get_allowed_options(question_type):
                 return None
 
     except Exception:
@@ -2014,7 +2016,7 @@ def _normalize_extracted_options(
     options_by_code: dict[str, dict] = {}
     leftover_texts: list[str] = []
     
-    allowed_codes = ALLOWED_OPTIONS if question_type in ("MULTIPLE_CHOICE", "MULTIPLE_RESPONSE") else ["1", "2", "3", "4", "5"]
+    allowed_codes = get_allowed_options(question_type)
 
     if isinstance(raw_options, list):
         for raw_option in raw_options:

@@ -12,7 +12,7 @@ import QuestionFormModal from "../components/QuestionFormModal";
 import QuestionPreviewModal from "../components/QuestionPreviewModal";
 import ImportDocumentModal from "../components/ImportDocumentModal";
 import ImportImageButton from "../components/ImportImageButton";
-import { OPTION_CODES, DIFFICULTIES } from "../data/questionConstants";
+import { OPTION_CODES, OPTION_CODES_MCMA, DIFFICULTIES } from "../data/questionConstants";
 import { useQuestionManagement } from "../hooks/useQuestionManagement";
 
 function QuestionManagement() {
@@ -132,7 +132,7 @@ function QuestionManagement() {
     totalQuestions,
     user,
     validateForm
-  } = useQuestionManagement(OPTION_CODES, DIFFICULTIES);
+  } = useQuestionManagement(OPTION_CODES, OPTION_CODES_MCMA, DIFFICULTIES);
 
   return (
     <div className="app-layout">

@@ -3,6 +3,8 @@
 
 // Kode pilihan jawaban, urutannya = urutan tampil di form.
 export const OPTION_CODES = ["A", "B", "C", "D"];
+export const OPTION_CODES_MCMA = ["1", "2", "3", "4"];
+
 
 // Tingkat kesulitan soal: value = yang dikirim/disimpan di backend,
 // label = yang tampil di UI.

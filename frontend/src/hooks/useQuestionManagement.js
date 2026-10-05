@@ -14,7 +14,7 @@ import { useAuth } from "../auth/AuthContext";
 import toast from "react-hot-toast";
 import useAiStatusGate from "./useAiStatusGate";
 
-export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
+export function useQuestionManagement(OPTION_CODES, OPTION_CODES_MCMA, DIFFICULTIES) {
   // ======================================================
   // HAK AKSES
   //
@@ -281,10 +281,10 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
   // FORM
   // ======================================================
 
-  const createEmptyForm = () => ({
+  const createEmptyForm = (qType = "MULTIPLE_CHOICE") => ({
     subject_id: "",
     question_text: "",
-    question_type: "MULTIPLE_CHOICE",
+    question_type: qType,
     difficulty: "MEDIUM",
     true_label: "Benar",
     false_label: "Salah",
@@ -292,7 +292,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
     points: 1,
     is_active: true,
 
-    options: OPTION_CODES.map((code) => ({
+    options: (qType === "MULTIPLE_RESPONSE" ? OPTION_CODES_MCMA : OPTION_CODES).map((code) => ({
       option_code: code,
       option_text: "",
       is_correct: false,
