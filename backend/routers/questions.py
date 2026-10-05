@@ -979,11 +979,11 @@ async def generate_question_ai(
                 detail="AI tidak menghasilkan minimal 2 pernyataan. Coba generate ulang."
             )
     else:
-        if len(raw_options) != len(get_allowed_options(question_type)):
+        if len(raw_options) != len(get_allowed_options(request_data.question_type)):
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    f"AI tidak menghasilkan {len(get_allowed_options(question_type))} pilihan "
+                    f"AI tidak menghasilkan {len(get_allowed_options(request_data.question_type))} pilihan "
                     "jawaban. Coba generate ulang."
                 )
             )
@@ -1030,7 +1030,7 @@ async def generate_question_ai(
                     detail="Format pilihan jawaban dari AI tidak valid (kode ganda). Coba generate ulang."
                 )
         else:
-            if code not in get_allowed_options(question_type) or code in seen_codes:
+            if code not in get_allowed_options(request_data.question_type) or code in seen_codes:
                 raise HTTPException(
                     status_code=502,
                     detail="Format pilihan jawaban dari AI tidak valid (kode tidak A-D). Coba generate ulang."
@@ -1065,7 +1065,7 @@ async def generate_question_ai(
         })
 
     if request_data.question_type != "TRUE_FALSE":
-        if seen_codes != set(get_allowed_options(question_type)):
+        if seen_codes != set(get_allowed_options(request_data.question_type)):
             raise HTTPException(
                 status_code=502,
                 detail=(
@@ -1114,7 +1114,7 @@ async def generate_question_ai(
         if request_data.question_type == "TRUE_FALSE":
             option["option_code"] = str(index + 1)
         else:
-            option["option_code"] = get_allowed_options(question_type)[index]
+            option["option_code"] = get_allowed_options(request_data.question_type)[index]
 
     explanation = _clean_ai_math_notation(
         str(ai_result.get("explanation", "")).strip()
