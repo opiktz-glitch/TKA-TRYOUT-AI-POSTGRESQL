@@ -12,6 +12,7 @@ import QuestionFormModal from "../components/QuestionFormModal";
 import QuestionPreviewModal from "../components/QuestionPreviewModal";
 import ImportDocumentModal from "../components/ImportDocumentModal";
 import ImportImageButton from "../components/ImportImageButton";
+import DuplicateScanner from "../components/DuplicateScanner";
 import { OPTION_CODES, OPTION_CODES_MCMA, DIFFICULTIES } from "../data/questionConstants";
 import { useQuestionManagement } from "../hooks/useQuestionManagement";
 
@@ -134,6 +135,8 @@ function QuestionManagement() {
     validateForm
   } = useQuestionManagement(OPTION_CODES, OPTION_CODES_MCMA, DIFFICULTIES);
 
+  const [showDuplicateScanner, setShowDuplicateScanner] = React.useState(false);
+
   return (
     <div className="app-layout">
       <Sidebar />
@@ -172,6 +175,15 @@ function QuestionManagement() {
                 disabled={aiGate.checking}
               >
                 {aiGate.checking ? "Mengecek AI..." : "✨ Tambah Soal AI"}
+              </button>
+
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ backgroundColor: '#eab308', color: 'white', border: 'none' }}
+                onClick={() => setShowDuplicateScanner(true)}
+              >
+                🔍 Cari Soal Kembar
               </button>
 
               <button className="primary-button" onClick={openAddModal}>
@@ -335,6 +347,13 @@ function QuestionManagement() {
           difficultyLabel={getDifficultyLabel(previewQuestion.difficulty)}
           onClose={closePreviewModal}
         />
+      )}
+
+      {showDuplicateScanner && (
+        <DuplicateScanner onClose={() => {
+            setShowDuplicateScanner(false);
+            loadQuestions();
+        }} />
       )}
 
       {showGuideModal && <PanduanSoalModal onClose={() => setShowGuideModal(false)} />}
