@@ -102,7 +102,7 @@ def validate_question_data(question_data):
                 status_code=400,
                 detail=(
                     "Soal pilihan ganda harus memiliki "
-                    ff"{len(allowed)} pilihan"
+                    f"{len(allowed)} pilihan"
                 )
             )
 
@@ -154,7 +154,7 @@ def validate_question_data(question_data):
                 status_code=400,
                 detail=(
                     "Soal pilihan ganda kompleks harus memiliki "
-                    ff"{len(allowed)} pilihan"
+                    f"{len(allowed)} pilihan"
                 )
             )
 
