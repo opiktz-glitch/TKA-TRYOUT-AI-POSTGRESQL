@@ -507,8 +507,8 @@ Setiap soal harus mengikuti struktur dan kriteria berikut:
 - Format Teks & Tanya: Di bawah stimulus, berikan kalimat tanya/instruksi yang jelas di bagian akhir teks (contoh: "Manakah pernyataan di bawah ini yang benar? Jawaban bisa lebih dari satu.").
 - Kualitas Bahasa: Menggunakan bahasa Indonesia baku, logis, dan ramah anak.
 - Notasi Matematika: JANGAN gunakan notasi LaTeX sama sekali. Tulis pecahan dan operasi hitung dalam bentuk teks biasa (contoh: "2 1/4 bagian", "3 x 4").
-- Pilihan Jawaban: Buatlah TEPAT 4 pilihan jawaban (A, B, C, D) yang berisi teks berbeda satu sama lain.
-- Pembahasan: JANGAN menyebut abjad opsi (seperti "Jawaban A" atau "Opsi B"), karena urutan akan diacak sistem. Sebutkan langsung isi teks/nilainya dalam penjelasan.
+- Pilihan Jawaban: Buatlah TEPAT 4 pilihan jawaban (1, 2, 3, 4) yang berisi teks berbeda satu sama lain.
+- Pembahasan: JANGAN menyebut kode opsi (seperti "Jawaban 1" atau "Opsi 2"), karena urutan akan diacak sistem. Sebutkan langsung isi teks/nilainya dalam penjelasan.
 {instruction_line}
 
 PENTING: Karena ini soal Pilihan Ganda Kompleks, HARUS ADA LEBIH DARI SATU jawaban yang benar (is_correct: true). Tandai mana saja opsi yang benar. Sertakan juga pembahasan singkat yang logis.
@@ -517,10 +517,10 @@ Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, dengan format pe
 {{
 {image_field_line}  "question_text": "Tuliskan narasi stimulus/cerita diikuti dengan kalimat pertanyaannya di sini.",
   "options": [
-    {{"option_code": "A", "option_text": "...", "is_correct": true}},
-    {{"option_code": "B", "option_text": "...", "is_correct": false}},
-    {{"option_code": "C", "option_text": "...", "is_correct": true}},
-    {{"option_code": "D", "option_text": "...", "is_correct": false}}
+    {{"option_code": "1", "option_text": "...", "is_correct": true}},
+    {{"option_code": "2", "option_text": "...", "is_correct": false}},
+    {{"option_code": "3", "option_text": "...", "is_correct": true}},
+    {{"option_code": "4", "option_text": "...", "is_correct": false}}
   ],
   "explanation": "Berikan penjelasan singkat dan logis mengapa opsi-opsi tersebut adalah jawaban yang tepat."
 }}"""
@@ -1957,7 +1957,7 @@ Teks dokumen (satu potongan, mungkin berisi beberapa soal):
 
 Untuk SETIAP soal Pilihan Ganda Kompleks yang Anda temukan di teks di atas (bisa 0 kalau memang tidak ada soal valid di potongan ini):
 - Salin teks soalnya persis seperti di dokumen ke "question_text".
-- Salin SETIAP opsi/pilihan jawabannya (A, B, C, D) ke dalam array "options", masing-masing dengan "option_code" (A/B/C/D) dan "option_text" (isi pilihannya).
+- Salin SETIAP opsi/pilihan jawabannya ke dalam array "options", masing-masing dengan "option_code" (1, 2, 3, 4) dan "option_text" (isi pilihannya). Jika dokumen aslinya memakai A/B/C/D, ubahlah menjadi 1/2/3/4 secara berurutan.
 - Walaupun ini soal pilihan ganda kompleks, JANGAN menandai atau menebak opsi mana yang benar, biarkan guru yang menandainya nanti.
 - JANGAN sertakan pembahasan/penjelasan apa pun.
 
@@ -1968,11 +1968,11 @@ Jawab HANYA dengan JSON valid, tanpa teks lain, tanpa markdown, format persis se
       "question_text": "...",
       "options": [
         {{
-          "option_code": "A",
+          "option_code": "1",
           "option_text": "..."
         }},
         {{
-          "option_code": "B",
+          "option_code": "2",
           "option_text": "..."
         }}
       ]
