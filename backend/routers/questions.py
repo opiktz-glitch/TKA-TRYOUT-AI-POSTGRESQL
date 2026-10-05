@@ -292,11 +292,23 @@ def find_duplicates(db: Session = Depends(get_db)):
     Mencari soal-soal duplikat di database berdasarkan kemiripan teks.
     """
     questions = db.query(Question).all()
+    all_options = db.query(QuestionOption).all()
+    
+    options_by_q = {}
+    for opt in all_options:
+        options_by_q.setdefault(opt.question_id, []).append(opt.option_text)
     
     # Pre-clean text to speed up processing
-    cleaned_texts = {}
+    cleaned_combined = {}
+    cleaned_display = {}
     for q in questions:
-        cleaned_texts[q.id] = clean_html(q.question_text)
+        base_display = clean_html(q.question_text)
+        cleaned_display[q.id] = base_display
+        
+        ops = options_by_q.get(q.id, [])
+        opts_text = " ".join([clean_html(o) for o in ops])
+        combined_text = f"{base_display} {opts_text}".strip()
+        cleaned_combined[q.id] = combined_text
 
     duplicates_groups = []
     processed_ids = set()
@@ -307,8 +319,8 @@ def find_duplicates(db: Session = Depends(get_db)):
             continue
             
         group = []
-        text1 = cleaned_texts[q1.id]
-        if not text1:
+        text1_combined = cleaned_combined[q1.id]
+        if not text1_combined:
             continue
 
         for j in range(i + 1, len(questions)):
@@ -316,17 +328,17 @@ def find_duplicates(db: Session = Depends(get_db)):
             if q2.id in processed_ids:
                 continue
                 
-            text2 = cleaned_texts[q2.id]
-            if not text2:
+            text2_combined = cleaned_combined[q2.id]
+            if not text2_combined:
                 continue
 
             # Calculate ratio
-            ratio = difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+            ratio = difflib.SequenceMatcher(None, text1_combined.lower(), text2_combined.lower()).ratio()
             if ratio > 0.85:
                 if not group:
-                    group.append({"id": q1.id, "text": text1, "subject": None, "created_at": None})
+                    group.append({"id": q1.id, "text": cleaned_display[q1.id], "subject": None, "created_at": None})
                     processed_ids.add(q1.id)
-                group.append({"id": q2.id, "text": text2, "subject": None, "created_at": None})
+                group.append({"id": q2.id, "text": cleaned_display[q2.id], "subject": None, "created_at": None})
                 processed_ids.add(q2.id)
                 
         if group:
