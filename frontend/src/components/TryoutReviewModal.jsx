@@ -102,6 +102,7 @@ export default function TryoutReviewModal({
                 <div className="review-print-questions">
                   {reviewData.questions.map((question) => {
                     const isTrueFalse = question.question_type === "TRUE_FALSE";
+                    const isMultipleResponse = question.question_type === "MULTIPLE_RESPONSE";
                     return (
                     <div
                       key={question.question_id}
@@ -155,7 +156,11 @@ export default function TryoutReviewModal({
                               className="review-print-option"
                             >
                               <span className="review-print-option-code">
-                                {option.option_code}.
+                                {isMultipleResponse ? (
+                                  <input type="checkbox" readOnly style={{ marginRight: "6px" }} />
+                                ) : (
+                                  `${option.option_code}.`
+                                )}
                               </span>
                               <span>{option.option_text}</span>
                             </div>
