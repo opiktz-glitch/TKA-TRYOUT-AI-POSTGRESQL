@@ -1092,7 +1092,7 @@ export function useQuestionManagement(OPTION_CODES, DIFFICULTIES) {
       // menjelaskan solusinya, bukan sekadar "Tidak memiliki hak akses".
       // (Penolakan karena soal milik orang lain sudah membawa pesan
       // sendiri dari backend dan ditampilkan apa adanya.)
-      setActionError(
+      toast.error(
         err.message === "Tidak memiliki hak akses"
           ? "Anda tidak memiliki hak untuk menghapus soal ini. Untuk menyembunyikan soal dari daftar, nonaktifkan lewat tombol Edit."
           : err.message || "Gagal menghapus soal",
