@@ -2835,3 +2835,81 @@ def delete_question_image(
     )
 
     return question
+
+
+import difflib
+from bs4 import BeautifulSoup
+
+def clean_html(raw_html):
+    if not raw_html: return ""
+    return BeautifulSoup(raw_html, "html.parser").get_text().strip()
+
+@router.get("/find-duplicates", response_model=list)
+def find_duplicates(db: Session = Depends(get_db)):
+    """
+    Mencari soal-soal duplikat di database berdasarkan kemiripan teks.
+    """
+    questions = db.query(Question).all()
+    
+    # Pre-clean text to speed up processing
+    cleaned_texts = {}
+    for q in questions:
+        cleaned_texts[q.id] = clean_html(q.text)
+
+    duplicates_groups = []
+    processed_ids = set()
+
+    for i in range(len(questions)):
+        q1 = questions[i]
+        if q1.id in processed_ids:
+            continue
+            
+        group = []
+        text1 = cleaned_texts[q1.id]
+        if not text1:
+            continue
+
+        for j in range(i + 1, len(questions)):
+            q2 = questions[j]
+            if q2.id in processed_ids:
+                continue
+                
+            text2 = cleaned_texts[q2.id]
+            if not text2:
+                continue
+
+            # Calculate ratio
+            ratio = difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+            if ratio > 0.85:
+                if not group:
+                    group.append({"id": q1.id, "text": text1, "subject": q1.subject, "created_at": q1.created_at})
+                    processed_ids.add(q1.id)
+                group.append({"id": q2.id, "text": text2, "subject": q2.subject, "created_at": q2.created_at})
+                processed_ids.add(q2.id)
+                
+        if group:
+            duplicates_groups.append(group)
+
+    return duplicates_groups
+
+from pydantic import BaseModel
+class BulkDeleteRequest(BaseModel):
+    question_ids: list[str]
+
+@router.post("/bulk-delete")
+def bulk_delete_questions(request: BulkDeleteRequest, db: Session = Depends(get_db)):
+    """
+    Menghapus banyak soal sekaligus.
+    """
+    deleted_count = 0
+    for qid in request.question_ids:
+        q = db.query(Question).filter(Question.id == qid).first()
+        if q:
+            # Hapus option, answer, dsb jika ondelete cascade belum diatur (manual delete fallback)
+            db.query(QuestionOption).filter(QuestionOption.question_id == q.id).delete()
+            db.delete(q)
+            deleted_count += 1
+            
+    db.commit()
+    return {"message": f"{deleted_count} soal berhasil dihapus."}
+
