@@ -365,9 +365,25 @@ def finalize_attempt(
 
     effective_max_score = tryout.max_score or 100
 
-    total_max_points = pg_max + mcma_max + bs_max
-    if total_max_points > 0:
-        score = (total_points / total_max_points) * effective_max_score
+    weight_pg = tryout.weight_pg if tryout.weight_pg is not None else 40.0
+    weight_mcma = tryout.weight_mcma if tryout.weight_mcma is not None else 35.0
+    weight_bs = tryout.weight_bs if tryout.weight_bs is not None else 25.0
+
+    score_pg = (pg_points / pg_max) * weight_pg if pg_max > 0 else 0
+    score_mcma = (mcma_points / mcma_max) * weight_mcma if mcma_max > 0 else 0
+    score_bs = (bs_points / bs_max) * weight_bs if bs_max > 0 else 0
+
+    total_weights_present = 0
+    if pg_max > 0:
+        total_weights_present += weight_pg
+    if mcma_max > 0:
+        total_weights_present += weight_mcma
+    if bs_max > 0:
+        total_weights_present += weight_bs
+
+    raw_score = score_pg + score_mcma + score_bs
+    if total_weights_present > 0:
+        score = (raw_score / total_weights_present) * effective_max_score
     else:
         score = 0
 
