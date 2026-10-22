@@ -22,15 +22,18 @@ if (-not (Test-Path ".env.test")) {
 }
 
 # Pastikan .env.test TIDAK mengandung URL Neon production
- = Get-Content ".env.test" -Raw
-if ( -match "neon\.tech") {
+$envTestContent = Get-Content ".env.test" -Raw
+if ($envTestContent -match "neon\.tech") {
     Write-Host "[BAHAYA] .env.test masih mengarah ke Neon production!" -ForegroundColor Red
     Write-Host "Hapus atau komentari baris DATABASE_URL Neon di .env.test dulu."
     exit 1
 }
 
 Write-Host "[OK] .env.test aman - tidak terhubung ke Neon production" -ForegroundColor Green
-Write-Host "[INFO] Menggunakan: SQLite lokal (database/project_tz.db)" -ForegroundColor Yellow
+
+# Tampilkan DATABASE_URL yang akan dipakai (sensor password)
+$dbLine = (Get-Content ".env.test" | Where-Object { $_ -match "^DATABASE_URL=" }) -replace ":([^@]+)@", ":***@"
+Write-Host "[INFO] Menggunakan: $dbLine" -ForegroundColor Yellow
 Write-Host ""
 
 # Set environment variable agar aplikasi membaca .env.test

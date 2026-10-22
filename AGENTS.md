@@ -21,7 +21,7 @@ Sesuai instruksi pengguna, **SETIAP KALI** melakukan pembaruan, perubahan logika
 ## 🛡️ PROTEKSI DATABASE PRODUCTION (NEON TECH)
 Database production berada di Neon Tech (lihat `backend/.env`). Aturan keras:
 
-- **Testing WAJIB memakai `.env.test`** yang mengarah ke SQLite lokal (DATABASE_URL kosong).
+- **Testing WAJIB memakai `.env.test`** yang mengarah ke **PostgreSQL lokal** (`localhost:5432/project_tz`), bukan Neon.
 - **Gunakan `backend/scripts/run_tests.ps1`** — skrip ini otomatis:
   1. Memvalidasi `.env.test` tidak mengandung URL Neon production.
   2. Set `ENV_FILE=".env.test"` sebelum menjalankan test.
