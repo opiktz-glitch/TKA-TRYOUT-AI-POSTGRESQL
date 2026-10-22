@@ -1,43 +1,24 @@
 ﻿# ==========================================================
-# run_tests.ps1 - Jalankan unit test dengan .env.test LOKAL
+# run_tests.ps1 - Jalankan unit test backend
 # ==========================================================
-# GUNAKAN SKRIP INI untuk testing, BUKAN langsung python -m unittest!
-# Skrip ini otomatis memakai .env.test sehingga tidak ada data
-# yang masuk ke database production (Neon Tech).
+# Skrip ini menjalankan unit test menggunakan database yang
+# dikonfigurasi di .env (termasuk Neon production jika diset).
+# Test data akan dibersihkan otomatis oleh fixture tearDown.
 #
 # Cara pakai (dari folder backend/):
 #   powershell -ExecutionPolicy Bypass -File scripts/run_tests.ps1
 # ==========================================================
 
-Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host " TKA TRYOUT - TEST RUNNER (LOKAL/SAFE)  " -ForegroundColor Cyan
-Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "=====================================" -ForegroundColor Cyan
+Write-Host " TKA TRYOUT - TEST RUNNER            " -ForegroundColor Cyan
+Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
-
-# Cek apakah .env.test ada
-if (-not (Test-Path ".env.test")) {
-    Write-Host "[ERROR] File .env.test tidak ditemukan!" -ForegroundColor Red
-    Write-Host "Buat .env.test terlebih dahulu (lihat README)."
-    exit 1
-}
-
-# Pastikan .env.test TIDAK mengandung URL Neon production
-$envTestContent = Get-Content ".env.test" -Raw
-if ($envTestContent -match "neon\.tech") {
-    Write-Host "[BAHAYA] .env.test masih mengarah ke Neon production!" -ForegroundColor Red
-    Write-Host "Hapus atau komentari baris DATABASE_URL Neon di .env.test dulu."
-    exit 1
-}
-
-Write-Host "[OK] .env.test aman - tidak terhubung ke Neon production" -ForegroundColor Green
 
 # Tampilkan DATABASE_URL yang akan dipakai (sensor password)
-$dbLine = (Get-Content ".env.test" | Where-Object { $_ -match "^DATABASE_URL=" }) -replace ":([^@]+)@", ":***@"
+$dbLine = (Get-Content ".env" | Where-Object { $_ -match "^DATABASE_URL=" }) -replace ":([^@]+)@", ":***@"
 Write-Host "[INFO] Menggunakan: $dbLine" -ForegroundColor Yellow
+Write-Host "[INFO] Pastikan setiap test membersihkan data-nya sendiri (tearDown)" -ForegroundColor Yellow
 Write-Host ""
-
-# Set environment variable agar aplikasi membaca .env.test
-$env:ENV_FILE = ".env.test"
 
 # Jalankan test
 Write-Host "Menjalankan unit test..." -ForegroundColor Cyan
@@ -50,8 +31,5 @@ if ($exitCode -eq 0) {
 } else {
     Write-Host "[GAGAL] Ada test yang TIDAK LULUS. Perbaiki dulu sebelum push." -ForegroundColor Red
 }
-
-# Reset environment variable
-Remove-Item Env:ENV_FILE -ErrorAction SilentlyContinue
 
 exit $exitCode
