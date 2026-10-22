@@ -404,6 +404,7 @@ def get_teacher_scores(
                 if attempt_result
                 else attempt.unanswered_count
             ),
+            "tab_switches_count": getattr(attempt, "tab_switches_count", 0) or 0,
         })
 
     return result

@@ -1034,14 +1034,17 @@ def delete_tryout(
     )
 
     if attempt:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Tryout tidak dapat dihapus "
-                "karena sudah pernah dikerjakan siswa"
-            )
-        )
+        # Proteksi Riwayat Ujian: Arsipkan (nonaktifkan) tryout alih-alih hard delete
+        # agar seluruh riwayat attempt, jawaban, dan analitik nilai siswa tetap aman
+        tryout.is_active = False
+        db.commit()
+        return {
+            "success": True,
+            "message": (
+                f'Tryout "{tryout.title}" berhasil diarsipkan (dinonaktifkan) '
+                "karena sudah memiliki riwayat pengerjaan siswa. Riwayat nilai siswa tetap aman."
+            ),
+        }
 
     # -----------------------------------------------------
     # Hapus relasi soal

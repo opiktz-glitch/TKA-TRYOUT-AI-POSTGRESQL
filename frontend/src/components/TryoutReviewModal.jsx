@@ -120,7 +120,7 @@ export default function TryoutReviewModal({
                         <span className="review-print-number">
                           {question.question_number}.
                         </span>
-                        <span>{question.question_text}</span>
+                        <span style={{ whiteSpace: "pre-wrap" }}>{question.question_text}</span>
                       </div>
 
                       <div className="review-print-options">
@@ -214,7 +214,7 @@ export default function TryoutReviewModal({
                           <span className="review-print-number">
                             {question.question_number}.
                           </span>
-                          <span>{question.question_text}</span>
+                          <span style={{ whiteSpace: "pre-wrap" }}>{question.question_text}</span>
                         </div>
 
                         <div className="review-answer-correct">

@@ -523,7 +523,7 @@ function StudentHistory() {
                             <span className="review-print-number">
                               {q.question_number}.
                             </span>
-                            <span>{q.question_text}</span>
+                            <span style={{ whiteSpace: "pre-wrap" }}>{q.question_text}</span>
                           </div>
 
                           <div className="review-print-options">
@@ -632,7 +632,7 @@ function StudentHistory() {
                           minHeight: 220,
                         }}
                       >
-                        <p style={{ fontSize: 14, marginBottom: 10 }}>
+                        <p style={{ fontSize: 14, marginBottom: 10, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
                           {q.question_text}
                         </p>
 

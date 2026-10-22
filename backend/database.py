@@ -1,6 +1,17 @@
+from datetime import datetime, timezone
+
 from config import DATABASE_URL
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+
+def utc_now() -> datetime:
+    """
+    Mengembalikan datetime UTC saat ini sebagai naive datetime.
+    Pengganti datetime.utcnow() yang deprecated pada Python 3.12+,
+    menjaga kompatibilitas penuh dengan kolom TIMESTAMP WITHOUT TIME ZONE di DB.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 # =========================================================
 # IS_SQLITE

@@ -1,8 +1,11 @@
+import { useState } from "react";
 import StatCard from "../components/StatCard";
 import ScoreTable from "../components/ScoreTable";
+import ScoreReportModal from "../components/ScoreReportModal";
 import {
   IconBarChart,
   IconCheck,
+  IconPrinter,
   IconSearch,
   IconTarget,
   IconUsers,
@@ -27,6 +30,8 @@ function TeacherScores() {
     resetFilters,
     summary,
   } = useTeacherScores(user);
+
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   return (
     <>
@@ -101,6 +106,28 @@ function TeacherScores() {
               Tryout: {tryoutFilterTitle || "terpilih"} ×
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setReportModalOpen(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#3EB3A8",
+              color: "#ffffff",
+              fontWeight: 600,
+              padding: "7px 14px",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              marginLeft: "auto",
+              fontSize: "13px",
+            }}
+            title="Lihat Pratinjau Rekap PDF dan Ekspor ke Excel / CSV"
+          >
+            <IconPrinter size={15} /> Lihat Rekap PDF & Ekspor
+          </button>
         </div>
 
         {loading && <div className="loading-message">Memuat rekap nilai...</div>}
@@ -119,6 +146,14 @@ function TeacherScores() {
             }
           />
         )}
+
+        <ScoreReportModal
+          isOpen={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          scores={filteredScores}
+          tryoutTitle={tryoutFilterTitle}
+          creatorName={user?.full_name}
+        />
       </div>
     </>
   );

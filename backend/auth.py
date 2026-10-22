@@ -5,6 +5,7 @@ import bcrypt
 import config
 import jwt
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM
+from database import utc_now
 from fastapi import HTTPException
 from models import AppSetting
 from sqlalchemy.orm import Session
@@ -246,7 +247,7 @@ def is_session_active(user) -> bool:
     if not user.active_session_expires_at:
         return False
 
-    return user.active_session_expires_at > datetime.utcnow()
+    return user.active_session_expires_at > utc_now()
 
 
 def start_session(user, expires_delta: timedelta) -> str:
@@ -258,7 +259,7 @@ def start_session(user, expires_delta: timedelta) -> str:
 
     user.active_session_id = session_id
     user.active_session_expires_at = (
-        datetime.utcnow() + expires_delta
+        utc_now() + expires_delta
     )
 
     return session_id

@@ -1,205 +1,209 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState
-} from "react";
-
-import {
-  login as apiLogin,
-  logoutApi,
-  getCurrentUser
-} from "../services/api";
-
-import { clearDashboardCache } from "../services/dashboardCache";
-import { clearPageCache } from "../services/pageCache";
-
-
-const AuthContext = createContext(null);
-
-
-export function AuthProvider({
-  children
-}) {
-
-  const [user, setUser] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-
-  // ==========================================
-  // CEK TOKEN
-  // ==========================================
-
-  useEffect(() => {
-
-    checkLogin();
-
-  }, []);
-
-
-  const checkLogin = async () => {
-    const token = localStorage.getItem("access_token");
-
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const userData = await getCurrentUser();
-      setUser(userData);
-    } catch (error) {
-      console.error(error);
-      localStorage.removeItem("access_token");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  // ==========================================
-  // LOGOUT
-  // (dideklarasikan lebih awal supaya bisa
-  // dipakai oleh listener sesi kedaluwarsa)
-  // ==========================================
-
-  const logout = async () => {
-
-    try {
-      // Best-effort — kalau gagal (mis. sudah offline), tetap
-      // lanjut hapus token lokal di bawah supaya user tidak
-      // "kejebak" tidak bisa logout dari device ini sendiri.
-      await logoutApi();
-    } catch (error) {
-      console.error("Gagal memberi tahu server saat logout:", error);
-    }
-
-    localStorage.removeItem(
-      "access_token"
-    );
-
-    // Data dashboard user ini tidak boleh tertinggal di memori.
-    clearDashboardCache();
-    clearPageCache();
-
-    setUser(null);
-
-  };
-
-
-  // ==========================================
-  // SESI KEDALUWARSA (GLOBAL)
-  //
-  // api.js akan broadcast event ini kapan pun
-  // backend membalas 401 di halaman mana pun.
-  // Begitu user di-set null, ProtectedRoute di
-  // App.jsx otomatis mengarahkan ke /login —
-  // tidak perlu navigate() manual di sini.
-  // ==========================================
-
-  useEffect(() => {
-
-    function handleUnauthorized() {
-      clearDashboardCache();
-      clearPageCache();
-
-      setUser(null);
-    }
-
-    window.addEventListener(
-      "auth:unauthorized",
-      handleUnauthorized
-    );
-
-    return () => {
-      window.removeEventListener(
-        "auth:unauthorized",
-        handleUnauthorized
-      );
-    };
-
-  }, []);
-
-
-  // ==========================================
-  // LOGIN
-  // ==========================================
-
-  const login = async (username, password) => {
-    const data = await apiLogin(username, password);
-
-    if (data.success) {
-      localStorage.setItem("access_token", data.access_token);
-
-      try {
-        const userData = await getCurrentUser();
-        setUser(userData);
-      } catch (error) {
-        console.error("Gagal memuat data user setelah login:", error);
-      }
-
-      return {
-        success: true,
-        message: "benar"
-      };
-    }
-
-    return {
-      success: false,
-      message: data.message
-    };
-  };
-
-
-  // ==========================================
-  // REFRESH USER
-  // Dipakai setelah update profil (mis. dari
-  // halaman Pengaturan) supaya nama di Sidebar
-  // ikut ter-update tanpa perlu login ulang.
-  // ==========================================
-
-  const refreshUser = async () => {
-    try {
-      const userData = await getCurrentUser();
-      setUser(userData);
-    } catch (error) {
-      console.error("Gagal memuat ulang data user:", error);
-    }
-  };
-
-
-  return (
-
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        refreshUser
-      }}
-    >
-
-      {children}
-
-    </AuthContext.Provider>
-
-  );
-
-}
-
-
-// useAuth sengaja tetap satu file dengan AuthProvider (dipakai di 8
-// tempat) supaya tidak perlu ubah banyak import untuk manfaat yang
-// cuma soal Fast Refresh saat development, nol dampak ke production.
-// eslint-disable-next-line react-refresh/only-export-components
-export function useAuth() {
-
-  return useContext(
-    AuthContext
-  );
-
-}
+import toast from "react-hot-toast";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState
+} from "react";
+
+import {
+  login as apiLogin,
+  logoutApi,
+  getCurrentUser
+} from "../services/api";
+
+import { clearDashboardCache } from "../services/dashboardCache";
+import { clearPageCache } from "../services/pageCache";
+
+
+const AuthContext = createContext(null);
+
+
+export function AuthProvider({
+  children
+}) {
+
+  const [user, setUser] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+
+  // ==========================================
+  // CEK TOKEN
+  // ==========================================
+
+  useEffect(() => {
+
+    checkLogin();
+
+  }, []);
+
+
+  const checkLogin = async () => {
+    const token = localStorage.getItem("access_token");
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const userData = await getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error(error);
+      localStorage.removeItem("access_token");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // ==========================================
+  // LOGOUT
+  // (dideklarasikan lebih awal supaya bisa
+  // dipakai oleh listener sesi kedaluwarsa)
+  // ==========================================
+
+  const logout = async () => {
+
+    try {
+      // Best-effort — kalau gagal (mis. sudah offline), tetap
+      // lanjut hapus token lokal di bawah supaya user tidak
+      // "kejebak" tidak bisa logout dari device ini sendiri.
+      await logoutApi();
+    } catch (error) {
+      console.error("Gagal memberi tahu server saat logout:", error);
+    }
+
+    localStorage.removeItem(
+      "access_token"
+    );
+
+    // Data dashboard user ini tidak boleh tertinggal di memori.
+    clearDashboardCache();
+    clearPageCache();
+
+    setUser(null);
+
+  };
+
+
+  // ==========================================
+  // SESI KEDALUWARSA (GLOBAL)
+  //
+  // api.js akan broadcast event ini kapan pun
+  // backend membalas 401 di halaman mana pun.
+  // Begitu user di-set null, ProtectedRoute di
+  // App.jsx otomatis mengarahkan ke /login —
+  // tidak perlu navigate() manual di sini.
+  // ==========================================
+
+  useEffect(() => {
+
+    function handleUnauthorized(e) {
+      clearDashboardCache();
+      clearPageCache();
+
+      setUser(null);
+
+      const msg = e?.detail?.message || "Sesi Anda telah berakhir. Silakan login kembali.";
+      toast.error(msg, { id: "auth-session-expired", duration: 6000 });
+    }
+
+    window.addEventListener(
+      "auth:unauthorized",
+      handleUnauthorized
+    );
+
+    return () => {
+      window.removeEventListener(
+        "auth:unauthorized",
+        handleUnauthorized
+      );
+    };
+
+  }, []);
+
+
+  // ==========================================
+  // LOGIN
+  // ==========================================
+
+  const login = async (username, password) => {
+    const data = await apiLogin(username, password);
+
+    if (data.success) {
+      localStorage.setItem("access_token", data.access_token);
+
+      try {
+        const userData = await getCurrentUser();
+        setUser(userData);
+      } catch (error) {
+        console.error("Gagal memuat data user setelah login:", error);
+      }
+
+      return {
+        success: true,
+        message: "benar"
+      };
+    }
+
+    return {
+      success: false,
+      message: data.message
+    };
+  };
+
+
+  // ==========================================
+  // REFRESH USER
+  // Dipakai setelah update profil (mis. dari
+  // halaman Pengaturan) supaya nama di Sidebar
+  // ikut ter-update tanpa perlu login ulang.
+  // ==========================================
+
+  const refreshUser = async () => {
+    try {
+      const userData = await getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error("Gagal memuat ulang data user:", error);
+    }
+  };
+
+
+  return (
+
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        refreshUser
+      }}
+    >
+
+      {children}
+
+    </AuthContext.Provider>
+
+  );
+
+}
+
+
+// useAuth sengaja tetap satu file dengan AuthProvider (dipakai di 8
+// tempat) supaya tidak perlu ubah banyak import untuk manfaat yang
+// cuma soal Fast Refresh saat development, nol dampak ke production.
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+
+  return useContext(
+    AuthContext
+  );
+
+}

@@ -57,7 +57,7 @@ function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose 
               )}
 
               <div className="review-print-question-text">
-                <span>{question.question_text}</span>
+                <span style={{ whiteSpace: "pre-wrap" }}>{question.question_text}</span>
               </div>
 
               <div className="review-print-options">

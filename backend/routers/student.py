@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from attempt_utils import compute_attempt_numbers
-from database import get_db
+from database import get_db, utc_now
 from dependencies import get_current_user
 from fastapi import APIRouter, Depends, HTTPException
 from models import (
@@ -31,6 +31,9 @@ router = APIRouter(
 class AnswerRequest(BaseModel):
     question_id: int
     selected_option: str | None = None
+
+class SubmitAttemptRequest(BaseModel):
+    tab_switches: int = 0
 
 # ============================================================
 # HELPER
@@ -389,7 +392,7 @@ def finalize_attempt(
 
     attempt.status = "SUBMITTED"
 
-    attempt.finished_at = finished_at or datetime.utcnow()
+    attempt.finished_at = finished_at or utc_now()
 
     attempt.score = round(score, 2)
 
@@ -555,6 +558,8 @@ def finalize_attempt(
         ),
 
         "passed": passed,
+
+        "tab_switches_count": getattr(attempt, "tab_switches_count", 0) or 0,
 
         "completed_at": result.completed_at,
     }
@@ -1207,7 +1212,7 @@ def start_tryout(
     # Buat attempt baru
     # --------------------------------------------------------
 
-    now = datetime.utcnow()
+    now = utc_now()
 
     attempt = Attempt(
         student_id=student.id,
@@ -1356,7 +1361,7 @@ def get_ongoing_attempts(
         .all()
     )
 
-    now = datetime.utcnow()
+    now = utc_now()
 
     result = []
 
@@ -1540,6 +1545,8 @@ def get_attempt_history(
                 if attempt_result
                 else None
             ),
+
+            "tab_switches_count": getattr(attempt, "tab_switches_count", 0) or 0,
         })
 
     return result
@@ -1714,6 +1721,8 @@ def get_attempt_result_detail(
             if attempt_result
             else attempt.unanswered_count
         ),
+
+        "tab_switches_count": getattr(attempt, "tab_switches_count", 0) or 0,
 
         "questions": questions,
     }
@@ -1954,7 +1963,7 @@ def save_answer(
         attempt, tryout_for_deadline
     )
 
-    if datetime.utcnow() > deadline:
+    if utc_now() > deadline:
 
         # Waktu sudah habis: tutup attempt sekarang juga
         # (auto-submit di server) memakai waktu deadline,
@@ -2051,7 +2060,7 @@ def save_answer(
             data.selected_option
         )
 
-        answer.answered_at = datetime.utcnow()
+        answer.answered_at = utc_now()
 
     # --------------------------------------------------------
     # INSERT
@@ -2070,7 +2079,7 @@ def save_answer(
 
             points_earned=0,
 
-            answered_at=datetime.utcnow(),
+            answered_at=utc_now(),
         )
 
         db.add(answer)
@@ -2093,11 +2102,13 @@ def save_answer(
 @router.post("/attempts/{attempt_id}/submit")
 def submit_attempt(
     attempt_id: int,
+    data: SubmitAttemptRequest | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Submit tryout dan melakukan penilaian otomatis.
+    Menerima telemetri anti-cheat (tab_switches) dari frontend.
     """
 
     student = get_student(current_user, db)
@@ -2132,6 +2143,14 @@ def submit_attempt(
         )
 
     # --------------------------------------------------------
+    # Catat telemetri perpindahan tab anti-cheat
+    # --------------------------------------------------------
+
+    if data and data.tab_switches is not None:
+        attempt.tab_switches_count = max(0, int(data.tab_switches))
+        db.flush()
+
+    # --------------------------------------------------------
     # Ambil tryout
     # --------------------------------------------------------
 
@@ -2155,7 +2174,7 @@ def submit_attempt(
 
     deadline = get_attempt_deadline(attempt, tryout)
 
-    now = datetime.utcnow()
+    now = utc_now()
 
     # Kalau submit datang setelah deadline, catat waktu selesai
     # sebagai waktu deadline (bukan waktu request diterima),

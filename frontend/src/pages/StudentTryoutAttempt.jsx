@@ -87,13 +87,16 @@ function StudentTryoutAttempt() {
   // ANTI-CHEAT (FOCUS MODE)
   // =====================================================
 
+  const tabSwitchesRef = useRef(0);
+
   useEffect(() => {
     // Jangan jalankan perlindungan kalau masih loading, udah selesai, atau udah disubmit.
     if (loading || alreadyDone || result) return;
 
     function handleVisibilityChange() {
       if (document.hidden) {
-        toast.error("Peringatan Anti-Kecurangan: Kamu terdeteksi berpindah ke halaman/aplikasi lain!", {
+        tabSwitchesRef.current += 1;
+        toast.error(`Peringatan Anti-Kecurangan: Kamu terdeteksi berpindah ke halaman/aplikasi lain! (Pelanggaran ke-${tabSwitchesRef.current})`, {
           duration: 5000,
           icon: "⚠️",
         });
@@ -318,7 +321,9 @@ function StudentTryoutAttempt() {
       setSubmitting(true);
       setError("");
 
-      const data = await submitStudentAttempt(attemptId);
+      const data = await submitStudentAttempt(attemptId, {
+        tab_switches: tabSwitchesRef.current,
+      });
 
       setResult(data);
     } catch (err) {
@@ -575,16 +580,18 @@ function StudentTryoutAttempt() {
                     </span>
                   </div>
 
-                  <p style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 20 }}>
+                  <p style={{ fontSize: 15, lineHeight: 1.65, marginBottom: 20, whiteSpace: "pre-wrap" }}>
                     {currentQuestion.question_text}
                   </p>
 
                   {currentQuestion.has_image && (
-                    <QuestionImage
-                      questionId={currentQuestion.question_id}
-                      alt={`Gambar soal ${currentQuestion.question_number}`}
-                      className="question-image-attempt"
-                    />
+                    <div style={{ textAlign: "center", marginBottom: 20 }}>
+                      <QuestionImage
+                        questionId={currentQuestion.question_id}
+                        alt={`Gambar soal ${currentQuestion.question_number}`}
+                        className="question-image-attempt"
+                      />
+                    </div>
                   )}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

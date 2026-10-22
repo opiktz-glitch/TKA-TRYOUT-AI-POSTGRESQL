@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from database import Base
+from database import Base, utc_now
 from sqlalchemy import (
     Boolean,
     Column,
@@ -43,7 +43,7 @@ class User(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
     # =========================================================
@@ -121,7 +121,7 @@ class Student(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
 
@@ -159,7 +159,7 @@ class Teacher(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
 
@@ -195,7 +195,7 @@ class Subject(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
 
@@ -272,7 +272,7 @@ class Question(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
     # =====================================================
@@ -447,7 +447,7 @@ class Tryout(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
 
@@ -553,9 +553,15 @@ class Attempt(Base):
         default=0
     )
 
+    tab_switches_count = Column(
+        Integer,
+        default=0,
+        nullable=False
+    )
+
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
     # =====================================================
@@ -767,7 +773,7 @@ class Notification(Base):
 
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=utc_now
     )
 
 
@@ -790,6 +796,6 @@ class AppSetting(Base):
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utc_now,
+        onupdate=utc_now
     )

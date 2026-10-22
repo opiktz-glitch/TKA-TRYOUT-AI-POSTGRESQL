@@ -351,21 +351,56 @@ class BulkDeleteRequest(BaseModel):
     question_ids: list[str]
 
 @router.post("/bulk-delete")
-def bulk_delete_questions(request: BulkDeleteRequest, db: Session = Depends(get_db)):
+def bulk_delete_questions(
+    request: BulkDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN", "GURU")),
+):
     """
-    Menghapus banyak soal sekaligus.
+    Menghapus banyak soal sekaligus dengan proteksi riwayat jawaban siswa.
+    Soal yang belum pernah dipakai akan dihapus permanen.
+    Soal yang sudah memiliki riwayat jawaban/tryout akan diarsipkan (is_active=False).
     """
     deleted_count = 0
+    archived_count = 0
+
     for qid in request.question_ids:
-        q = db.query(Question).filter(Question.id == qid).first()
-        if q:
-            # Hapus option, answer, dsb jika ondelete cascade belum diatur (manual delete fallback)
-            db.query(QuestionOption).filter(QuestionOption.question_id == q.id).delete()
+        try:
+            qid_int = int(qid)
+        except (ValueError, TypeError):
+            continue
+
+        q = db.query(Question).filter(Question.id == qid_int).first()
+        if not q:
+            continue
+
+        # Hak akses: Guru hanya dapat menghapus soal miliknya sendiri
+        if current_user.role == "GURU" and q.created_by != current_user.id:
+            continue
+
+        # Cek apakah soal pernah dijawab siswa atau terkait paket tryout
+        has_answers = db.query(Answer).filter(Answer.question_id == q.id).count() > 0
+        is_in_tryout = db.query(TryoutQuestion).filter(TryoutQuestion.question_id == q.id).count() > 0
+
+        if has_answers or is_in_tryout:
+            # Proteksi Riwayat: Jangan hapus permanen agar tidak merusak foreign key t_answer & t_tryout_question
+            q.is_active = False
+            archived_count += 1
+        else:
+            # Soal orphan / belum pernah terpakai: aman dihapus permanen
+            db.query(QuestionOption).filter(QuestionOption.question_id == q.id).delete(synchronize_session=False)
             db.delete(q)
             deleted_count += 1
-            
+
     db.commit()
-    return {"message": f"{deleted_count} soal berhasil dihapus."}
+
+    msg_parts = []
+    if deleted_count > 0:
+        msg_parts.append(f"{deleted_count} soal berhasil dihapus")
+    if archived_count > 0:
+        msg_parts.append(f"{archived_count} soal dinonaktifkan/diarsipkan demi integritas data riwayat nilai")
+
+    return {"message": ", ".join(msg_parts) or "Tidak ada soal yang diproses."}
 
 
 

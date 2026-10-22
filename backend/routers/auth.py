@@ -9,7 +9,7 @@ from auth import (
     verify_password,
 )
 from config import ACCESS_TOKEN_EXPIRE_MINUTES
-from database import get_db
+from database import get_db, utc_now
 from dependencies import get_current_user
 from fastapi import APIRouter, Depends, HTTPException
 from models import User
@@ -45,7 +45,7 @@ _failed_attempts: dict[str, list[datetime]] = {}
 
 
 def _get_recent_failures(key: str) -> list[datetime]:
-    cutoff = datetime.utcnow() - timedelta(minutes=LOCKOUT_MINUTES)
+    cutoff = utc_now() - timedelta(minutes=LOCKOUT_MINUTES)
     attempts = _failed_attempts.get(key, [])
     attempts = [t for t in attempts if t > cutoff]
 
@@ -68,7 +68,7 @@ def _get_recent_failures(key: str) -> list[datetime]:
 
 
 def _register_failure(key: str):
-    _failed_attempts.setdefault(key, []).append(datetime.utcnow())
+    _failed_attempts.setdefault(key, []).append(utc_now())
 
 
 def _reset_failures(key: str):

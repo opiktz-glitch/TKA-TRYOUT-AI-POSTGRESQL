@@ -54,6 +54,63 @@ Base.metadata.create_all(bind=engine)
 
 
 # ==========================================
+# AUTO MIGRASI KOLOM (ALTER TABLE ON STARTUP)
+#
+# Base.metadata.create_all() HANYA membuat tabel yang belum ada,
+# tidak pernah menambah kolom baru ke tabel yang sudah ada. Jika
+# pengguna menghubungkan database lama/remote (mis. Neon) yang dibuat
+# sebelum fitur baru ditambahkan, fungsi ini secara otomatis mendeteksi
+# dan menambahkan kolom yang belum ada agar tidak memicu 500 error.
+# ==========================================
+
+def _auto_migrate_columns_on_startup() -> None:
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        is_sqlite = engine.dialect.name == "sqlite"
+
+        with engine.begin() as conn:
+            # 1. t_attempt -> tab_switches_count
+            if "t_attempt" in tables:
+                attempt_cols = {c["name"] for c in inspector.get_columns("t_attempt")}
+                if "tab_switches_count" not in attempt_cols:
+                    logging.getLogger(__name__).info("Menambahkan kolom tab_switches_count ke t_attempt...")
+                    conn.execute(text("ALTER TABLE t_attempt ADD COLUMN tab_switches_count INTEGER NOT NULL DEFAULT 0"))
+
+            # 2. t_user -> active_session_id & active_session_expires_at
+            if "t_user" in tables:
+                user_cols = {c["name"] for c in inspector.get_columns("t_user")}
+                if "active_session_id" not in user_cols:
+                    logging.getLogger(__name__).info("Menambahkan kolom active_session_id ke t_user...")
+                    conn.execute(text("ALTER TABLE t_user ADD COLUMN active_session_id VARCHAR"))
+                if "active_session_expires_at" not in user_cols:
+                    logging.getLogger(__name__).info("Menambahkan kolom active_session_expires_at ke t_user...")
+                    conn.execute(text("ALTER TABLE t_user ADD COLUMN active_session_expires_at TIMESTAMP"))
+
+            # 3. t_question -> image_data, image_mime_type, question_type, labels
+            if "t_question" in tables:
+                q_cols = {c["name"] for c in inspector.get_columns("t_question")}
+                if "image_data" not in q_cols:
+                    byte_type = "BLOB" if is_sqlite else "BYTEA"
+                    conn.execute(text(f"ALTER TABLE t_question ADD COLUMN image_data {byte_type}"))
+                if "image_mime_type" not in q_cols:
+                    conn.execute(text("ALTER TABLE t_question ADD COLUMN image_mime_type VARCHAR(50)"))
+                if "question_type" not in q_cols:
+                    conn.execute(text("ALTER TABLE t_question ADD COLUMN question_type VARCHAR(50) DEFAULT 'MULTIPLE_CHOICE'"))
+                if "true_label" not in q_cols:
+                    conn.execute(text("ALTER TABLE t_question ADD COLUMN true_label VARCHAR(50) DEFAULT 'Benar'"))
+                if "false_label" not in q_cols:
+                    conn.execute(text("ALTER TABLE t_question ADD COLUMN false_label VARCHAR(50) DEFAULT 'Salah'"))
+
+    except Exception as e:
+        logging.getLogger(__name__).warning("Peringatan saat auto-migrasi kolom startup: %s", e)
+
+
+_auto_migrate_columns_on_startup()
+
+
+# ==========================================
 # BOOTSTRAP SECRET_KEY (SEKALI SAAT STARTUP)
 #
 # Memastikan SECRET_KEY sudah tersimpan di tabel t_app_setting

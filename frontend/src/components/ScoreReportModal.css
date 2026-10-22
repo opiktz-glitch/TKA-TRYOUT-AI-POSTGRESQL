@@ -1,0 +1,323 @@
+/* =====================================================
+   SCORE REPORT MODAL (VIEW PDF & EXPORT)
+   ===================================================== */
+
+.score-report-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 24px 16px;
+}
+
+.score-report-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 980px;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.score-report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #1B2A3D;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-report-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.score-report-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.report-btn-print {
+  background: #3EB3A8;
+  color: #ffffff;
+}
+
+.report-btn-print:hover {
+  background: #338F86;
+}
+
+.report-btn-excel {
+  background: #107C41;
+  color: #ffffff;
+}
+
+.report-btn-excel:hover {
+  background: #0D6535;
+}
+
+.report-btn-csv {
+  background: #2563EB;
+  color: #ffffff;
+}
+
+.report-btn-csv:hover {
+  background: #1D4ED8;
+}
+
+.report-btn-close {
+  background: transparent;
+  color: #94A3B8;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 12px;
+}
+
+.report-btn-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* =====================================================
+   PRINTABLE PAPER SHEET (A4 PREVIEW STYLE)
+   ===================================================== */
+
+.score-paper-sheet {
+  padding: 36px 40px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.4;
+}
+
+.paper-letterhead {
+  border-bottom: 2px solid #1B2A3D;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.paper-letterhead h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: 0.5px;
+  color: #1B2A3D;
+}
+
+.paper-letterhead .paper-subtitle {
+  font-size: 13px;
+  color: #4B5563;
+  margin: 0;
+}
+
+.paper-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 24px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.paper-meta-item {
+  display: flex;
+}
+
+.paper-meta-label {
+  width: 140px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.paper-meta-val {
+  color: #1E293B;
+  font-weight: 600;
+  flex: 1;
+}
+
+/* KPI Summary Cards */
+.paper-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.paper-stat-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.paper-stat-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #64748B;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.paper-stat-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1B2A3D;
+}
+
+.paper-stat-sub {
+  font-size: 11px;
+  color: #475569;
+  margin-top: 2px;
+}
+
+/* Document Table */
+.paper-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 30px;
+}
+
+.paper-table th {
+  background: #F1F5F9;
+  color: #1E293B;
+  font-weight: 700;
+  border: 1px solid #CBD5E1;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.paper-table td {
+  border: 1px solid #E2E8F0;
+  padding: 7px 8px;
+  vertical-align: middle;
+}
+
+.paper-table tr:nth-child(even) {
+  background: #F8FAFC;
+}
+
+.paper-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.paper-badge-pass {
+  background: #DCFCE7;
+  color: #15803D;
+}
+
+.paper-badge-fail {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
+.paper-badge-cheat {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.paper-badge-clean {
+  color: #15803D;
+  font-weight: 500;
+}
+
+/* Signature section */
+.paper-signature-grid {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding: 0 20px;
+  font-size: 13px;
+}
+
+.paper-sig-box {
+  width: 220px;
+  text-align: center;
+}
+
+.paper-sig-line {
+  margin-top: 60px;
+  border-top: 1px solid #1E293B;
+  font-weight: 600;
+  padding-top: 4px;
+}
+
+/* =====================================================
+   PRINT MEDIA RULES — HANYA CETAK LEMBAR KERTAS
+   ===================================================== */
+
+@media print {
+  /* Sembunyikan semua elemen di luar modal */
+  body * {
+    visibility: hidden;
+  }
+
+  .score-paper-sheet,
+  .score-paper-sheet * {
+    visibility: visible;
+  }
+
+  .score-report-overlay {
+    position: static !important;
+    background: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .score-report-modal {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .score-report-header {
+    display: none !important;
+  }
+
+  .score-paper-sheet {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

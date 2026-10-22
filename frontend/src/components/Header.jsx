@@ -157,6 +157,11 @@ function Header() {
   );
 
   async function loadNotifications() {
+    // Jangan fetch jika tab sedang tidak aktif/tersembunyi
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+      return;
+    }
+
     try {
       const data = await getNotifications();
       setNotifications(data);
@@ -166,18 +171,51 @@ function Header() {
   }
 
   useEffect(() => {
-
     if (!user) {
       return;
     }
 
-    loadNotifications();
+    // Panggilan awal jika tab aktif
+    if (document.visibilityState === "visible") {
+      loadNotifications();
+    }
 
-    const intervalId = setInterval(loadNotifications, 30000);
+    let intervalId = null;
 
-    return () => clearInterval(intervalId);
+    function startPolling() {
+      if (!intervalId) {
+        intervalId = setInterval(loadNotifications, 30000);
+      }
+    }
 
-     
+    function stopPolling() {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        // Tab aktif kembali: muat notifikasi seketika dan jalankan interval
+        loadNotifications();
+        startPolling();
+      } else {
+        // Tab diminimalkan / pindah jendela: jeda polling
+        stopPolling();
+      }
+    }
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [user?.id]);
 
   async function handleNotificationClick(notification) {

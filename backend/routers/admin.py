@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from database import IS_SQLITE, get_db
+from database import IS_SQLITE, get_db, utc_now
 from dependencies import require_role
 from fastapi import APIRouter, Depends
 from models import (
@@ -29,13 +29,21 @@ router = APIRouter(
 def admin_dashboard(
     current_user: User = Depends(
         require_role("ADMIN")
-    )
+    ),
+    db: Session = Depends(get_db),
 ):
-
 
     # --------------------------------------------------------
     # Top Siswa & Paket Tryout Populer
     # --------------------------------------------------------
+    completed_attempts = (
+        db.query(Attempt)
+        .filter(Attempt.status.in_(["SUBMITTED", "FINISHED"]))
+        .all()
+    )
+    tryout_map = {t.id: t for t in db.query(Tryout).all()}
+    results_by_attempt = {r.attempt_id: r for r in db.query(Result).all()}
+    users_by_id = {u.id: u for u in db.query(User).all()}
 
     popular_tryouts = []
     tryout_attempt_counts = defaultdict(int)
@@ -566,7 +574,7 @@ def get_admin_live_summary(
     current_user: User = Depends(require_role("ADMIN")),
 ):
 
-    now_utc = datetime.utcnow()
+    now_utc = utc_now()
 
     in_progress_rows = (
         db.query(
@@ -762,7 +770,7 @@ def get_admin_report_overview(
     # Tren jumlah attempt (14 hari terakhir)
     # --------------------------------------------------------
 
-    cutoff = datetime.utcnow() - timedelta(days=TREND_DAYS - 1)
+    cutoff = utc_now() - timedelta(days=TREND_DAYS - 1)
 
     counts_by_date = defaultdict(int)
 
@@ -782,7 +790,7 @@ def get_admin_report_overview(
 
     for i in range(TREND_DAYS - 1, -1, -1):
 
-        day = (datetime.utcnow() - timedelta(days=i)).date().isoformat()
+        day = (utc_now() - timedelta(days=i)).date().isoformat()
 
         attempts_trend.append({
             "date": day,
