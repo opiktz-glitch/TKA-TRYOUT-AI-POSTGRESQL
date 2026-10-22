@@ -255,11 +255,23 @@ Berdasarkan hasil eksekusi suite verifikasi pasca update, seluruh halaman terver
 1. **Pengujian Frontend**:
    - Menjalankan `npm run build` di direktori `frontend/` untuk memastikan tidak ada kesalahan kompilasi, kesalahan sintaks JSX, maupun pelanggaran *Rules of Hooks*.
    - Memastikan tidak ada *broken imports* atau *runtime asset missing*.
+
 2. **Pengujian Backend & Database**:
-   - Menjalankan pengujian endpoint dan logika bisnis terkait menggunakan `backend\venv\Scripts\python -m unittest tests/<file_test>.py`.
-   - Untuk setiap penambahan kolom baru di model SQLAlchemy, wajib mendaftarkan skrip penanganan di `_auto_migrate_columns_on_startup()` pada [`backend/main.py`](file:///c:/Projects/TKA-TryOut-AI-Postgresql/backend/main.py) guna mencegah kesalahan *UndefinedColumn* saat beralih database (SQLite / PostgreSQL / Neon).
-3. **Verifikasi Output**:
+   - Menjalankan pengujian endpoint dan logika bisnis terkait **WAJIB menggunakan skrip aman**:
+     ```powershell
+     powershell -ExecutionPolicy Bypass -File backend/scripts/run_tests.ps1
+     ```
+   - Skrip ini otomatis menampilkan database yang dipakai dan menjalankan seluruh test suite.
+   - Untuk setiap penambahan kolom baru di model SQLAlchemy, wajib mendaftarkan skrip penanganan di `_auto_migrate_columns_on_startup()` pada [`backend/main.py`](file:///c:/Projects/TKA-TryOut-AI-Postgresql/backend/main.py) guna mencegah kesalahan *UndefinedColumn* saat beralih database.
+
+3. **Kebijakan Data Test di Database Production (Neon Tech)**:
+   - Database yang dipakai adalah **Neon Tech production** (konfigurasi di `backend/.env`).
+   - Testing **boleh berjalan di Neon production**, dengan syarat mutlak:
+     - **Setiap unit test WAJIB membersihkan data-nya sendiri** via `tearDown()` atau `addCleanup()`.
+     - Gunakan prefix/marker pada data test (misal: username `test_`, nama `[TEST]`) agar mudah diidentifikasi jika cleanup gagal.
+     - Jangan biarkan data test tertinggal di tabel production setelah test selesai.
+   - Fitur `ENV_FILE` di [`backend/config.py`](file:///c:/Projects/TKA-TryOut-AI-Postgresql/backend/config.py) mendukung pembacaan file env alternatif (misal `.env.test`) jika di masa mendatang diperlukan environment terpisah.
+
+4. **Verifikasi Output**:
    - Seluruh bukti hasil eksekusi tes (`OK` / `Exit code 0`) wajib dilaporkan secara transparan kepada pengguna.
-
-
 
