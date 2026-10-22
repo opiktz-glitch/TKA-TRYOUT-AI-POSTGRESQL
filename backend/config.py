@@ -3,7 +3,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Dukung ENV_FILE custom — dipakai terutama saat testing supaya
+# tidak menyentuh database production (Neon Tech).
+# Contoh: $env:ENV_FILE=".env.test"; python -m unittest discover .
+# Kalau ENV_FILE tidak di-set, fallback ke .env seperti biasa.
+_env_file = os.environ.get("ENV_FILE", ".env")
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / _env_file, override=True)
 
 
 # ==========================================
