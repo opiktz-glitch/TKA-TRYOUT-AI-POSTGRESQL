@@ -2,17 +2,19 @@
 
 Semua perubahan penting pada proyek **TKA-AI (TKA Tryout)** didokumentasikan di dalam file ini.
 
+> Catatan: entri di bawah adalah catatan historis pada saat perubahan dibuat, bukan panduan operasional terkini. Untuk kondisi saat ini, lihat `README.md`, `ARCHITECTURE.md`, dan `AGENTS.md`. Khususnya, runner tes backend saat ini belum mengisolasi database tes; jangan gunakan terhadap database production.
+
 ---
 
 ## [v03.1] - 2026-10-22 (Fitur Zoom Gambar Soal, Proteksi Database & Kebijakan Testing)
 
 ### Ditambahkan
 - **Lightbox Zoom Gambar Soal saat Ujian**: Tombol `🔍 Perbesar` muncul di bawah gambar soal saat ujian berlangsung. Klik gambar atau tombol untuk membuka modal zoom fullscreen dengan kontrol `+` / `-` / `100%` dan tutup via tombol `×` atau tekan `ESC`. Blur backdrop dark glassmorphism.
-- **Skrip Test Runner Aman (`run_tests.ps1`)**: Script `backend/scripts/run_tests.ps1` untuk menjalankan unit test — menampilkan database yang dipakai (sensor password), menjalankan seluruh test suite, dan melaporkan status SUKSES/GAGAL.
-- **Dukungan ENV_FILE di config.py**: `backend/config.py` kini mendukung environment variable `ENV_FILE` untuk memilih file `.env` alternatif tanpa mengubah kode (berguna jika suatu saat ingin memisahkan environment testing).
+- **Skrip Test Runner (`run_tests.ps1`)**: Script `backend/scripts/run_tests.ps1` untuk menjalankan unit test, menampilkan konfigurasi database dengan sensor sederhana, dan melaporkan status SUKSES/GAGAL. Runner yang ada saat ini membaca `.env`; skrip ini tidak mengisolasi atau memvalidasi database tes, sehingga tidak boleh dianggap aman untuk production.
+- **Dukungan ENV_FILE di config.py**: `backend/config.py` mendukung environment variable `ENV_FILE` untuk memilih file `.env` alternatif. Runner tes tidak otomatis mengatur variabel ini.
 
 ### Diubah
-- **Kebijakan Testing (AGENTS.md & mandatory_testing.md)**: Testing menggunakan database Neon Tech production (sesuai `.env`) — **diperbolehkan**, dengan syarat setiap unit test wajib membersihkan data-nya sendiri via `tearDown()`. Tidak lagi ada pemisahan ke SQLite/PostgreSQL lokal.
+- **Catatan kebijakan historis**: Pada saat entri ini ditulis, dokumen lama mengizinkan tes pada database production dengan cleanup. Kebijakan tersebut tidak aman dan sudah tidak berlaku; gunakan database tes terisolasi dan jangan arahkan tes ke production.
 - **Tampilan Teks Soal (`white-space: pre-wrap`)**: Teks soal di halaman pengerjaan CBT, riwayat ujian, dan modal pratinjau kini mengikuti *line break* asli naskah soal (tidak kolaps menjadi satu paragraf padat).
 
 ### Diperbaiki
@@ -20,11 +22,11 @@ Semua perubahan penting pada proyek **TKA-AI (TKA Tryout)** didokumentasikan di 
 
 ---
 
-## [v03] - 2026-10-21 (Versi Terkini: PostgreSQL Concurrency & Optimasi Ujian)
+## [v03] - 2026-10-21 (PostgreSQL, Concurrency & Optimasi Ujian)
 
 
 ### Ditambahkan
-- **Dukungan PostgreSQL Penuh**: Backend mendukung PostgreSQL secara *native* dengan fitur *pool pre-ping* dan *pool recycle* (menghindari timeout koneksi pool di penyedia cloud/Neon Tech/Docker).
+- **Dukungan PostgreSQL**: Backend mendukung PostgreSQL melalui SQLAlchemy dan mengaktifkan `pool_pre_ping` untuk memeriksa koneksi yang diambil dari pool. Kode engine saat ini tidak mengatur `pool_recycle`.
 - **Proteksi Concurrency Ujian**: Menambahkan index unik parsial (`uq_attempt_active_per_student_tryout` pada `t_attempt(student_id, tryout_id)` dengan status `IN_PROGRESS`) untuk mencegah dua attempt aktif bersamaan akibat klik ganda atau multi-tab.
 - **Scanner Soal Duplikat**: Fitur pendeteksi soal ganda/mirip (`GET /api/questions/find-duplicates`) dengan perbandingan teks soal dan pilihan jawaban serta tombol bulk delete.
 - **Suite Pengujian Otomatis Pasca Update**: Tool verifikasi `scripts/run_post_update_checks.py` yang menguji integritas 13 tabel database, 25 endpoint API, dan seluruh 20 halaman frontend.

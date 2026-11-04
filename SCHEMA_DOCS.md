@@ -1,74 +1,77 @@
-# TKA-AI Database Schema Documentation
+# Dokumentasi Skema Database
 
-Proyek TKA-AI menggunakan SQLAlchemy (ORM) untuk berinteraksi dengan database (baik SQLite maupun PostgreSQL). Terdapat **13 tabel utama** yang saling berelasi untuk mendukung jalannya platform *tryout* ini. 
+Backend memakai SQLAlchemy dan mendukung SQLite serta PostgreSQL. Model aplikasi berada di `backend/models.py`; file ini menjelaskan fungsi tabel secara konseptual dan bukan pengganti definisi model atau skrip migrasi.
 
-Berikut adalah dokumentasi mengenai fungsi dari masing-masing tabel:
+Saat ini model mendefinisikan **13 tabel**:
 
-## 👤 1. Autentikasi dan Aktor (Users & Roles)
+`t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, dan `t_app_setting`.
+
+## Pengguna dan profil
 
 ### `t_user`
-Tabel inti autentikasi. Menyimpan data *login* untuk semua role (ADMIN, GURU, SISWA).
-- Menyimpan kredensial (`username`, `password_hash`).
-- Menyimpan data sesi aktif (`active_session_id`, `active_session_expires_at`) untuk menegakkan aturan *single-session* (mencegah joki atau bagi-bagi akun).
+
+Akun autentikasi dan role (`ADMIN`, `GURU`, atau `SISWA`), status akun, serta data sesi aktif yang digunakan untuk membatasi satu sesi aktif per akun.
 
 ### `t_student`
-Tabel profil untuk pengguna dengan role SISWA.
-- Berelasi `1:1` dengan `t_user`.
-- Menyimpan detail akademik seperti `student_code` (NIS/NISN), `school_name`, `grade` (kelas), dan `class_name` (nama rombel).
+
+Profil akademik siswa yang terhubung dengan akun pengguna.
 
 ### `t_teacher`
-Tabel profil untuk pengguna dengan role GURU.
-- Berelasi `1:1` dengan `t_user`.
-- Menyimpan detail guru seperti `teacher_code` (NIP) dan `school_name`.
 
-## 📚 2. Manajemen Mata Pelajaran & Bank Soal
+Profil guru yang terhubung dengan akun pengguna.
+
+## Mata pelajaran dan bank soal
 
 ### `t_subject`
-Menyimpan daftar mata pelajaran (misal: Matematika, Bahasa Inggris).
-- Tabel referensi untuk pengelompokkan soal dan *tryout*.
+
+Data mata pelajaran yang dapat dikaitkan dengan soal dan paket tryout.
 
 ### `t_question`
-Bank soal pusat. Satu mata pelajaran bisa memiliki ratusan/ribuan soal yang kelak bisa dipilih untuk dirakit menjadi *tryout*.
-- Menyimpan teks soal, tingkat kesulitan, serta opsi gambar (`image_data` dalam format WebP).
-- Berelasi `1:N` dengan opsi jawaban (`t_question_option`).
+
+Bank soal, termasuk jenis soal, teks, penjelasan, label untuk soal Benar/Salah, dan data gambar bila tersedia. Jenis yang digunakan aplikasi mencakup `MULTIPLE_CHOICE`, `MULTIPLE_RESPONSE` (PGK-MCMA), dan `TRUE_FALSE`.
 
 ### `t_question_option`
-Menyimpan opsi jawaban (A, B, C, D) untuk tipe soal pilihan ganda.
-- Terdapat flag `is_correct` untuk menandai kunci jawaban yang benar.
 
-## 📝 3. Manajemen Ujian (Tryout)
+Pilihan/pernyataan dan penanda kunci jawaban yang terkait dengan soal. Interpretasinya mengikuti jenis soal; MCMA dapat memiliki lebih dari satu pilihan benar.
+
+## Tryout dan hasil pengerjaan
 
 ### `t_tryout`
-Mendefinisikan "paket ujian".
-- Menyimpan durasi ujian (`duration_minutes`), total soal, nilai maksimum, dan keterangan/label paket (`difficulty`).
-- Dibuat oleh pengguna spesifik (biasanya role GURU).
+
+Konfigurasi paket ujian, seperti mata pelajaran, durasi, jadwal/status, pembuat, serta bobot penilaian berdasarkan jenis soal.
 
 ### `t_tryout_question`
-Tabel *mapping* (relasi N:M) antara paket *tryout* (`t_tryout`) dan bank soal (`t_question`).
-- Menyimpan urutan soal (`question_number`) dan bobot poin (`points`) khusus untuk paket tersebut. 
 
-## ⏳ 4. Pengerjaan Ujian (Attempt & Answers)
+Relasi antara paket tryout dan soal yang dipilih, termasuk urutan dan poin yang berlaku dalam paket tersebut.
 
 ### `t_attempt`
-Mencatat sesi pengerjaan (ketika siswa menekan "Mulai Ujian").
-- Menyimpan waktu mulai (`started_at`) yang krusial untuk **validasi batas waktu di sisi server**.
-- Menyimpan status pengerjaan (`IN_PROGRESS`, `SUBMITTED`).
-- Memiliki proteksi *Unique Index* agar tidak ada 2 percobaan ujian yang berstatus `IN_PROGRESS` secara bersamaan untuk siswa dan ujian yang sama (mencegah eksploitasi tab ganda).
+
+Satu sesi pengerjaan siswa. Mencatat status dan waktu yang dipakai backend untuk memvalidasi batas durasi. `tab_switches_count` menyimpan jumlah perpindahan tab/jendela yang tercatat selama attempt. Partial unique index `uq_attempt_active_per_student_tryout` mencegah lebih dari satu attempt `IN_PROGRESS` untuk pasangan siswa dan tryout yang sama.
 
 ### `t_answer`
-Mencatat jawaban siswa per soal untuk satu *attempt* tertentu.
-- Menyimpan `selected_option` (opsi yang dipilih) dan status kebenarannya (`is_correct`).
+
+Jawaban siswa untuk soal dalam attempt, termasuk pilihan yang dikirim dan informasi penilaian terkait.
 
 ### `t_result`
-Menyimpan rekapitulasi akhir atau nilai akhir siswa setelah menyelesaikan suatu *attempt*.
-- Mengkalkulasi `score`, persentase, dan statistik benar/salah/kosong.
 
-## 🔔 5. Sistem & Notifikasi
+Hasil/rekap penilaian untuk attempt yang telah diselesaikan.
+
+## Notifikasi dan pengaturan aplikasi
 
 ### `t_notification`
-Tabel notifikasi *in-app*.
-- Digunakan untuk memberi tahu Guru jika ada siswanya yang baru saja menyelesaikan *tryout*, atau memberi info umum kepada siswa/admin.
+
+Notifikasi dalam aplikasi yang ditujukan ke akun pengguna.
 
 ### `t_app_setting`
-Tabel *key-value* untuk menyimpan pengaturan dinamis aplikasi tanpa perlu menyentuh file konfigurasi (`.env`).
-- Sangat berguna untuk menyimpan preferensi AI (seperti mengaktifkan model Gemini atau Ollama) dan menyimpan kredensial API secara terenkripsi di dalam database.
+
+Penyimpanan konfigurasi aplikasi berbentuk key-value, termasuk pemilihan/provider AI. Nilai sensitif provider dienkripsi oleh lapisan aplikasi; tabel ini tidak menjadikan API key sebagai konfigurasi aman bila `SECRET_KEY` atau database ikut terekspos.
+
+## Integritas dan migrasi
+
+- Relasi, kolom, tipe data, nilai default, dan indeks lengkap ditentukan di `backend/models.py`.
+- `Base.metadata.create_all()` membuat tabel yang belum ada, tetapi tidak menambahkan kolom baru ke tabel yang sudah ada.
+- `backend/main.py` menjalankan penambahan beberapa kolom tertentu saat startup. Ini bukan migrasi umum dan tidak menggantikan pemeriksaan skema.
+- SQL migration files berada di `migrations/` (`v01` sampai `v04`). `scripts/run_migrations.py` saat ini hanya mendukung sampai `v03`; `v04_anti_cheat_telemetry.sql` ada terpisah. Untuk skema lama, verifikasi kolom/index yang dibutuhkan dan prosedur migrasi sebelum menjalankan aplikasi.
+- Jangan menerapkan perubahan skema langsung ke database production tanpa backup, rencana pemulihan, dan verifikasi kompatibilitas dialect SQLite/PostgreSQL.
+
+Lihat juga [ERD.mermaid](ERD.mermaid) untuk diagram relasi dan [ARCHITECTURE.md](ARCHITECTURE.md) untuk alur sistem.

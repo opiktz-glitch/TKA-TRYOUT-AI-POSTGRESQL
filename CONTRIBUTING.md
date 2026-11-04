@@ -1,37 +1,47 @@
-# Panduan Berkontribusi (Contributing Guide)
+# Panduan Kontribusi
 
-Terima kasih atas minat Anda untuk berkontribusi pada **TKA-AI (TKA Tryout)**! 
+Terima kasih telah berkontribusi pada TKA TryOut AI. Panduan ini melengkapi instruksi di `AGENTS.md`; jika ada perbedaan, periksa konfigurasi dan skrip yang benar-benar tersedia di repository.
 
-Proyek ini bertujuan untuk menyediakan platform *tryout* yang cerdas, aman, dan mudah di-deploy ke berbagai skenario (lokal dengan SQLite, maupun *cloud* dengan PostgreSQL). 
+## Pola implementasi
 
-Berikut adalah panduan standar bagi setiap developer yang ingin menyumbang kode pada repositori ini.
+- Ikuti pembagian backend FastAPI per router/domain dan frontend React per halaman, hook, komponen, serta service.
+- Validasi input backend dengan schema Pydantic. Untuk SQL, gunakan ORM atau parameter binding; jangan membangun query dari input pengguna.
+- Letakkan konfigurasi backend baru di `backend/config.py` dan dokumentasikan variabel environment tanpa nilai rahasia.
+- Perubahan otorisasi harus diperiksa di backend. Pembatasan route di frontend bukan pengganti pemeriksaan server.
+- Perubahan skema perlu migration yang sesuai untuk SQLite/PostgreSQL. `create_all()` hanya membuat tabel yang belum ada dan migrasi startup hanya menangani kolom tertentu.
 
-## 🛠️ Standar Kode (Code Style)
+## Frontend
 
-1. **Python (Backend)**
-   - Backend menggunakan arsitektur modular FastAPI. Kami mewajibkan penggunaan *type hints* agar mempermudah pemahaman kode (contoh: `def get_user(db: Session, user_id: int) -> User:`).
-   - Pastikan variabel lingkungan (env var) baru didaftarkan juga di `config.py`.
-   - Linter: Kami menggunakan **Ruff** untuk analisa dan standarisasi *style* kode (terdapat `.ruff_cache` di repositori). Pastikan untuk menjalankan ruff sebelum melakukan *commit*.
-   - Keamanan: Jika menambahkan fitur yang mengambil parameter dari *user input*, selalu manfaatkan model **Pydantic** (`schemas.py`) untuk validasi, dan **JANGAN PERNAH** melakukan eksekusi SQL mentah secara *inline* tanpa proteksi ORM/parameter binding.
+Gunakan functional components dan React hooks dengan mengikuti Rules of Hooks. Pemanggilan API sebaiknya memakai wrapper/service yang sudah ada, terutama `frontend/src/services/api.js`, agar autentikasi dan penanganan error konsisten.
 
-2. **React (Frontend)**
-   - Gunakan komponen berbasis *Functional Components* (Hooks) standar React 19.
-   - Hindari logika *fetching* API yang tercerai-berai; satukan integrasinya ke dalam abstraksi service API (misal di folder `src/services/`).
+Setelah mengubah frontend, jalankan dari folder `frontend`:
 
-## 🌿 Aturan Git & Branching
+```powershell
+npm run build
+```
 
-1. Jaga agar branch `main` tetap stabil. Lakukan pekerjaan Anda di branch fitur.
-2. Format penamaan *branch*: 
-   - `feature/nama-fitur` (contoh: `feature/export-nilai-pdf`)
-   - `fix/nama-bug` (contoh: `fix/timer-tryout`)
-   - `docs/pembaruan` (contoh: `docs/api-postman`)
-3. Tulis pesan komit (commit message) yang deskriptif dan menjelaskan apa (dan mengapa) sesuatu diubah, bukan sekadar "update code".
+Script `npm run lint` juga tersedia untuk Oxlint bila perubahan memerlukannya.
 
-## 🗄️ Database Migrations
+## Backend dan database
 
-Karena model dan struktur *database* ditangani oleh SQLAlchemy (baik untuk SQLite maupun PostgreSQL):
-- Jika Anda menambahkan kolom baru di tabel yang ada di `models.py`, dokumentasikan langkah penambahan skemanya (karena metode `Base.metadata.create_all()` tidak memodifikasi *field* yang sudah ada sebelumnya).
-- Usahakan sediakan *script utility* perbaikan mandiri (seperti `check_legacy_option_e.py`) bila ada *breaking change* atau struktur *database* yang drastis berubah pada fitur Anda.
+Backend memakai konfigurasi `backend/.env` secara default; `backend/config.py` menerima `ENV_FILE` untuk memilih file konfigurasi lain.
 
----
-*Happy Coding!* 🚀
+**Jangan jalankan tes backend terhadap database production.** `backend/scripts/run_tests.ps1` saat ini membaca `.env` dan belum memilih atau memvalidasi konfigurasi database tes. Runner ini tidak boleh dianggap aman hanya karena tes memiliki cleanup. `scripts/run_post_update_checks.py` juga memuat tes backend, sehingga sebelum menjalankannya pastikan database yang dipakai terisolasi dan aman untuk ditulis.
+
+Jalankan tes hanya jika konfigurasi tes menunjuk ke database tes terisolasi dan runner secara eksplisit menggunakan serta memvalidasi konfigurasi tersebut. Jika prasyarat itu belum terpenuhi, jangan jalankan tes yang dapat menulis ke database; laporkan keterbatasannya.
+
+Sebelum migrasi skema:
+
+1. Periksa dialect dan struktur database yang didukung oleh SQL migration.
+2. Buat backup yang sesuai untuk database target.
+3. Pastikan migrasi serta rollback/pemulihan terdokumentasi.
+4. Verifikasi kolom dan indeks pada database uji sebelum deployment.
+
+Perhatikan bahwa migration files tersedia sampai `v04`, tetapi `scripts/run_migrations.py` saat ini hanya mengimplementasikan sampai `v03`.
+
+## Kontribusi Git
+
+- Buat perubahan dalam branch kerja yang sesuai dan jaga agar diff tetap fokus.
+- Gunakan pesan commit deskriptif yang menjelaskan perubahan.
+- Jangan memasukkan `.env`, kredensial, file database, backup, atau artefak build.
+- Perbarui dokumentasi terkait jika perilaku, konfigurasi, atau prosedur operasional berubah.

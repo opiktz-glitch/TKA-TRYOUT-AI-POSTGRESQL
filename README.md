@@ -1,194 +1,75 @@
 # TKA-AI (TKA Tryout)
 
-Platform ujian/tryout online berbasis sekolah dengan dukungan tiga peran pengguna (Admin, Guru, Siswa), pembuatan soal berbantuan AI, dan penegakan waktu pengerjaan di sisi server.
+Platform ujian/tryout berbasis sekolah untuk Admin, Guru, dan Siswa. Aplikasi mencakup bank soal, paket tryout, pengerjaan dengan validasi waktu di backend, laporan hasil, dan bantuan AI.
 
-## Daftar Isi
+## Fitur utama
 
-- [Fitur Utama](#fitur-utama)
-- [Tech Stack](#tech-stack)
-- [Struktur Folder](#struktur-folder)
-- [Persiapan Awal](#persiapan-awal)
-- [Instalasi & Menjalankan (Lokal)](#instalasi--menjalankan-lokal)
-- [Menjalankan dengan Docker](#menjalankan-dengan-docker)
-- [Peran Pengguna](#peran-pengguna)
-- [Dokumentasi API](#dokumentasi-api)
-- [Backup Database](#backup-database)
-- [Skema Database](#skema-database)
-- [Catatan Keamanan](#catatan-keamanan)
+- Manajemen pengguna, siswa, guru, mata pelajaran, soal, dan tryout.
+- Tipe soal Pilihan Ganda, PGK-MCMA, dan Benar/Salah.
+- Pembuatan/import soal serta draf pembahasan menggunakan provider AI yang dikonfigurasi.
+- Autentikasi JWT, pembatasan akses berbasis role, single-session, timer sisi server, dan telemetri perpindahan tab.
+- Riwayat dan laporan nilai, notifikasi, serta backup/pemulihan SQLite.
+- Mode akses lokal dan LAN.
 
-## Fitur Utama
+## Teknologi dan konfigurasi
 
-- **Manajemen ujian/tryout**: pembuatan paket soal, penjadwalan, dan pengelolaan bank soal per mata pelajaran.
-- **Generate soal dengan AI**: mendukung banyak provider (Ollama untuk lokal, Gemini untuk produksi), termasuk pembuatan soal tunggal (dengan pratinjau prompt) dan pembuatan massal dari dokumen (PDF/DOCX/TXT).
-- **Verifikasi kunci jawaban dua tahap**: tahap 1 (gratis, cross-check berbasis prompt) dan tahap 2 (berbayar, re-derivasi independen — hanya dipicu jika hasil tahap 1 mencurigakan) untuk menyeimbangkan akurasi dan biaya API.
-- **Penegakan waktu di server**: batas waktu pengerjaan tryout dihitung dan divalidasi di server (bukan hanya di frontend), mencegah kecurangan lewat manipulasi waktu di client.
-- **Role-based access control**: Admin, Guru, dan Siswa masing-masing punya akses dan tampilan berbeda.
-- **Pengaturan dinamis lewat UI Admin**: ganti provider AI aktif, kelola API key (terenkripsi), rotasi `SECRET_KEY` aplikasi — semua tanpa edit `.env` atau restart server.
-- **Backup otomatis & manual**: backup database SQLite terjadwal tiap 24 jam (Docker) atau manual lewat tombol di halaman Pengaturan, dengan retensi otomatis.
-- **Akses jaringan lokal (LAN)**: mode demo yang bisa diakses dari perangkat lain di WiFi yang sama tanpa konfigurasi CORS manual.
+- **Backend:** FastAPI, SQLAlchemy, SQLite atau PostgreSQL.
+- **Frontend:** React 19, React Router, Vite.
+- **AI:** Ollama dan Gemini melalui registry backend.
+- **Deployment:** Docker Compose; frontend production disajikan Nginx.
 
-## Tech Stack
+Backend memakai SQLite lokal jika `DATABASE_URL` kosong; PostgreSQL dapat dikonfigurasi melalui `backend/.env` atau environment deployment. Fitur backup/pemulihan bawaan dan service backup Docker hanya mendukung SQLite.
 
-**Backend**
-- FastAPI + SQLAlchemy (ORM)
-- Mendukung dua mode Database secara native:
-  - **SQLite** (lokal development) otomatis menggunakan WAL mode untuk performa konkurensi optimal.
-  - **PostgreSQL** (seperti Neon Tech) untuk kebutuhan produksi dengan konkurensi tinggi. Cukup isi `DATABASE_URL` di `.env` (mis. `postgresql://user:pass@host/db`).
-- `bcrypt` (hashing password, dipanggil langsung tanpa `passlib`)
-- `python-jose` (JWT)
-- `cryptography` (Fernet, enkripsi API key AI)
-- `pypdf`, `python-docx` (ekstraksi teks dari dokumen soal)
+## Menjalankan secara lokal di Windows
 
-**Frontend**
-- React 19 + Vite
-- React Router v7
+Ikuti instruksi instalasi dan konfigurasi di [backend/README.md](backend/README.md) dan [frontend/README.md](frontend/README.md). Setelah backend virtual environment, file environment, dan dependensi frontend disiapkan, jalankan dari root repository:
 
-**Infrastruktur**
-- Docker & Docker Compose (backend, frontend, service backup terpisah)
-
-## Struktur Folder
-
-```
-├── backend/
-│   ├── ai_providers.py       # Registry & logika multi-provider AI (Ollama, Gemini)
-│   ├── auth.py                # Autentikasi, JWT, manajemen SECRET_KEY dinamis
-│   ├── backup_service.py      # Logika inti backup SQLite (dipakai CLI & endpoint API)
-│   ├── config.py               # Konfigurasi environment (.env)
-│   ├── database.py             # Setup koneksi SQLAlchemy
-│   ├── document_parser.py     # Ekstraksi teks dari PDF/DOCX/TXT untuk impor soal
-│   ├── main.py                  # Entry point FastAPI, registrasi router & middleware
-│   ├── models.py                # Model SQLAlchemy (12 tabel)
-│   ├── schemas.py               # Skema Pydantic (request/response)
-│   ├── routers/                 # Endpoint API per domain (auth, users, questions, tryouts, dst.)
-│   ├── scripts/backup_db.py    # Wrapper CLI untuk backup manual/cron
-│   ├── scripts/check_legacy_option_e.py  # Cek/bereskan soal lama peninggalan opsi ke-5 (E)
-│   └── database/                # Lokasi file database SQLite (project_tz.db)
-├── frontend/
-│   ├── src/
-│   │   ├── pages/                # Halaman per role (Admin, Guru, Siswa)
-│   │   ├── components/           # Komponen bersama (Sidebar, Header, modal, dll.)
-│   │   ├── auth/                  # Context autentikasi
-│   │   └── services/api.js      # Wrapper pemanggilan API backend
-│   └── vite.config.js
-├── docker-compose.yml
-├── .env.example                  # Contoh config untuk docker-compose.yml (VITE_API_URL, dsb.)
-├── run.py                        # Jalankan mode develop (localhost saja)
-└── run_server.py                # Jalankan mode server (bisa diakses via LAN/WiFi)
-```
-
-## Persiapan Awal
-
-- Python 3.12+
-- Node.js 18+ dan npm
-- (Opsional) [Ollama](https://ollama.com) terpasang secara lokal jika ingin generate soal AI tanpa provider cloud
-
-## Instalasi & Menjalankan (Lokal)
-
-### 1. Backend
-
-```bash
-cd backend
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# Mac/Linux
-source venv/bin/activate
-
-pip install -r requirements.txt
-
-# Salin file environment lalu isi nilainya
-copy .env.example .env      # Windows
-cp .env.example .env         # Mac/Linux
-```
-
-Isi minimal yang **wajib** diisi di `backend/.env`:
-
-```env
-SECRET_KEY=<hasil dari: python -c "import secrets; print(secrets.token_urlsafe(64))">
-```
-
-Nilai lain (`DATABASE_URL`, `CORS_ORIGINS`, `FRONTEND_PORT`, `BACKEND_PORT`) opsional saat pengembangan lokal — akan otomatis fallback ke default yang aman (lihat komentar di `.env.example`).
-
-### 2. Frontend
-
-```bash
-cd frontend
-npm install
-```
-
-### 3. Jalankan Keduanya Sekaligus
-
-Dari root project:
-
-```bash
-# Mode develop — hanya bisa diakses dari laptop sendiri (localhost)
+```powershell
+# Akses dari komputer ini
 python run.py
 
-# ATAU mode server — bisa diakses dari HP/laptop lain di WiFi yang sama (untuk demo)
+# Akses dari perangkat lain pada Wi-Fi/LAN yang sama
 python run_server.py
 ```
 
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:8000`
-- Dokumentasi API (Swagger): `http://localhost:8000/docs`
+Frontend tersedia di `http://localhost:5173`, backend di `http://localhost:8000`. Kedua skrip mengasumsikan Python berada di `backend/venv`. Untuk setup LAN dengan Docker, lihat [DEPLOY_LAN.md](DEPLOY_LAN.md).
 
-> Catatan: `run.py` dan `run_server.py` mengasumsikan virtual environment backend berada di `backend/venv` (path Windows). Sesuaikan path Python di kedua skrip tersebut jika environment berbeda.
+## Repository
 
-## Menjalankan dengan Docker
-
-```bash
-docker compose up -d --build
+```text
+backend/       FastAPI, model, router, layanan, skrip, dan database lokal
+frontend/      Aplikasi React/Vite
+migrations/    Skrip SQL migrasi v01-v04
+scripts/       Runner migrasi dan pemeriksaan pasca-update
+tests/         Tes alur backend, migrasi, API, dan integritas frontend
+docs/          Arsip dokumentasi perubahan dan laporan audit
 ```
 
-Ini akan menjalankan tiga service:
-- `backend` — API FastAPI di port `8000`
-- `frontend` — aplikasi React (di-build & disajikan lewat Nginx) di port `5173`
-- `backup` — service backup otomatis (jalan tiap 24 jam, retensi default 14 hari, bisa diatur lewat `BACKUP_RETENTION_DAYS`)
+## Database dan migrasi
 
-Database SQLite dan folder backup di-*bind mount* ke host (`./backend/backups`) supaya data tetap aman meski container di-rebuild.
+Model SQLAlchemy mendefinisikan 13 tabel: `t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, dan `t_app_setting`.
 
-Untuk produksi, sesuaikan minimal:
-- `backend/.env` → isi `CORS_ORIGINS` dengan domain asli
-- `.env` di root project (salin dari `.env.example`) → isi `VITE_API_URL` dengan domain API produksi (BUKAN `localhost` — nilai ini di-*bake* ke file JS saat build, jadi perangkat pengguna lain tidak akan bisa mengakses API kalau masih `localhost`). Setelah diisi, jalankan ulang dengan `docker compose up -d --build` (bukan cuma `restart`, karena nilainya sudah ter-*bake* sejak build sebelumnya).
+Lihat [SCHEMA_DOCS.md](SCHEMA_DOCS.md) dan [ERD.mermaid](ERD.mermaid). `Base.metadata.create_all()` membuat tabel yang belum ada; migrasi startup hanya menangani kolom tertentu. File migrasi tersedia sampai v04, tetapi `scripts/run_migrations.py` saat ini mendukung sampai v03. Periksa dan siapkan skema database lama sebelum menjalankan versi aplikasi yang membutuhkannya.
 
-## Peran Pengguna
+## Pengujian
 
-| Peran  | Kode DB   | Akses Utama |
-|--------|-----------|-------------|
-| Admin  | `ADMIN`   | Kelola user, mata pelajaran, pengaturan AI, keamanan (`SECRET_KEY`), backup, laporan nilai seluruh sekolah |
-| Guru   | `GURU`    | Kelola bank soal (manual & AI), buat & kelola tryout, lihat laporan nilai siswa binaannya |
-| Siswa  | `SISWA`   | Mengerjakan tryout, melihat riwayat & hasil ujian sendiri |
+Jalankan build frontend dari folder `frontend`:
 
-## Dokumentasi API
+```powershell
+npm run build
+```
 
-Dokumentasi interaktif otomatis tersedia selama `APP_MODE` bukan `production`:
+**Jangan jalankan tes backend terhadap database production.** `backend/scripts/run_tests.ps1` saat ini membaca `.env` dan belum memilih atau memvalidasi konfigurasi database tes. `scripts/run_post_update_checks.py` juga menjalankan tes backend. Jalankan tes hanya terhadap database tes yang terisolasi dengan runner yang secara eksplisit menggunakan dan memvalidasi konfigurasi tersebut. Detail kontribusi ada di [CONTRIBUTING.md](CONTRIBUTING.md) dan [AGENTS.md](AGENTS.md).
 
-- Swagger UI: `/docs`
-- ReDoc: `/redoc`
-- Skema mentah: `/openapi.json`
+## Dokumentasi
 
-Ketiganya **dinonaktifkan otomatis** saat `APP_MODE=production` (mis. lewat Docker) untuk mencegah kebocoran struktur API ke publik.
+- [backend/README.md](backend/README.md) — setup dan detail pengembangan backend.
+- [frontend/README.md](frontend/README.md) — setup, development, dan build frontend.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — arsitektur dan alur sistem.
+- [DEPLOY_LAN.md](DEPLOY_LAN.md) — deployment Docker pada jaringan lokal.
+- [USER_MANUAL.md](USER_MANUAL.md) — panduan penggunaan aplikasi.
+- [SCHEMA_DOCS.md](SCHEMA_DOCS.md) — ringkasan tabel database.
+- [CHANGELOG.md](CHANGELOG.md) — catatan perubahan historis.
+- [ROADMAP.md](ROADMAP.md) — usulan pekerjaan berikutnya.
 
-## Backup Database
-
-*(Catatan: Fitur backup lokal ini dirancang khusus untuk **SQLite**. Jika Anda menggunakan PostgreSQL seperti Neon Tech, manajemen backup dan Point-in-Time Recovery ditangani langsung oleh layanan cloud tersebut).*
-
-- **Otomatis**: aktif sendiri tiap 24 jam lewat service `backup` di `docker-compose.yml` (jika Anda menggunakan setup Docker).
-- **Manual**: tombol "Backup Sekarang" di halaman *Pengaturan Admin*.
-- **CLI**: `python backend/scripts/backup_db.py`
-
-Semua jalur di atas memakai logika yang sama di `backend/backup_service.py`, memanfaatkan *online backup API* SQLite (`sqlite3.Connection.backup()`) sehingga aman dijalankan meski database sedang aktif dipakai.
-
-## Skema Database
-
-12 tabel utama (lihat detail lengkap di dokumen skema database terpisah):
-
-`t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_app_setting`
-
-## Catatan Keamanan
-
-- File `.env` **tidak boleh** pernah di-commit atau diikutkan dalam ZIP upload (sudah masuk `.gitignore`).
-- Setelah deploy pertama kali, segera jalankan "Rotasi Otomatis" `SECRET_KEY` dari Pengaturan > Keamanan untuk menginvalidasi kunci lama.
-- API key provider AI (mis. Gemini) disimpan **terenkripsi** (Fernet) di tabel `t_app_setting`, bukan plain-text.
-- `CORS_ORIGINS` di `.env` wajib diisi domain asli saat produksi — jangan mengandalkan fallback development.
+Jangan commit `.env`, kredensial, file database, atau backup. Untuk deployment publik, konfigurasi CORS, HTTPS, dan pengelolaan secret harus disesuaikan dengan lingkungan.

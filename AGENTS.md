@@ -1,31 +1,34 @@
-# ATURAN PENGEMBANGAN PROYEK TKA TRYOUT AI
+# Panduan Pengembangan TKA TryOut AI
 
-## 🚨 PRIORITAS TERTINGGI: WAJIB TESTING SETIAP UPDATE KODE (ZERO ERROR POLICY)
-Sesuai instruksi pengguna, **SETIAP KALI** melakukan pembaruan, perubahan logika, penambahan fitur, atau bugfix:
+## Prinsip perubahan kode
 
-1. **Jalankan Pengujian Otomatis yang Terpengaruh**:
-   - **Frontend**:
-     - Wajib jalankan verifikasi build: `npm run build` di `frontend/`.
-     - Pastikan tidak ada syntax error, broken import, atau pelanggaran React Rules of Hooks.
-   - **Backend & Database**:
-     - Jika ada logika endpoint atau model data yang diubah, jalankan unit test **WAJIB menggunakan skrip aman**:
-       ```
-       powershell -ExecutionPolicy Bypass -File backend/scripts/run_tests.ps1
-       ```
-     - **DILARANG** menjalankan test langsung dengan `python -m unittest` tanpa mengatur `ENV_FILE=".env.test"` terlebih dahulu — ini akan membuat data test masuk ke database **production Neon Tech**.
-     - Jika menambah kolom model SQLAlchemy, pastikan fungsi `_auto_migrate_columns_on_startup()` di `backend/main.py` sudah mencakup kolom tersebut agar database remote (seperti Neon Tech) tidak mengalami `UndefinedColumn` error (500).
+- Buat perubahan yang terarah dan sesuai pola yang sudah digunakan proyek. Jangan mengubah hal di luar kebutuhan.
+- Periksa seluruh pemakaian terkait agar perubahan konsisten di backend, frontend, dan database.
+- Jangan menyatakan build atau tes berhasil jika belum dijalankan dan hasilnya belum diperiksa.
+- Jangan pernah menampilkan, menyalin ke dokumentasi, atau melakukan commit kredensial dari file `.env`.
 
-2. **Dilarang Menyatakan Selesai Tanpa Bukti Test**:
-   - Selalu cantumkan hasil eksekusi pengujian (exit code 0 / OK) pada respons akhir ke pengguna.
+## Verifikasi frontend
 
-## 🛡️ PROTEKSI DATABASE PRODUCTION (NEON TECH)
-Database production berada di Neon Tech (lihat `backend/.env`). Aturan keras:
+Jika mengubah frontend, jalankan build dari folder `frontend`:
 
-- **Testing WAJIB memakai `.env.test`** yang mengarah ke **PostgreSQL lokal** (`localhost:5432/project_tz`), bukan Neon.
-- **Gunakan `backend/scripts/run_tests.ps1`** — skrip ini otomatis:
-  1. Memvalidasi `.env.test` tidak mengandung URL Neon production.
-  2. Set `ENV_FILE=".env.test"` sebelum menjalankan test.
-  3. Reset environment setelah selesai.
-- **`backend/config.py`** mendukung `ENV_FILE` environment variable — saat testing, `config.py` akan membaca `.env.test` bukan `.env`.
-- `.env.test` sudah terdaftar di `.gitignore` (pola `.env.*`) — tidak akan ter-commit ke git.
+```powershell
+npm run build
+```
 
+Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terverifikasi.
+
+## Verifikasi backend dan database
+
+- Backend memuat konfigurasi dari `backend/.env` secara default. `backend/config.py` juga mendukung variabel `ENV_FILE` untuk memilih file konfigurasi lain.
+- **Jangan jalankan tes backend terhadap konfigurasi default tanpa memastikan database yang dipakai adalah database khusus tes.** `backend/.env` berisi konfigurasi PostgreSQL; jangan mengasumsikan database tersebut lokal atau aman untuk tes.
+- Saat ini `backend/scripts/run_tests.ps1` membaca `.env` dan menjalankan `venv\Scripts\python.exe`; skrip tersebut **belum** memilih `.env.test` atau memvalidasi bahwa database tujuan aman. Jalankan skrip hanya setelah pengaman tersebut ditambahkan dan diverifikasi.
+- Skrip di atas memakai path relatif dan mengasumsikan dijalankan dari folder `backend`. Jangan mendokumentasikan pemanggilan dari root sebagai cara yang didukung tanpa terlebih dahulu memperbaiki skrip.
+- Sebelum tes backend dijalankan, pastikan file konfigurasi tes mengarah hanya ke database khusus tes yang terisolasi, dan runner secara eksplisit memilih serta memvalidasi konfigurasi itu. Jangan mengandalkan fixture pembersihan sebagai perlindungan database.
+- Jika menambah atau mengubah kolom model SQLAlchemy, periksa migrasi yang berlaku. `backend/main.py` memiliki `_auto_migrate_columns_on_startup()` untuk beberapa kolom tertentu, tetapi tidak otomatis mencakup setiap perubahan skema.
+- Jika pengaman database tes belum tersedia, jangan jalankan tes backend yang dapat menulis ke database; laporkan keterbatasan ini dengan jelas.
+
+## Konfigurasi dan data sensitif
+
+- Jangan commit file `.env`, kredensial, database lokal, maupun backup.
+- Jangan mengasumsikan nama penyedia database dari keberadaan `DATABASE_URL`; verifikasi konfigurasi tanpa mencetak URL atau kredensial.
+- Untuk perubahan skema database, perbarui mekanisme migrasi dan dokumentasi terkait sesuai kebutuhan.

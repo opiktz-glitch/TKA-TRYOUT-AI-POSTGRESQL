@@ -9,36 +9,58 @@ Di dalam folder `backend`, Anda akan menemukan file-file inti berikut:
 - **`main.py`**: Entry point utama aplikasi. Mendefinisikan instance FastAPI, mengatur middleware (CORS), dan me-registrasi semua router API dari folder `routers/`.
 - **`config.py`**: Memuat konfigurasi dari file `.env` dan menyediakan nilai default.
 - **`database.py`**: Mengatur koneksi SQLAlchemy (mendukung **SQLite** dengan mode WAL maupun **PostgreSQL** dengan *pool pre-ping*).
-- **`models.py`**: Definisi skema tabel database (terdapat 12 tabel utama).
+- **`models.py`**: Definisi 13 model/tabel database.
 - **`schemas.py`**: Definisi model Pydantic untuk validasi *request* dan *response* API.
 - **`auth.py`**: Logika autentikasi JWT, validasi kredensial pengguna, hashing password (menggunakan `bcrypt`), dan proteksi rute (*Dependency Injection*).
 - **`ai_providers.py` & `ai_vision.py`**: Modul integrasi AI. Menangani komunikasi baik ke Ollama (lokal) maupun Gemini (cloud) untuk tugas pembuatan soal otomatis berdasarkan prompt teks atau visi.
 - **`document_parser.py`**: Modul pembantu untuk mengekstrak teks mentah dari file upload seperti `.pdf` atau `.docx` sebelum diproses oleh AI.
-- **`backup_service.py`**: Layanan manajemen backup online yang spesifik digunakan saat backend berjalan dalam mode SQLite.
+- **`backup_service.py`**: Layanan backup dan pemulihan database SQLite.
 
 ## 🚀 Panduan Menjalankan Spesifik Backend
 
-Biasanya backend dijalankan lewat script `run.py` atau `run_server.py` di root proyek. Namun, jika Anda ingin menjalankannya secara terisolasi (misalnya untuk debugging):
+### Instalasi awal
 
-1. Aktifkan *virtual environment*:
+Dari folder `backend`:
+
+```powershell
+python -m venv venv
+venv\Scripts\python.exe -m pip install -r requirements.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+Pastikan `SECRET_KEY` di `.env` terisi dengan nilai acak yang kuat. Buat nilainya dengan:
+
+```powershell
+venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+Masukkan hasilnya ke `SECRET_KEY` pada `.env`. Jika `DATABASE_URL` kosong, backend memakai SQLite lokal di `backend/database/project_tz.db`. Jangan menimpa `.env` yang telah memiliki konfigurasi dan jangan membagikannya.
+
+### Menjalankan backend saja
+
+Biasanya backend dijalankan bersama frontend lewat `run.py` atau `run_server.py` dari root proyek. Untuk menjalankannya sendiri saat debugging:
+
+1. Aktifkan *virtual environment* (atau gunakan executable Python di dalamnya):
    ```bash
    # Windows
    venv\Scripts\activate
    # Mac/Linux
    source venv/bin/activate
    ```
-2. Jalankan Uvicorn secara manual:
+2. Dari folder `backend`, jalankan Uvicorn:
    ```bash
-   uvicorn main:app --reload --host 127.0.0.1 --port 8000
+   python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
    ```
+
+Tes backend dapat menulis ke database yang dibaca dari konfigurasi. `scripts/run_tests.ps1` saat ini membaca `.env` dan belum memvalidasi database tes; jangan arahkan tes ke database production.
 
 ## 🧠 Integrasi AI (AI Providers)
 
 Proyek ini dirancang secara modular agar *engine* pembuat soal (AI) bisa ditukar sewaktu-waktu:
-- Konfigurasi penyedia layanan AI (`AI_PROVIDER`) disimpan secara aman di database (`t_app_setting`) agar Admin bisa merubahnya tanpa perlu merestart server.
+- Pemilihan provider serta konfigurasi yang dikelola aplikasi disimpan di database (`t_app_setting`) agar Admin dapat mengubahnya melalui Pengaturan.
 - API Key (misalnya untuk Gemini) dienkripsi menggunakan `cryptography.Fernet` sebelum disimpan ke database, sehingga mencegah kebocoran kunci secara kasat mata.
 - **Pembahasan Otomatis**: Dilengkapi dengan logika *fallback* & *JSON merging* yang kuat di modul API (lihat `routers/questions.py`) untuk menjamin penjelasan langkah demi langkah (terutama B-S dan PG Kompleks) bisa di- *generate* secara konsisten tanpa terpotong, baik oleh model berkapasitas besar maupun kecil (Ollama).
 
 ## 🛡️ Penegakan Keamanan Ujian (Server-side Timer)
 
-Berbeda dengan aplikasi ujian sederhana, perhitungan sisa waktu pengerjaan tryout pada TKA-AI tidak sepenuhnya diserahkan kepada *frontend*. Backend melacak waktu `start_time` di tabel `t_attempt` dan akan secara tegas menolak jawaban (API blokir) jika waktu aktual pengumpulan melebihi jatah durasi (ditambah toleransi *network delay* kecil). Hal ini mencegah Siswa berbuat curang dengan mengutak-atik JavaScript lokal di browser.
+Perhitungan waktu pengerjaan tidak diserahkan hanya kepada *frontend*. Backend melacak waktu mulai attempt pada `t_attempt` dan memvalidasi batas durasi ketika request pengerjaan dikirimkan. Timer browser hanya membantu tampilan dan pengiriman di sisi pengguna; koneksi jaringan dibutuhkan untuk menyimpan jawaban.
