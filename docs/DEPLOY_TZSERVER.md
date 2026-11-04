@@ -11,7 +11,7 @@ Workflow mengunggah folder `dist` sebagai user SSH `admintz`, lalu memasang isin
 Validasi aturan sudoers dengan `visudo -c` sebelum menyimpan:
 
 ```sudoers
-admintz ALL=(root) NOPASSWD: /usr/bin/rsync -a --delete --chown=root:root /home/admintz/dist/ /var/www/tka-dist/
+admintz ALL=(root) NOPASSWD: /usr/bin/rsync -a --delete --chown=root:root --chmod=D755,F644 /home/admintz/dist/ /var/www/tka-dist/
 ```
 
 Jangan memberi akses `NOPASSWD: ALL`. Workflow tidak perlu mengubah backend, database, atau konfigurasi Nginx/Tailscale.

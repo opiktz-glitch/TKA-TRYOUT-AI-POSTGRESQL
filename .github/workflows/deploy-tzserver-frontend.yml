@@ -20,6 +20,8 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: tzserver-production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,7 +90,7 @@ jobs:
           set -euo pipefail
           ssh -o BatchMode=yes "admintz@$TZSERVER_SSH_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          sudo -n /usr/bin/rsync -a --delete --chown=root:root \
+          sudo -n /usr/bin/rsync -a --delete --chown=root:root --chmod=D755,F644 \
             /home/admintz/dist/ /var/www/tka-dist/
           rm -rf -- /home/admintz/dist
 
