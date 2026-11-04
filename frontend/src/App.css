@@ -4616,11 +4616,11 @@ button {
 
   .sidebar {
 
+    height: 100vh;
 
+    height: 100dvh;
 
     transform: translateX(-100%);
-
-
 
     transition: transform 0.25s ease;
 
@@ -4636,8 +4636,11 @@ button {
 
   }
 
+  .sidebar-menu {
 
+    min-height: 0;
 
+  }
 
 
   .sidebar.sidebar-mobile-open {
@@ -7673,4 +7676,3 @@ button {
   letter-spacing: 0.2px;
 
 }
-
