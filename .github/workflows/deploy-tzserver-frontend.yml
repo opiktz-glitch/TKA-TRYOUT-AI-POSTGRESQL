@@ -1,0 +1,111 @@
+name: Deploy frontend to tzserver
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-tzserver-frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tzserver-frontend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend for same-origin API proxy
+        working-directory: frontend
+        env:
+          VITE_API_URL: /
+        run: |
+          npm ci
+          npm run build
+          test -s dist/index.html
+          if grep -RniE 'ts\.net|rumahzafira|localhost:8000' dist/assets; then
+            echo "::error::Build output contains an environment-specific API address."
+            exit 1
+          fi
+
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-tz-deploy
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TZSERVER_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH host verification
+        env:
+          TZSERVER_SSH_HOST: ${{ secrets.TZSERVER_SSH_HOST }}
+          TZSERVER_SSH_KNOWN_HOSTS: ${{ secrets.TZSERVER_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TZSERVER_SSH_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::TZSERVER_SSH_HOST must be a DNS name or IPv4 address."
+            exit 1
+          fi
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$TZSERVER_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh-keygen -F "$TZSERVER_SSH_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null
+
+      - name: Upload built frontend
+        working-directory: frontend
+        env:
+          TZSERVER_SSH_HOST: ${{ secrets.TZSERVER_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          target="admintz@$TZSERVER_SSH_HOST"
+          ssh -o BatchMode=yes "$target" 'rm -rf -- /home/admintz/dist'
+          scp -r -o BatchMode=yes dist "$target:/home/admintz/"
+
+      - name: Install files and smoke test
+        env:
+          TZSERVER_SSH_HOST: ${{ secrets.TZSERVER_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes "admintz@$TZSERVER_SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          sudo -n /usr/bin/rsync -a --delete --chown=root:root \
+            /home/admintz/dist/ /var/www/tka-dist/
+          rm -rf -- /home/admintz/dist
+
+          frontend_status="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/)"
+          if [ "$frontend_status" != "200" ]; then
+            echo "Frontend smoke test failed: HTTP $frontend_status"
+            exit 1
+          fi
+
+          api_status="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/api/auth/me)"
+          case "$api_status" in
+            401|403) ;;
+            *)
+              echo "API smoke test failed: expected 401 or 403, got HTTP $api_status"
+              exit 1
+              ;;
+          esac
+
+          echo "Frontend and unauthenticated API smoke tests passed."
+          REMOTE
