@@ -2,19 +2,31 @@
 
 Workflow `.github/workflows/deploy-tzserver-frontend.yml` otomatis membangun dan mengirim **frontend saja** ke tzserver setelah perubahan di `frontend/` masuk ke branch `main`. Workflow juga dapat dijalankan manual dari tab Actions di GitHub.
 
+## Status deployment
+
+Per 5 November 2026, konfigurasi deploy otomatis sudah terpasang dan workflow berhasil berjalan (run #2 hijau). Deploy memerlukan tzserver aktif dan dapat dijangkau melalui Tailscale. Jika job gagal karena server sedang mati, jalankan ulang workflow setelah server menyala.
+
 Build memakai `VITE_API_URL=/`, sehingga request API memakai path relatif `/api` dan diteruskan oleh Nginx tzserver. Build diperiksa agar tidak mengandung hostname Tailscale, domain `rumahzafira`, atau `localhost:8000`. Workflow tidak mengubah environment variable Vercel.
 
 ## Persiapan di tzserver
 
-Workflow mengunggah folder `dist` sebagai user SSH `admintz`, lalu memasang isinya ke `/var/www/tka-dist`. Siapkan autentikasi SSH berbasis key untuk user tersebut dan batasi sudo tanpa password hanya untuk perintah sinkronisasi frontend berikut. Sesuaikan path `/usr/bin/rsync` bila hasil `command -v rsync` di server berbeda.
+Workflow mengunggah folder `dist` sebagai user SSH `admintz`, lalu memasang isinya ke `/var/www/tka-dist`. Sudo dibatasi tanpa password hanya untuk perintah sinkronisasi frontend. Sesuaikan path `/usr/bin/rsync` bila hasil `command -v rsync` di server berbeda.
 
-Validasi aturan sudoers dengan `visudo -c` sebelum menyimpan:
+Di `/etc/sudoers.d/deploy-tka-frontend`, gunakan aturan berikut. Karakter `=`, `:`, dan `,` di argumen harus di-escape untuk sintaks sudoers; escape ini tidak digunakan pada perintah `rsync` di workflow:
 
 ```sudoers
-admintz ALL=(root) NOPASSWD: /usr/bin/rsync -a --delete --chown=root:root --chmod=D755,F644 /home/admintz/dist/ /var/www/tka-dist/
+admintz ALL=(root) NOPASSWD: /usr/bin/rsync -a --delete --chown\=root\:root --chmod\=D755\,F644 /home/admintz/dist/ /var/www/tka-dist/
 ```
 
-Jangan memberi akses `NOPASSWD: ALL`. Workflow tidak perlu mengubah backend, database, atau konfigurasi Nginx/Tailscale.
+Atur izin file dan validasi aturan:
+
+```bash
+sudo chmod 440 /etc/sudoers.d/deploy-tka-frontend
+sudo visudo -cf /etc/sudoers.d/deploy-tka-frontend
+sudo -l | grep rsync
+```
+
+Pastikan hasil validasi menunjukkan `parsed OK` dan aturan hanya mengizinkan perintah di atas. Jangan memberi akses `NOPASSWD: ALL` atau menjalankan `rsync --delete` secara manual dari direktori upload yang belum diverifikasi. Workflow tidak mengubah backend, database, atau konfigurasi Nginx/Tailscale.
 
 ## Secrets GitHub
 

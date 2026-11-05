@@ -79,6 +79,13 @@ Relasi antarentitas dan aturan database menjadi sumber kebenaran untuk integrita
 - `python run_server.py`: mode akses LAN; backend dibuka pada `0.0.0.0` dan frontend memakai skrip `dev:lan`.
 - Kedua skrip mengasumsikan Python virtual environment di `backend/venv`.
 
+### Hosting aplikasi
+
+- Production frontend dan backend dideploy terpisah melalui Vercel.
+- tzserver menjalankan backend secara native sebagai service `systemd`, dan menyajikan frontend statis melalui Nginx. GitHub Actions membangun serta mengirim frontend saja saat perubahan `frontend/` masuk ke `main`; backend dan perubahan skema tidak ikut ter-deploy otomatis.
+- Build tzserver menggunakan `VITE_API_URL=/`, dengan Nginx meneruskan `/api/` ke backend pada origin yang sama. Pengaturan build tersebut tidak menggantikan konfigurasi frontend di Vercel.
+- Prosedur dan batas cakupan deploy tzserver ada di `docs/DEPLOY_TZSERVER.md`.
+
 ### Docker Compose
 
 - `backend`: FastAPI pada port host `8000`, konfigurasi dari `backend/.env`.
@@ -92,4 +99,4 @@ Relasi antarentitas dan aturan database menjadi sumber kebenaran untuk integrita
 - Belum ada instrumentasi durasi request/query yang terlihat pada kode; angka performa harus diukur pada deployment yang digunakan.
 - Migrasi startup hanya menangani perubahan kolom tertentu. Perubahan skema baru harus disertai migrasi yang berlaku untuk database target.
 - Periksa konfigurasi dan runner tes sebelum menjalankan tes backend karena runner yang ada membaca `.env`.
-- Dokumentasi operasional tambahan: `README.md`, `DEPLOY_LAN.md`, dan `SCHEMA_DOCS.md`.
+- Dokumentasi operasional tambahan: `README.md`, `DEPLOY_LAN.md`, `docs/DEPLOY_TZSERVER.md`, dan `SCHEMA_DOCS.md`.

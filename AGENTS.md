@@ -17,6 +17,13 @@ npm run build
 
 Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terverifikasi.
 
+## Deployment
+
+- Vercel dan tzserver adalah deployment terpisah. Jangan mengubah environment variable Vercel untuk memenuhi kebutuhan tzserver.
+- Push perubahan di `frontend/` ke branch `main` memicu workflow deploy frontend tzserver. Workflow ini tidak memperbarui backend, skema, atau migrasi database.
+- Build frontend tzserver memakai `VITE_API_URL=/` agar API menggunakan reverse proxy same-origin. Pertahankan konfigurasi build Vercel secara terpisah.
+- Ikuti [docs/DEPLOY_TZSERVER.md](docs/DEPLOY_TZSERVER.md) untuk persiapan, operasi, dan pemulihan deploy. Jangan menaruh secrets atau kredensial deployment di repository.
+
 ## Verifikasi backend dan database
 
 - Backend memuat konfigurasi dari `backend/.env` secara default. `backend/config.py` juga mendukung variabel `ENV_FILE` untuk memilih file konfigurasi lain.
