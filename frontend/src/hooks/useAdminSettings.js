@@ -127,7 +127,9 @@ export function useAdminSettings() {
     } catch (err) {
       console.error("GET POSTGRES BACKUP STATUS ERROR:", err);
       setBackupStatusError(
-        err.message || "Gagal memeriksa ketersediaan backup PostgreSQL."
+        err.message === "Not Found"
+          ? "Backend belum menyediakan endpoint Backup PostgreSQL. Perbarui dan restart backend tzserver; fitur backup file tidak tersedia di Vercel."
+          : err.message || "Gagal memeriksa ketersediaan backup PostgreSQL."
       );
     }
   }
