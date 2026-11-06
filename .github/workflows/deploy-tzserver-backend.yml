@@ -68,12 +68,26 @@ jobs:
 
           origin="$(sudo -n -u tka -- "$git" -C "$repo" remote get-url origin)"
           case "$origin" in
-            https://github.com/opiktz-glitch/TKA-TRYOUT-AI-POSTGRESQL.git|git@github.com:opiktz-glitch/TKA-TRYOUT-AI-POSTGRESQL.git) ;;
+            https://github.com/*|http://github.com/*)
+              origin_repo="${origin#*://github.com/}"
+              ;;
+            git@github.com:*)
+              origin_repo="${origin#git@github.com:}"
+              ;;
+            ssh://git@github.com/*)
+              origin_repo="${origin#ssh://git@github.com/}"
+              ;;
             *)
               echo "Backend checkout origin does not match the expected repository."
               exit 1
               ;;
           esac
+          origin_repo="${origin_repo%.git}"
+          origin_repo="${origin_repo%/}"
+          if [ "${origin_repo,,}" != "opiktz-glitch/tka-tryout-ai-postgresql" ]; then
+            echo "Backend checkout origin does not match the expected repository."
+            exit 1
+          fi
 
           changes="$(sudo -n -u tka -- "$git" -C "$repo" status --porcelain)"
           if [ -n "$changes" ]; then
