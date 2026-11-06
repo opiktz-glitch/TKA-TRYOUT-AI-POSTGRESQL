@@ -10,7 +10,7 @@ from config import (
     GEMINI_BASE_URL,
     OLLAMA_BASE_URL,
 )
-from database import IS_SQLITE, get_db
+from database import get_db
 from dependencies import require_role
 from fastapi import APIRouter, Depends
 from models import User
@@ -38,40 +38,12 @@ router = APIRouter(
 
 def parse_db_info(database_url: str) -> dict:
 
-    if database_url.startswith("postgresql"):
-
-        parsed = urlparse(database_url)
-
-        return {
-            "engine": "PostgreSQL",
-            "name": (parsed.path or "").lstrip("/") or "-",
-            "directory": parsed.hostname or "-",
-        }
-
-    if not database_url.startswith("sqlite"):
-
-        return {
-            "engine": "Database Lain",
-            "name": "-",
-            "directory": "-",
-        }
-
-    # Contoh nilai yang mungkin muncul:
-    #   sqlite:///database/project_tz.db          (relatif)
-    #   sqlite:////home/user/app/db/project_tz.db (absolut, unix)
-    #   sqlite:///C:/Projects/TKA-TryOut/backend/database/project_tz.db
-    raw_path = database_url.split("sqlite:///", 1)[-1]
-    raw_path = raw_path.replace("\\", "/")
-
-    if "/" in raw_path:
-        directory, name = raw_path.rsplit("/", 1)
-    else:
-        directory, name = ".", raw_path
+    parsed = urlparse(database_url)
 
     return {
-        "engine": "SQLite",
-        "name": name or "project_tz.db",
-        "directory": directory or "/",
+        "engine": "PostgreSQL",
+        "name": (parsed.path or "").lstrip("/") or "-",
+        "directory": parsed.hostname or "-",
     }
 
 
@@ -213,7 +185,7 @@ async def get_system_status(
 
     Setiap bagian benar-benar dicek (bukan hardcode):
 
-    - database : jalankan query ringan ke SQLite
+    - database : jalankan query ringan ke PostgreSQL
     - ai       : ping endpoint /api/tags milik Ollama
     """
 
@@ -238,10 +210,6 @@ async def get_system_status(
         "engine": db_info["engine"],
         "name": db_info["name"],
         "directory": db_info["directory"],
-        # Dipakai frontend (AdminSettings.jsx) untuk menyembunyikan tab
-        # "Backup" sepenuhnya kalau database aktif bukan SQLite — fitur
-        # backup ini memang cuma mendukung SQLite (lihat backup_service.py).
-        "is_sqlite": IS_SQLITE,
     }
 
     # --- AUTH ---

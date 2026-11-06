@@ -461,35 +461,38 @@ class SecretKeyActionResponse(BaseModel):
     message: str
 
 
-# ==========================================
-# BACKUP DATABASE (Pengaturan > Backup)
-# ==========================================
+class PostgresBackupAvailabilityResponse(BaseModel):
+    enabled: bool
+    message: str | None = None
 
-class BackupFileResponse(BaseModel):
+
+class PostgresBackupSettingsRequest(BaseModel):
+    subdirectory: str = Field(default="", max_length=200)
+    retention_count: int = Field(default=14, ge=1, le=1000)
+
+
+class PostgresBackupSettingsResponse(BaseModel):
+    base_directory: str
+    backup_directory: str
+    subdirectory: str
+    retention_count: int
+    verified: bool = False
+
+
+class PostgresBackupFileResponse(BaseModel):
     filename: str
     size_bytes: int
     created_at: datetime
 
 
-class BackupListResponse(BaseModel):
-    backups: list[BackupFileResponse] = Field(default_factory=list)
-    retention_days: int
+class PostgresBackupListResponse(BaseModel):
+    backups: list[PostgresBackupFileResponse] = Field(default_factory=list)
+    retention_count: int
 
 
-class BackupActionResponse(BaseModel):
+class PostgresRestoreResponse(BaseModel):
     success: bool
     message: str
-    backup: BackupFileResponse | None = None
-    removed_old_count: int = 0
-
-
-class RestoreActionResponse(BaseModel):
-    success: bool
-    message: str
-    restored_from: str
-    # Nama file backup pengaman yang otomatis dibuat dari kondisi
-    # SEBELUM restore ini dijalankan — ditampilkan ke admin supaya
-    # tahu ke mana harus "kembali" kalau restore ternyata salah.
     safety_backup_filename: str
 
 

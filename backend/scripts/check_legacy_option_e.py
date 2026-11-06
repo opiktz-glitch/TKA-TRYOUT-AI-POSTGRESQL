@@ -57,9 +57,8 @@ yang butuh keputusan manual tidak akan disentuh):
 
     python scripts/check_legacy_option_e.py --fix
 
-SELALU backup database dulu sebelum menjalankan --fix (lihat
-scripts/backup_db.py atau tombol "Backup Sekarang" di halaman
-Pengaturan Admin).
+SELALU pastikan backup PostgreSQL terbaru tersedia sebelum
+menjalankan --fix.
 """
 
 import sys

@@ -49,13 +49,13 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
       )}
 
       {networkError && (
-        <div className="error-message" style={{ marginBottom: 14 }}>
+        <div className="error-message">
           {networkError}
         </div>
       )}
 
       {networkLoading ? (
-        <p style={{ color: "#6b7280", fontSize: 13 }}>Mendeteksi alamat jaringan...</p>
+        <p className="settings-loading">Mendeteksi alamat jaringan...</p>
       ) : (
         <div className="settings-cols">
 
@@ -64,18 +64,8 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
           <div>
             {/* STATUS SERVER */}
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                border: "1px solid var(--line)",
-                borderRadius: 8,
-                padding: "12px 14px",
-                marginBottom: 16,
-              }}
-            >
-              <strong style={{ fontSize: 13, marginBottom: 4 }}>
+            <div className={`settings-network-status${networkInfo ? " is-online" : " is-offline"}`}>
+              <strong className="settings-network-status-title">
                 {networkInfo
                   ? networkInfo.mode === "development"
                     ? "Server lokal / development"
@@ -83,17 +73,9 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
                   : "Server tidak terdeteksi"}
               </strong>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    backgroundColor: networkInfo ? "#16a34a" : "#dc2626",
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 13, color: "#6b7280" }}>
+              <div className="settings-network-status-detail">
+                <span className="settings-network-status-indicator" aria-hidden="true" />
+                <span className="settings-muted">
                   {networkInfo
                     ? `Laptop ini: ${networkInfo.hostname} · Backend port ${networkInfo.backend_port} · Frontend port ${networkInfo.frontend_port}`
                     : "Muat ulang halaman ini setelah backend & frontend dijalankan."}
@@ -101,7 +83,7 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
               </div>
 
               {networkInfo && networkInfo.addresses.length > 0 && (
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                <div className="settings-network-addresses">
                   {networkInfo.addresses
                     .map((addr) => `${addr.interface} — ${addr.ip}`)
                     .join(" · ")}
@@ -114,32 +96,14 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
             {showShare &&
               (networkInfo.addresses.length > 0 ? (
                 <div>
-                  <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 10 }}>
+                  <h3 className="settings-section-title">
                     Alamat untuk Dibagikan
-                  </label>
+                  </h3>
 
                   {networkInfo.addresses.map((addr) => (
-                    <div
-                      key={addr.ip}
-                      style={{
-                        border: "1px solid var(--line)",
-                        borderRadius: 8,
-                        padding: "14px 16px",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <code
-                          style={{
-                            flex: 1,
-                            minWidth: 220,
-                            fontSize: 15,
-                            fontWeight: 600,
-                            padding: "8px 10px",
-                            background: "#f3f4f6",
-                            borderRadius: 6,
-                          }}
-                        >
+                    <div key={addr.ip} className="settings-network-address-card">
+                      <div className="settings-network-address-content">
+                        <code className="settings-network-url">
                           {addr.frontend_url}
                         </code>
 
@@ -173,11 +137,11 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
 
           {showShare && (
             <div>
-              <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 10 }}>
+              <h3 className="settings-section-title">
                 Cara Mengakses dari Laptop Lain
-              </label>
+              </h3>
 
-              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#374151", lineHeight: 1.7, textAlign: "left" }}>
+              <ol className="settings-network-instructions">
                 <li>Pastikan laptop lain terhubung ke <strong>WiFi yang sama</strong> dengan laptop ini.</li>
                 <li>Jalankan project ini dengan <code>python run_server.py</code> (BUKAN <code>run.py</code> biasa) — cuma <code>run_server.py</code> yang membuka akses ke WiFi.</li>
                 <li>Pastikan backend & frontend masih berjalan di laptop ini (jangan ditutup terminalnya).</li>
@@ -185,16 +149,7 @@ function NetworkTab({ networkInfo, networkLoading, networkError }) {
                 <li>Login seperti biasa — data (soal, tryout, nilai) sama persis karena mengakses server yang sama.</li>
               </ol>
 
-              <div
-                style={{
-                  backgroundColor: "#fff3cd",
-                  color: "#856404",
-                  padding: "10px 12px",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  marginTop: "14px",
-                }}
-              >
+              <div className="settings-notice--warning" role="note">
                 ⚠️ Kalau laptop lain tetap tidak bisa connect, kemungkinan
                 besar <strong>Windows Firewall</strong> di laptop ini
                 memblokir port {networkInfo?.backend_port ?? 8000} &{" "}

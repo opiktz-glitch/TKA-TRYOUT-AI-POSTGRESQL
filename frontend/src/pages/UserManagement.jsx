@@ -61,12 +61,12 @@ function UserManagement() {
   return (
     <>
       {/* HEADER */}
-      <div className="page-header">
+      <div className="page-header management-page-header">
         <div>
           <h1>Kelola User</h1>
           <p>Kelola pengguna aplikasi TKA Tryout</p>
         </div>
-        <button className="primary-button" onClick={openAddModal}>
+        <button type="button" className="primary-button" onClick={openAddModal}>
           + Tambah User
         </button>
       </div>
@@ -195,8 +195,7 @@ function UserManagement() {
                         </td>
                         <td className="is-center is-nowrap">
                           <div
-                            className="action-buttons"
-                            style={{ justifyContent: "center" }}
+                            className="action-buttons management-table-actions"
                           >
                             <button
                               className="edit-button"

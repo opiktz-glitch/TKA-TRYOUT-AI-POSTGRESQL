@@ -65,9 +65,9 @@ function ProfileTab() {
             <IconUser size={24} />
           </div>
 
-          <div style={{ minWidth: 0 }}>
-            <strong style={{ fontSize: 16 }}>{user?.full_name}</strong>
-            <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div className="settings-account-details">
+            <strong className="settings-account-name">{user?.full_name}</strong>
+            <div className="settings-account-meta">
               @{user?.username} &middot; {user?.role}
             </div>
           </div>
@@ -93,13 +93,13 @@ function ProfileTab() {
         </p>
 
         {error && (
-          <div className="form-error-message" style={{ marginBottom: 14 }}>
+          <div className="form-error-message">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="success-message" style={{ marginBottom: 14 }}>
+          <div className="success-message">
             {success}
           </div>
         )}
@@ -108,8 +108,9 @@ function ProfileTab() {
 
           <div className="settings-fields">
             <div className="form-group">
-              <label>Nama Lengkap</label>
+              <label htmlFor="profile-full-name">Nama Lengkap</label>
               <input
+                id="profile-full-name"
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -119,8 +120,9 @@ function ProfileTab() {
             </div>
 
             <div className="form-group">
-              <label>Username</label>
+              <label htmlFor="profile-username">Username</label>
               <input
+                id="profile-username"
                 type="text"
                 value={user?.username || ""}
                 disabled
@@ -128,14 +130,7 @@ function ProfileTab() {
             </div>
           </div>
 
-          <div
-            style={{
-              marginTop: "8px",
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end",
-            }}
-          >
+          <div className="settings-form-actions">
             <button
               type="button"
               className="secondary-button"

@@ -134,12 +134,6 @@ function StudentHistory() {
     }
   }
 
-  function openLeaderboard(attempt) {
-    setLeaderboardTryoutId(attempt.tryout_id);
-    setLeaderboardTitle(attempt.tryout_title);
-  }
-
-
   function closeDetail() {
     setDetail(null);
     setQuestionIndex(0);
@@ -366,7 +360,7 @@ function StudentHistory() {
       {detail && (
         <div className="modal-overlay">
           <div
-            className="modal"
+            className="modal student-history-detail-modal"
             style={printView ? { width: 900, maxWidth: "96vw" } : { maxWidth: 640 }}
           >
 
@@ -712,6 +706,7 @@ function StudentHistory() {
                       {/* NAVIGASI SOAL */}
 
                       <div
+                        className="student-history-question-navigation"
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
@@ -729,7 +724,7 @@ function StudentHistory() {
                           ← Sebelumnya
                         </button>
 
-                        <div style={{ display: "flex", gap: 4 }}>
+                        <div className="student-history-question-dots" style={{ display: "flex", gap: 4 }}>
                           {detail.questions.map((_, idx) => (
                             <span
                               key={idx}

@@ -468,7 +468,7 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
     // (bukan Promise.all) supaya tidak membanjiri backend/provider
     // AI (verifikasi konsistensi ikut jalan tiap create? — tidak,
     // endpoint create biasa tidak memanggil AI, tapi tetap
-    // berurutan lebih aman untuk SQLite).
+    // berurutan lebih aman daripada mengirim semua request sekaligus).
     setImportedQuestions((prev) =>
       prev.map((item) =>
         selectedKeys.includes(item.key) ? { ...item, saveStatus: "saving", saveError: "" } : item,

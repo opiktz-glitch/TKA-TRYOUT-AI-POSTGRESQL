@@ -282,10 +282,8 @@ class Question(Base):
     # image_data: bytes mentah gambar, SUDAH dikonversi ke WebP
     # & di-resize server-side sebelum sampai sini (lihat
     # image_service.py) — bukan file asli upload guru apa
-    # adanya. LargeBinary -> kolom BYTEA di Postgres, BLOB di
-    # SQLite; SQLAlchemy otomatis konversi ke/dari `bytes`
-    # Python, tidak perlu encoding manual (base64 dsb) di kode
-    # aplikasi.
+    # adanya. LargeBinary dipetakan SQLAlchemy ke BYTEA di
+    # PostgreSQL dan otomatis dikonversi ke/dari `bytes` Python.
     #
     # image_mime_type: praktis selalu "image/webp" (karena semua
     # upload dikonversi paksa ke WebP di image_service.py), tapi
@@ -426,8 +424,7 @@ class Tryout(Base):
     # (mis. "Kelas Unggulan", "Paket A"). Nama kolom & atribut TIDAK
     # diganti supaya tidak perlu migrasi DB — cukup nilai yang
     # disimpan berubah jadi teks bebas. Panjang dinaikkan dari 20
-    # jadi 150 karakter (SQLite sendiri tidak menegakkan batas ini,
-    # jadi aman tanpa migrasi; batas 150 ditegakkan di validasi
+    # jadi 150 karakter (batas 150 ditegakkan di validasi
     # aplikasi, lihat routers/tryouts.py).
     difficulty = Column(
         String(150),
@@ -588,7 +585,7 @@ class Attempt(Base):
     # yang dilarang cuma dua IN_PROGRESS sekaligus.
     #
     # Kalau dua request tetap lolos race di level aplikasi,
-    # SQLite/PostgreSQL akan menolak INSERT kedua dengan
+    # PostgreSQL akan menolak INSERT kedua dengan
     # IntegrityError — start_tryout() menangkap ini dan
     # mengambil ulang baris yang menang, bukan menampilkan
     # error 500 ke siswa.
@@ -611,7 +608,6 @@ class Attempt(Base):
             "student_id",
             "tryout_id",
             unique=True,
-            sqlite_where=text("status = 'IN_PROGRESS'"),
             postgresql_where=text("status = 'IN_PROGRESS'"),
         ),
     )

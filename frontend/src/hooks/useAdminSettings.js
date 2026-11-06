@@ -3,9 +3,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import {
-  getSystemStatus, getBackups, getSecretKeyStatus, getNetworkInfo, getAIProviders,
+  getSecretKeyStatus, getNetworkInfo, getAIProviders, getPostgresBackupStatus,
   updateSecretKey, rotateSecretKey, updateActiveProvider, updateProviderConfig, clearProviderConfig,
-  createBackupNow, downloadBackup, restoreFromExistingBackup, restoreFromUpload
 } from "../services/api";
 
 
@@ -13,7 +12,7 @@ const TABS = [
   { key: "profile", label: "Profil Saya" },
   { key: "ai-model", label: "AI" },
   { key: "security", label: "Keamanan" },
-  { key: "backup", label: "Backup" },
+  { key: "backup", label: "Backup Database" },
   { key: "network", label: "Jaringan" },
 ];
 
@@ -88,239 +87,21 @@ export function useAdminSettings() {
   const [networkLoading, setNetworkLoading] = useState(true);
   const [networkError, setNetworkError] = useState("");
 
-  // Dipakai HANYA untuk mengetahui database.is_sqlite — supaya tab
-  // "Backup" bisa disembunyikan sepenuhnya kalau database aktif
-  // Postgres/Neon (fitur backup ini memang cuma mendukung SQLite,
-  // lihat backup_service.py & routers/system.py).
-  const [systemStatus, setSystemStatus] = useState(null);
-
-
-  // ======================================================
-  // BACKUP (Pengaturan > Backup)
-  //
-  // Daftar backup database yang sudah ada (dari service Docker
-  // "backup" yang jalan otomatis tiap 24 jam, ATAU dari tombol
-  // "Backup Sekarang" di sini) + tombol untuk membuat backup baru
-  // kapan saja di luar jadwal otomatis, dan tombol download tiap
-  // file backup.
-  // ======================================================
-
-  const [backups, setBackups] = useState([]);
-  const [retentionDays, setRetentionDays] = useState(null);
-  const [backupsLoading, setBackupsLoading] = useState(true);
-  const [backupsError, setBackupsError] = useState("");
-
-  const [creatingBackup, setCreatingBackup] = useState(false);
-  const [backupActionError, setBackupActionError] = useState("");
-  const [backupActionSuccess, setBackupActionSuccess] = useState("");
-
-  const [downloadingFilename, setDownloadingFilename] = useState("");
-
-
-  // ======================================================
-  // IMPORT / RESTORE DATABASE (Pengaturan > Backup > Import)
-  //
-  // Dua sumber restore:
-  // - "existing"  -> pilih salah satu file dari daftar `backups` di
-  //                  atas (sudah ada di server).
-  // - "upload"     -> file dipilih admin dari komputernya sendiri
-  //                  lewat <input type="file">.
-  //
-  // restoreConfirmTarget menampung AKSI YANG SEDANG MENUNGGU
-  // KONFIRMASI (bukan langsung dieksekusi begitu tombol diklik) —
-  // restore MENIMPA SELURUH DATABASE aktif, jadi selalu lewat modal
-  // konfirmasi dulu, baru benar-benar dipanggil ke API kalau admin
-  // menekan tombol konfirmasi di dalam modal itu.
-  // ======================================================
-
-  const [selectedUploadFile, setSelectedUploadFile] = useState(null);
-
-  const [restoreConfirmTarget, setRestoreConfirmTarget] = useState(null);
-  // { source: "existing", filename } atau { source: "upload", file }
-
-  const [restoringFilename, setRestoringFilename] = useState("");
-  const [restoringUpload, setRestoringUpload] = useState(false);
-
-  const [restoreActionError, setRestoreActionError] = useState("");
-  const [restoreActionSuccess, setRestoreActionSuccess] = useState("");
-
+  const [backupEnabled, setBackupEnabled] = useState(false);
+  const [backupStatusError, setBackupStatusError] = useState("");
 
   useEffect(() => {
     loadProviders();
     loadSecretKeyStatus();
-    // Dimuat di awal (bukan cuma saat tab "Jaringan" diklik) supaya
-    // kita tahu APP_MODE lebih dulu, untuk memutuskan apakah tab
-    // "Jaringan" perlu ditampilkan sama sekali (disembunyikan kalau
-    // mode "production" — IP LAN tidak relevan di server cloud).
     loadNetworkInfo();
-    // Sama seperti di atas: dimuat di awal (bukan cuma saat tab
-    // "Backup" diklik) supaya kita tahu database.is_sqlite lebih
-    // dulu, untuk memutuskan apakah tab "Backup" perlu ditampilkan.
-    loadSystemStatus();
+    loadPostgresBackupStatus();
   }, []);
-
-
-  async function loadSystemStatus() {
-    try {
-      const data = await getSystemStatus();
-      setSystemStatus(data);
-    } catch (err) {
-      console.error("GET SYSTEM STATUS ERROR:", err);
-      // Sengaja tidak set error state terpisah — kegagalan di sini
-      // cuma berarti tab "Backup" tetap ditampilkan apa adanya
-      // (fallback aman di visibleTabs di bawah), bukan bug fatal.
-    }
-  }
-
 
   useEffect(() => {
     if (activeTab === "network") {
       loadNetworkInfo();
     }
-
-    if (activeTab === "backup") {
-      loadBackups();
-    }
   }, [activeTab]);
-
-
-  async function loadBackups() {
-    setBackupsLoading(true);
-    setBackupsError("");
-
-    try {
-      const data = await getBackups();
-      setBackups(data.backups || []);
-      setRetentionDays(data.retention_days);
-    } catch (err) {
-      console.error("GET BACKUPS ERROR:", err);
-      setBackupsError(err.message || "Gagal memuat daftar backup");
-    } finally {
-      setBackupsLoading(false);
-    }
-  }
-
-
-  async function handleCreateBackupNow() {
-    setBackupActionError("");
-    setBackupActionSuccess("");
-
-    try {
-      setCreatingBackup(true);
-
-      const data = await createBackupNow();
-
-      setBackupActionSuccess(data.message);
-
-      // Muat ulang daftar supaya backup baru langsung muncul di
-      // tabel, tanpa admin perlu pindah tab lalu balik lagi.
-      await loadBackups();
-    } catch (err) {
-      console.error("CREATE BACKUP ERROR:", err);
-      setBackupActionError(err.message || "Gagal membuat backup");
-    } finally {
-      setCreatingBackup(false);
-    }
-  }
-
-
-  async function handleDownloadBackup(filename) {
-    setBackupActionError("");
-
-    try {
-      setDownloadingFilename(filename);
-      await downloadBackup(filename);
-    } catch (err) {
-      console.error("DOWNLOAD BACKUP ERROR:", err);
-      setBackupActionError(err.message || "Gagal mengunduh backup");
-    } finally {
-      setDownloadingFilename("");
-    }
-  }
-
-
-  function handleSelectUploadFile(e) {
-    const file = e.target.files?.[0] || null;
-    setSelectedUploadFile(file);
-    setRestoreActionError("");
-    setRestoreActionSuccess("");
-  }
-
-
-  // Dipanggil dari tombol "Restore" di tiap baris daftar backup —
-  // BELUM langsung restore, cuma membuka modal konfirmasi.
-  function requestRestoreFromExisting(filename) {
-    setRestoreActionError("");
-    setRestoreActionSuccess("");
-    setRestoreConfirmTarget({ source: "existing", filename });
-  }
-
-
-  // Dipanggil dari tombol "Import File Ini" di bagian upload —
-  // sama, cuma membuka modal konfirmasi dulu.
-  function requestRestoreFromUpload() {
-    if (!selectedUploadFile) return;
-
-    setRestoreActionError("");
-    setRestoreActionSuccess("");
-    setRestoreConfirmTarget({ source: "upload", file: selectedUploadFile });
-  }
-
-
-  function cancelRestoreConfirm() {
-    setRestoreConfirmTarget(null);
-  }
-
-
-  // Benar-benar menjalankan restore — HANYA dipanggil dari tombol
-  // konfirmasi di dalam modal, setelah admin membaca peringatannya.
-  async function confirmRestore() {
-    if (!restoreConfirmTarget) return;
-
-    setRestoreActionError("");
-    setRestoreActionSuccess("");
-
-    try {
-      let data;
-
-      if (restoreConfirmTarget.source === "existing") {
-        setRestoringFilename(restoreConfirmTarget.filename);
-        data = await restoreFromExistingBackup(restoreConfirmTarget.filename);
-      } else {
-        setRestoringUpload(true);
-        data = await restoreFromUpload(restoreConfirmTarget.file);
-      }
-
-      setRestoreActionSuccess(
-        `${data.message} (Backup pengaman dari kondisi sebelum restore: ${data.safety_backup_filename})`
-      );
-
-      setSelectedUploadFile(null);
-
-      // Muat ulang daftar backup — restore barusan otomatis membuat
-      // 1 backup pengaman baru, jadi daftar perlu di-refresh supaya
-      // itu langsung terlihat.
-      await loadBackups();
-    } catch (err) {
-      console.error("RESTORE BACKUP ERROR:", err);
-      setRestoreActionError(err.message || "Gagal melakukan restore database");
-    } finally {
-      setRestoringFilename("");
-      setRestoringUpload(false);
-      setRestoreConfirmTarget(null);
-    }
-  }
-
-
-  // Format ukuran file (bytes) jadi satuan yang gampang dibaca
-  // (KB/MB) untuk ditampilkan di tabel backup.
-  function formatBytes(bytes) {
-    if (!bytes && bytes !== 0) return "-";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
 
   async function loadNetworkInfo() {
     setNetworkLoading(true);
@@ -337,37 +118,43 @@ export function useAdminSettings() {
     }
   }
 
+  async function loadPostgresBackupStatus() {
+    setBackupStatusError("");
+    try {
+      const data = await getPostgresBackupStatus();
+      setBackupEnabled(data.enabled === true);
+      setBackupStatusError(data.message || "");
+    } catch (err) {
+      console.error("GET POSTGRES BACKUP STATUS ERROR:", err);
+      setBackupStatusError(
+        err.message || "Gagal memeriksa ketersediaan backup PostgreSQL."
+      );
+    }
+  }
+
   // Tab "Jaringan" disembunyikan sepenuhnya kalau backend berjalan
   // dalam mode "production" (server cloud) — fitur share IP LAN
   // tidak relevan di situ. Selama networkInfo belum termuat, tab
   // tetap ditampilkan dulu (menghindari salah sembunyi sebelum
   // tahu mode-nya).
   //
-  // Tab "Backup" disembunyikan sepenuhnya kalau database aktif
-  // BUKAN SQLite (mis. Postgres/Neon) — fitur backup ini memang
-  // cuma mendukung SQLite (backup_service.py). Untuk Postgres/Neon,
-  // backup diserahkan ke fitur bawaan provider-nya (point-in-time
-  // restore), bukan ditampilkan di sini sebagai tombol yang error.
-  // Sama seperti tab Jaringan: selama systemStatus belum termuat,
-  // tab tetap ditampilkan dulu (fallback aman, bukan default salah
-  // sembunyi).
   const visibleTabs = TABS.filter((tab) => {
     if (tab.key === "network") {
       return networkInfo?.mode !== "production";
     }
     if (tab.key === "backup") {
-      return systemStatus?.database?.is_sqlite !== false;
+      return backupEnabled;
     }
     return true;
   });
 
-  // Kalau tab "Jaringan"/"Backup" sedang aktif tapi ternyata sudah
+  // Kalau tab "Jaringan" sedang aktif tapi ternyata sudah
   // seharusnya disembunyikan (misal admin sempat klik sebelum data
   // termuat), otomatis pindah ke tab Profil supaya tidak terjebak
   // di tab yang sudah disembunyikan. Dilakukan saat render.
   if (activeTab === "network" && networkInfo?.mode === "production") {
     setActiveTab("profile");
-  } else if (activeTab === "backup" && systemStatus?.database?.is_sqlite === false) {
+  } else if (activeTab === "backup" && !backupEnabled) {
     setActiveTab("profile");
   }
 
@@ -683,37 +470,25 @@ export function useAdminSettings() {
     }
   }
 
-          return {
+  return {
     activeTab,
-    backupActionError,
-    backupActionSuccess,
-    backups,
-    backupsError,
-    backupsLoading,
-    cancelRestoreConfirm,
+    backupStatusError,
+    backupEnabled,
     configDrafts,
     configError,
     configSaving,
     configSuccess,
-    confirmRestore,
-    creatingBackup,
-    downloadingFilename,
     forceLogoutAfterSecretKeyChange,
-    formatBytes,
     handleClearProviderConfig,
-    handleCreateBackupNow,
-    handleDownloadBackup,
     handleResetBaseUrl,
     handleRotateSecretKey,
     handleSaveProvider,
     handleSaveProviderConfig,
     handleSaveSecretKey,
-    handleSelectUploadFile,
-    loadBackups,
     loadNetworkInfo,
+    loadPostgresBackupStatus,
     loadProviders,
     loadSecretKeyStatus,
-    loadSystemStatus,
     navigate,
     networkError,
     networkInfo,
@@ -724,14 +499,6 @@ export function useAdminSettings() {
     providerSaving,
     providerSuccess,
     providers,
-    requestRestoreFromExisting,
-    requestRestoreFromUpload,
-    restoreActionError,
-    restoreActionSuccess,
-    restoreConfirmTarget,
-    restoringFilename,
-    restoringUpload,
-    retentionDays,
     rotatingSecretKey,
     savingSecretKey,
     secretKeyConfirm,
@@ -739,19 +506,11 @@ export function useAdminSettings() {
     secretKeyError,
     secretKeyLoading,
     secretKeyStatus,
-    selectedUploadFile,
     setActiveTab,
-    setBackupActionError,
-    setBackupActionSuccess,
-    setBackups,
-    setBackupsError,
-    setBackupsLoading,
     setConfigDrafts,
     setConfigError,
     setConfigSaving,
     setConfigSuccess,
-    setCreatingBackup,
-    setDownloadingFilename,
     setNetworkError,
     setNetworkInfo,
     setNetworkLoading,
@@ -761,12 +520,6 @@ export function useAdminSettings() {
     setProviderSaving,
     setProviderSuccess,
     setProviders,
-    setRestoreActionError,
-    setRestoreActionSuccess,
-    setRestoreConfirmTarget,
-    setRestoringFilename,
-    setRestoringUpload,
-    setRetentionDays,
     setRotatingSecretKey,
     setSavingSecretKey,
     setSecretKeyConfirm,
@@ -774,9 +527,6 @@ export function useAdminSettings() {
     setSecretKeyError,
     setSecretKeyLoading,
     setSecretKeyStatus,
-    setSelectedUploadFile,
-    setSystemStatus,
-    systemStatus,
     updateDraft,
     visibleTabs
   };

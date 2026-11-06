@@ -8,7 +8,7 @@ import ProfileTab from "../components/settings/ProfileTab";
 import NetworkTab from "../components/settings/NetworkTab";
 import AiModelTab from "../components/settings/AiModelTab";
 import SecurityTab from "../components/settings/SecurityTab";
-import BackupTab from "../components/settings/BackupTab";
+import PostgresBackupTab from "../components/settings/PostgresBackupTab";
 
 import "../components/settings/settings.css";
 
@@ -23,8 +23,7 @@ function AdminSettings() {
   const settingsData = useAdminSettings();
     const {
     activeTab, visibleTabs, setActiveTab,
-    restoreConfirmTarget, cancelRestoreConfirm, restoringUpload, restoringFilename, confirmRestore,
-    networkInfo, networkLoading, networkError
+    networkInfo, networkLoading, networkError, backupEnabled, backupStatusError
   } = settingsData;
 
 
@@ -39,6 +38,12 @@ function AdminSettings() {
           <p>Kelola profil, keamanan akun, dan konfigurasi sistem</p>
         </div>
       </div>
+
+      {backupStatusError && (
+        <div className="error-message" style={{ marginBottom: 16 }}>
+          {backupStatusError}
+        </div>
+      )}
 
       {/* TAB SWITCHER */}
 
@@ -85,85 +90,8 @@ function AdminSettings() {
 
       {activeTab === "security" && <SecurityTab data={settingsData} />}
 
+      {activeTab === "backup" && backupEnabled && <PostgresBackupTab />}
 
-      {/* ============================================= */}
-      {/* TAB: BACKUP — BACKUP DATABASE SQLITE           */}
-      {/* ============================================= */}
-
-      {activeTab === "backup" && <BackupTab data={settingsData} />}
-
-
-      {/* ===================================== */}
-      {/* MODAL KONFIRMASI RESTORE DATABASE      */}
-      {/* ===================================== */}
-
-      {restoreConfirmTarget && (
-        <div className="modal-overlay" onClick={cancelRestoreConfirm}>
-          <div
-            className="modal"
-            style={{ width: "480px", maxWidth: "92vw" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <div>
-                <h2>Konfirmasi Restore Database</h2>
-              </div>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={cancelRestoreConfirm}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ padding: "4px 22px 22px" }}>
-              <p style={{ fontSize: 13, marginTop: 0 }}>
-                Anda akan me-restore database dari{" "}
-                <strong>
-                  {restoreConfirmTarget.source === "existing"
-                    ? restoreConfirmTarget.filename
-                    : restoreConfirmTarget.file.name}
-                </strong>
-                .
-              </p>
-
-              <p style={{ fontSize: 13, color: "#b45309" }}>
-                Tindakan ini akan MENGGANTIKAN seluruh data yang sedang
-                aktif sekarang (semua user, soal, dan hasil tryout) dengan
-                isi file ini. Database saat ini akan otomatis di-backup
-                dulu sebelum ditimpa, jadi masih bisa dikembalikan lewat
-                Restore sekali lagi kalau ternyata salah pilih file — tapi
-                perubahan APA PUN yang terjadi SETELAH backup pengaman itu
-                tetap akan hilang.
-              </p>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={cancelRestoreConfirm}
-                  disabled={restoringUpload || !!restoringFilename}
-                >
-                  Batal
-                </button>
-
-                <button
-                  type="button"
-                  className="primary-button"
-                  style={{ backgroundColor: "#b45309" }}
-                  onClick={confirmRestore}
-                  disabled={restoringUpload || !!restoringFilename}
-                >
-                  {restoringUpload || restoringFilename
-                    ? "Me-restore..."
-                    : "Ya, Timpa Database Sekarang"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ============================================= */}
       {/* TAB: JARINGAN — AKSES DARI LAPTOP LAIN (WIFI)  */}

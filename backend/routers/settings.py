@@ -1,10 +1,14 @@
+import asyncio
 import os
+import re
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import ai_providers
 import auth
-import backup_service
+from scripts import backup_postgres
+from config import DATABASE_URL, POSTGRES_BACKUP_ENABLED
 from database import get_db
 from dependencies import require_role
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -14,21 +18,376 @@ from schemas import (
     AIProvidersResponse,
     AIProviderUpdate,
     AIStatusResponse,
-    BackupActionResponse,
-    BackupFileResponse,
-    BackupListResponse,
+    PostgresBackupAvailabilityResponse,
+    PostgresBackupFileResponse,
+    PostgresBackupListResponse,
+    PostgresBackupSettingsRequest,
+    PostgresBackupSettingsResponse,
+    PostgresRestoreResponse,
     ProviderConfigUpdate,
-    RestoreActionResponse,
     SecretKeyActionResponse,
     SecretKeyStatusResponse,
     SecretKeyUpdateRequest,
 )
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
+
+BACKUP_FILENAME_PATTERN = re.compile(
+    r"^tka-full-\d{8}T\d{6}(?:\d{6})?Z\.dump$"
+)
+BACKUP_OPERATION_LOCK = asyncio.Lock()
 
 router = APIRouter(
     prefix="/api/settings",
     tags=["Settings"]
 )
+
+
+BACKUP_SUBDIRECTORY_SETTING_KEY = "postgres_backup_subdirectory"
+BACKUP_RETENTION_SETTING_KEY = "postgres_backup_retention"
+
+
+def _backup_base_directory() -> Path:
+    configured_directory = os.getenv("POSTGRES_BACKUP_DIR", "").strip()
+    if not configured_directory:
+        configured_directory = str(backup_postgres.DEFAULT_BACKUP_DIR)
+    return Path(configured_directory).expanduser().resolve()
+
+
+def _backup_subdirectory(db: Session) -> str:
+    setting = (
+        db.query(AppSetting)
+        .filter(AppSetting.key == BACKUP_SUBDIRECTORY_SETTING_KEY)
+        .first()
+    )
+    return setting.value if setting else ""
+
+
+def _backup_directory(db: Session) -> Path:
+    try:
+        return backup_postgres.resolve_backup_directory(
+            _backup_base_directory(),
+            _backup_subdirectory(db),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Konfigurasi folder backup tidak valid: {exc}",
+        ) from exc
+
+
+def _backup_retention_count(db: Session) -> int:
+    setting = (
+        db.query(AppSetting)
+        .filter(AppSetting.key == BACKUP_RETENTION_SETTING_KEY)
+        .first()
+    )
+    configured_count = (
+        setting.value
+        if setting
+        else os.getenv("POSTGRES_BACKUP_RETENTION", "14")
+    )
+    try:
+        retention_count = int(configured_count)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Jumlah retensi backup harus berupa bilangan bulat.",
+        ) from exc
+    if retention_count < 1:
+        raise HTTPException(
+            status_code=500,
+            detail="Jumlah retensi backup harus minimal 1.",
+        )
+    return retention_count
+
+
+def _require_postgres_backup() -> None:
+    if not POSTGRES_BACKUP_ENABLED:
+        raise HTTPException(
+            status_code=404,
+            detail="Fitur backup file hanya diaktifkan pada server yang mendukungnya.",
+        )
+
+
+def _release_backup_operation_lock() -> None:
+    if BACKUP_OPERATION_LOCK.locked():
+        BACKUP_OPERATION_LOCK.release()
+
+
+@router.get(
+    "/postgres-backups/status",
+    response_model=PostgresBackupAvailabilityResponse,
+)
+def get_postgres_backup_status(
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    if not POSTGRES_BACKUP_ENABLED:
+        return PostgresBackupAvailabilityResponse(enabled=False)
+
+    missing_tools = [
+        tool
+        for tool in ("pg_dump", "pg_restore")
+        if backup_postgres.find_postgres_tool(tool) is None
+    ]
+    if missing_tools:
+        return PostgresBackupAvailabilityResponse(
+            enabled=False,
+            message=(
+                "Fitur backup diaktifkan, tetapi utilitas PostgreSQL belum "
+                f"terdeteksi oleh backend: {', '.join(missing_tools)}. "
+                "Periksa PATH backend atau variabel POSTGRES_PG_DUMP_PATH/"
+                "POSTGRES_PG_RESTORE_PATH."
+            ),
+        )
+    return PostgresBackupAvailabilityResponse(enabled=True)
+
+
+@router.get(
+    "/postgres-backups/config",
+    response_model=PostgresBackupSettingsResponse,
+)
+def get_postgres_backup_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    backup_directory = _backup_directory(db)
+    return PostgresBackupSettingsResponse(
+        base_directory=str(_backup_base_directory()),
+        backup_directory=str(backup_directory),
+        subdirectory=_backup_subdirectory(db),
+        retention_count=_backup_retention_count(db),
+        verified=backup_directory.is_dir() and os.access(backup_directory, os.W_OK),
+    )
+
+
+@router.put(
+    "/postgres-backups/config",
+    response_model=PostgresBackupSettingsResponse,
+)
+def update_postgres_backup_settings(
+    data: PostgresBackupSettingsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    subdirectory = data.subdirectory.strip().replace("\\", "/")
+    try:
+        backup_directory = backup_postgres.resolve_backup_directory(
+            _backup_base_directory(),
+            subdirectory,
+        )
+        backup_postgres.verify_backup_directory(backup_directory)
+    except (OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Folder backup tidak dapat digunakan: {exc}",
+        ) from exc
+
+    setting_values = (
+        (BACKUP_SUBDIRECTORY_SETTING_KEY, subdirectory),
+        (BACKUP_RETENTION_SETTING_KEY, str(data.retention_count)),
+    )
+    for key, value in setting_values:
+        setting = db.query(AppSetting).filter(AppSetting.key == key).first()
+        if setting:
+            setting.value = value
+        else:
+            db.add(AppSetting(key=key, value=value))
+    db.commit()
+
+    return PostgresBackupSettingsResponse(
+        base_directory=str(_backup_base_directory()),
+        backup_directory=str(backup_directory),
+        subdirectory=subdirectory,
+        retention_count=data.retention_count,
+        verified=True,
+    )
+
+
+@router.get(
+    "/postgres-backups",
+    response_model=PostgresBackupListResponse,
+)
+def list_postgres_backups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    backup_dir = _backup_directory(db)
+    files = []
+    if backup_dir.is_dir():
+        for path in sorted(backup_dir.iterdir(), key=lambda item: item.name, reverse=True):
+            if path.is_file() and BACKUP_FILENAME_PATTERN.fullmatch(path.name):
+                files.append(
+                    PostgresBackupFileResponse(
+                        filename=path.name,
+                        size_bytes=path.stat().st_size,
+                        created_at=datetime.fromtimestamp(
+                            path.stat().st_mtime,
+                            tz=timezone.utc,
+                        ),
+                    )
+                )
+    return PostgresBackupListResponse(
+        backups=files,
+        retention_count=_backup_retention_count(db),
+    )
+
+
+@router.post(
+    "/postgres-backups",
+    response_model=PostgresBackupFileResponse,
+)
+async def create_postgres_backup(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    if BACKUP_OPERATION_LOCK.locked():
+        raise HTTPException(
+            status_code=409,
+            detail="Operasi backup atau restore sedang berjalan.",
+        )
+    await BACKUP_OPERATION_LOCK.acquire()
+
+    try:
+        backup_path = await run_in_threadpool(
+            backup_postgres.create_backup,
+            _backup_directory(db),
+            _backup_retention_count(db),
+            DATABASE_URL,
+        )
+        return PostgresBackupFileResponse(
+            filename=backup_path.name,
+            size_bytes=backup_path.stat().st_size,
+            created_at=datetime.fromtimestamp(
+                backup_path.stat().st_mtime,
+                tz=timezone.utc,
+            ),
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gagal membuat backup PostgreSQL: {exc}",
+        ) from exc
+    finally:
+        _release_backup_operation_lock()
+
+
+@router.get("/postgres-backups/{filename}")
+def download_postgres_backup(
+    filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    if not BACKUP_FILENAME_PATTERN.fullmatch(filename):
+        raise HTTPException(status_code=404, detail="File backup tidak ditemukan.")
+    backup_path = _backup_directory(db) / filename
+    if not backup_path.is_file():
+        raise HTTPException(status_code=404, detail="File backup tidak ditemukan.")
+    return FileResponse(
+        path=backup_path,
+        filename=backup_path.name,
+        media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.post(
+    "/postgres-backups/restore",
+    response_model=PostgresRestoreResponse,
+)
+async def restore_postgres_backup(
+    file: UploadFile = File(...),
+    confirm: bool = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    if not confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Konfirmasi restore wajib diberikan.",
+        )
+    if BACKUP_OPERATION_LOCK.locked():
+        raise HTTPException(
+            status_code=409,
+            detail="Operasi backup atau restore sedang berjalan.",
+        )
+    await BACKUP_OPERATION_LOCK.acquire()
+
+    temporary_path = None
+    try:
+        backup_dir = _backup_directory(db)
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(backup_dir, 0o700)
+        temporary_descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".tka-upload-",
+            suffix=".dump",
+            dir=backup_dir,
+        )
+        temporary_path = Path(temporary_name)
+        total_bytes = 0
+        with os.fdopen(temporary_descriptor, "wb") as temporary_file:
+            while chunk := await file.read(1024 * 1024):
+                temporary_file.write(chunk)
+                total_bytes += len(chunk)
+        if total_bytes == 0:
+            raise HTTPException(status_code=400, detail="File backup kosong.")
+
+        try:
+            await run_in_threadpool(
+                backup_postgres.validate_backup,
+                temporary_path,
+                DATABASE_URL,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File bukan arsip PostgreSQL yang valid: {exc}",
+            ) from exc
+
+        safety_backup = await run_in_threadpool(
+            backup_postgres.create_backup,
+            backup_dir,
+            _backup_retention_count(db),
+            DATABASE_URL,
+        )
+        await run_in_threadpool(
+            backup_postgres.restore_backup,
+            temporary_path,
+            DATABASE_URL,
+        )
+        return PostgresRestoreResponse(
+            success=True,
+            message=(
+                "Restore selesai. Backup kondisi sebelum restore tersimpan "
+                "di server dan dapat diunduh dari daftar backup."
+            ),
+            safety_backup_filename=safety_backup.name,
+        )
+    except HTTPException:
+        raise
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Restore PostgreSQL gagal. Jika proses restore sudah dimulai, "
+                "pg_restore menjalankannya dalam transaksi tunggal sehingga "
+                "restore yang gagal dibatalkan. Jika error terjadi setelah "
+                f"restore selesai, periksa database dan minta pengguna login ulang. Detail: {exc}"
+            ),
+        ) from exc
+    finally:
+        try:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+            await file.close()
+        finally:
+            _release_backup_operation_lock()
 
 
 # =========================================================
@@ -473,261 +832,4 @@ def rotate_secret_key(
             "SECRET_KEY berhasil dirotasi otomatis. Semua sesi login "
             "(termasuk sesi Anda saat ini) akan diminta login ulang."
         ),
-    )
-
-
-# =========================================================
-# BACKUP DATABASE (Pengaturan > Backup)
-#
-# Logika sebenarnya (cara backup dibuat, dibersihkan, divalidasi)
-# ada di backend/backup_service.py — dipakai bersama oleh endpoint
-# di bawah ini DAN script scripts/backup_db.py (dipanggil otomatis
-# tiap 24 jam oleh service "backup" di docker-compose.yml), supaya
-# backup manual dari tombol di UI dan backup terjadwal otomatis
-# selalu konsisten (folder sama, format nama file sama, retensi
-# sama).
-#
-# Dibatasi ADMIN saja (bukan GURU) — backup berisi SELURUH data
-# aplikasi (semua user, semua jawaban siswa), bukan sekadar setting
-# fitur seperti AI provider.
-# =========================================================
-
-@router.get(
-    "/backups",
-    response_model=BackupListResponse,
-)
-def get_backups(
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """Daftar backup yang sudah ada, terbaru dulu — untuk ditampilkan
-    di kartu "Backup Database" halaman Pengaturan."""
-
-    backups = backup_service.list_backups()
-
-    return BackupListResponse(
-        backups=[
-            BackupFileResponse(
-                filename=b.filename,
-                size_bytes=b.size_bytes,
-                created_at=b.created_at,
-            )
-            for b in backups
-        ],
-        retention_days=backup_service.RETENTION_DAYS,
-    )
-
-
-@router.post(
-    "/backups",
-    response_model=BackupActionResponse,
-)
-def create_backup_now(
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """
-    Tombol "Backup Sekarang" — membuat satu file backup baru di luar
-    jadwal otomatis, mis. sebelum admin melakukan perubahan besar
-    (rotasi SECRET_KEY, hapus data massal, dll). Sekaligus menjalankan
-    cleanup backup lama seperti biasa, supaya folder backup tidak
-    membengkak walau sering dipakai manual.
-    """
-
-    try:
-        backup = backup_service.backup_database()
-
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-    except ValueError as exc:
-        # DATABASE_URL bukan SQLite — seharusnya tidak pernah terjadi
-        # di deployment ini, tapi ditangani supaya tidak 500 mentah.
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    removed = backup_service.cleanup_old_backups()
-
-    return BackupActionResponse(
-        success=True,
-        message=f"Backup berhasil dibuat: {backup.filename}",
-        backup=BackupFileResponse(
-            filename=backup.filename,
-            size_bytes=backup.size_bytes,
-            created_at=backup.created_at,
-        ),
-        removed_old_count=removed,
-    )
-
-
-@router.get("/backups/{filename}/download")
-def download_backup(
-    filename: str,
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """
-    Download satu file backup. filename divalidasi ketat lewat
-    backup_service.resolve_backup_path() (hanya menerima pola nama
-    file backup yang sah, mis. "project_tz_20260101_120000.db") —
-    MENCEGAH path traversal (mis. mencoba mengakses "../../.env" atau
-    file sistem lain lewat parameter ini).
-    """
-
-    try:
-        path = backup_service.resolve_backup_path(filename)
-
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-
-    return FileResponse(
-        path=path,
-        filename=path.name,
-        media_type="application/octet-stream",
-    )
-
-
-# =========================================================
-# IMPORT / RESTORE DATABASE (Pengaturan > Backup > Import)
-#
-# Dua jalur restore:
-#
-# 1. restore_from_existing_backup  -> pilih salah satu backup yang
-#    SUDAH ADA di server (dari daftar GET /backups, dibuat otomatis
-#    tiap 24 jam atau lewat tombol "Backup Sekarang").
-# 2. restore_from_upload           -> upload file .db dari komputer
-#    admin sendiri (mis. backup lama yang di-download manual
-#    sebelumnya, atau dipindah dari server lain).
-#
-# KEDUANYA WAJIB `confirm=True` — restore MENIMPA SELURUH DATABASE
-# yang sedang aktif (semua user, soal, hasil tryout tergantikan isi
-# file yang di-restore). Parameter ini lapisan pertahanan kedua di
-# level API (selain konfirmasi di sisi UI), supaya panggilan API
-# yang tidak sengaja/asal-asalan tidak langsung menjalankan restore.
-#
-# Sebelum menimpa, backup_service.restore_database() OTOMATIS
-# membuat backup dari kondisi SEBELUM restore ini — jadi restore yang
-# salah pilih file tetap bisa "dibatalkan" dengan restore sekali lagi
-# dari backup pengaman itu.
-#
-# CATATAN: setelah restore, SECRET_KEY yang tersimpan di database
-# bisa saja berbeda dari sebelumnya (ikut isi file yang di-restore)
-# — kalau begitu, sesi login admin yang sedang aktif akan otomatis
-# tidak valid lagi dan perlu login ulang. Ini diberi tahu lewat pesan
-# di response, bukan dianggap error.
-# =========================================================
-
-@router.post(
-    "/backups/{filename}/restore",
-    response_model=RestoreActionResponse,
-)
-def restore_from_existing_backup(
-    filename: str,
-    confirm: bool = False,
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """Restore database dari salah satu file backup yang sudah ada
-    di server (dipilih dari daftar di halaman Pengaturan > Backup)."""
-
-    if not confirm:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Restore membutuhkan konfirmasi eksplisit "
-                "(confirm=true) karena akan MENIMPA seluruh database "
-                "yang sedang aktif."
-            ),
-        )
-
-    try:
-        path = backup_service.resolve_backup_path(filename)
-        backup_service.validate_sqlite_file(path)
-        result = backup_service.restore_database(path)
-
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-
-    return RestoreActionResponse(
-        success=True,
-        message=(
-            f"Database berhasil di-restore dari '{result.restored_from}'. "
-            "Kalau sesi login Anda tiba-tiba diminta login ulang, itu "
-            "normal — SECRET_KEY ikut kembali ke isi backup yang "
-            "di-restore."
-        ),
-        restored_from=result.restored_from,
-        safety_backup_filename=result.safety_backup_filename,
-    )
-
-
-@router.post(
-    "/backups/restore-upload",
-    response_model=RestoreActionResponse,
-)
-async def restore_from_upload(
-    file: UploadFile = File(...),
-    confirm: bool = Form(False),
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """Restore database dari file .db yang diupload langsung dari
-    komputer admin (bukan dari daftar backup yang ada di server)."""
-
-    if not confirm:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Restore membutuhkan konfirmasi eksplisit "
-                "(confirm=true) karena akan MENIMPA seluruh database "
-                "yang sedang aktif."
-            ),
-        )
-
-    if not file.filename or not file.filename.lower().endswith(
-        (".db", ".sqlite", ".sqlite3")
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Ekstensi file tidak dikenali. Upload file database "
-                "SQLite (.db/.sqlite/.sqlite3)."
-            ),
-        )
-
-    # Ditulis dulu ke file sementara di disk (BUKAN diproses langsung
-    # dari memori) supaya bisa divalidasi (validate_sqlite_file butuh
-    # file di disk untuk dibuka pakai sqlite3.connect) sebelum benar-
-    # benar dipakai menimpa database aktif.
-    tmp_fd, tmp_name = tempfile.mkstemp(suffix=".db")
-    tmp_path = Path(tmp_name)
-
-    try:
-        with os.fdopen(tmp_fd, "wb") as tmp_file:
-            while chunk := await file.read(1024 * 1024):
-                tmp_file.write(chunk)
-
-        try:
-            backup_service.validate_sqlite_file(tmp_path)
-            result = backup_service.restore_database(tmp_path)
-
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-
-        except FileNotFoundError as exc:
-            raise HTTPException(status_code=404, detail=str(exc))
-
-    finally:
-        tmp_path.unlink(missing_ok=True)
-
-    return RestoreActionResponse(
-        success=True,
-        message=(
-            f"Database berhasil di-restore dari file upload "
-            f"'{file.filename}'. Kalau sesi login Anda tiba-tiba "
-            "diminta login ulang, itu normal — SECRET_KEY ikut "
-            "kembali ke isi backup yang di-restore."
-        ),
-        restored_from=file.filename,
-        safety_backup_filename=result.safety_backup_filename,
     )

@@ -47,7 +47,7 @@ export default function QuestionTable({
                               </div>
 
                               {question.has_image && (
-                                <span className="score-badge is-image" style={{ marginTop: "4px" }}>
+                                <span className="score-badge is-image management-badge-spaced">
                                   Bergambar
                                 </span>
                               )}
@@ -72,7 +72,7 @@ export default function QuestionTable({
                                 <span className="score-badge is-fail">Nonaktif</span>
                               )}
 
-                              <div className="score-secondary" style={{ marginTop: "4px" }}>
+                              <div className="score-secondary management-status-detail">
                                 {(question.explanation || "").trim() ? (
                                   <span className="score-badge is-complete">Lengkap</span>
                                 ) : (
@@ -82,7 +82,7 @@ export default function QuestionTable({
                             </td>
 
                             <td className="is-center is-nowrap">
-                              <div className="action-buttons" style={{ justifyContent: "center" }}>
+                              <div className="action-buttons management-table-actions">
                                 <button
                                   className="review-button"
                                   title="Preview Soal"

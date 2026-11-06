@@ -8,7 +8,7 @@ Dokumen ini menggambarkan arsitektur yang terlihat pada kode repository saat ini
 flowchart LR
     Browser["Browser pengguna<br/>React 19 + Vite"]
     API["FastAPI<br/>backend/main.py"]
-    DB[("SQLAlchemy<br/>SQLite atau PostgreSQL")]
+    DB[("SQLAlchemy<br/>PostgreSQL")]
     AI["Provider AI<br/>Ollama / Gemini"]
     Files["Dokumen dan gambar<br/>PDF / DOCX / TXT / image"]
 
@@ -58,8 +58,8 @@ Relasi antarentitas dan aturan database menjadi sumber kebenaran untuk integrita
 
 ## Database dan skema
 
-- `backend/config.py` membaca file konfigurasi yang ditunjuk `ENV_FILE` (default `.env`) dan memakai SQLite lokal jika `DATABASE_URL` kosong.
-- `backend/database.py` mengonfigurasi SQLite dengan `foreign_keys`, WAL, dan `busy_timeout`; untuk PostgreSQL, engine menggunakan `pool_pre_ping`.
+- `backend/config.py` membaca file konfigurasi yang ditunjuk `ENV_FILE` (default `.env`) dan mewajibkan `DATABASE_URL` PostgreSQL.
+- `backend/database.py` membuat engine PostgreSQL SQLAlchemy dengan `pool_pre_ping`.
 - `Base.metadata.create_all()` saat startup membuat tabel yang belum ada. `backend/main.py` juga memiliki migrasi kolom startup terbatas; mekanisme ini bukan pengganti migrasi skema umum.
 - SQL migrasi berada di `migrations/`. Terdapat berkas sampai `v04`, sedangkan `scripts/run_migrations.py` saat ini hanya mendaftarkan/menerapkan migrasi sampai `v03`. Periksa dukungan runner sebelum mengandalkan migrasi `v04`.
 - Pengujian backend harus memakai database tes yang terisolasi. `backend/scripts/run_tests.ps1` saat ini memakai `.env` dan path relatif dari folder `backend`; jangan menganggapnya otomatis aman untuk database produksi.
@@ -92,7 +92,7 @@ Relasi antarentitas dan aturan database menjadi sumber kebenaran untuk integrita
 - `frontend`: hasil build Vite disajikan oleh Nginx pada port host `5173`.
 - `backup`: menjalankan skrip backup berulang dengan interval 24 jam.
 - URL API frontend perlu ditentukan dengan benar saat build untuk deployment Docker/host; perubahan konfigurasi build frontend memerlukan rebuild image.
-- Layanan backup menggunakan `backend/scripts/backup_db.py` dan dirancang terutama untuk SQLite. Jika `DATABASE_URL` memakai PostgreSQL, pastikan strategi backup PostgreSQL dilakukan secara terpisah dan jangan menganggap service tersebut membackup PostgreSQL.
+- SQLite tidak didukung saat aplikasi berjalan. Backup dan pemulihan harus memakai fitur layanan PostgreSQL/provider atau prosedur PostgreSQL yang dikelola operator; aplikasi tidak menyediakan endpoint backup/restore database.
 
 ## Batasan dan pertimbangan operasional yang diketahui
 

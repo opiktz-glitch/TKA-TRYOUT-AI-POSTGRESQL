@@ -38,12 +38,12 @@ function StudentManagement() {
   return (
     <>
       {/* HEADER */}
-      <div className="page-header">
+      <div className="page-header management-page-header">
         <div>
           <h1>Data Siswa</h1>
           <p>Kelola profil siswa (NIS, sekolah, kelas)</p>
         </div>
-        <button className="primary-button" onClick={openAddModal}>
+        <button type="button" className="primary-button" onClick={openAddModal}>
           + Tambah Siswa
         </button>
       </div>
@@ -129,7 +129,7 @@ function StudentManagement() {
                           {item.class_name ? ` / ${item.class_name}` : ""}
                         </td>
                         <td className="is-center is-nowrap">
-                          <div className="action-buttons" style={{ justifyContent: "center" }}>
+                          <div className="action-buttons management-table-actions">
                             <button
                               className="edit-button"
                               onClick={() => openEditModal(item)}

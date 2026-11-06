@@ -13,9 +13,6 @@ services:
       - PORT=8000
     env_file:
       - ./backend/.env
-    volumes:
-      - ./backend/database:/app/database
-      - ./backend/backups:/app/backups
 
   frontend:
     build:
@@ -27,26 +24,3 @@ services:
       - "5173:80"
     depends_on:
       - backend
-
-  backup:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: tka_backup
-    restart: always
-    environment:
-      - BACKUP_RETENTION_DAYS=14
-    env_file:
-      - ./backend/.env
-    volumes:
-      - ./backend/database:/app/database
-      - ./backend/backups:/app/backups
-    # Menjalankan skrip backup (misalnya dengan cron), atau sleep loop untuk development
-    # Kita menggunakan python timer loop untuk menjalankan skrip backup harian
-    command: >
-      sh -c "while true; do
-        echo 'Mulai proses backup database harian...'
-        python scripts/backup_db.py
-        echo 'Menunggu 24 jam untuk backup berikutnya...'
-        sleep 86400
-      done"

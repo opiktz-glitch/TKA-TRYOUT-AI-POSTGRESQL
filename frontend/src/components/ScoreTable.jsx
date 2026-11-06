@@ -246,32 +246,18 @@ function ScoreTable({
                     <td className="is-center">
                       <StatusBadge passed={item.passed} />
                       {typeof item.tab_switches_count === "number" && (
-                        <div style={{ marginTop: "4px" }}>
+                        <div className="score-integrity-detail">
                           {item.tab_switches_count > 0 ? (
                             <span
                               title={`Siswa terdeteksi berpindah tab/jendela sebanyak ${item.tab_switches_count} kali saat ujian`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "3px",
-                                fontSize: "11px",
-                                padding: "2px 6px",
-                                borderRadius: "8px",
-                                background: item.tab_switches_count >= 3 ? "#fee2e2" : "#fef3c7",
-                                color: item.tab_switches_count >= 3 ? "#991b1b" : "#92400e",
-                                fontWeight: 600,
-                              }}
+                              className={`score-integrity-warning${item.tab_switches_count >= 3 ? " is-high" : ""}`}
                             >
                               ⚠️ {item.tab_switches_count}x Pindah Tab
                             </span>
                           ) : (
                             <span
                               title="Tidak terdeteksi perpindahan tab selama ujian"
-                              style={{
-                                fontSize: "11px",
-                                color: "#059669",
-                                fontWeight: 500,
-                              }}
+                              className="score-integrity-safe"
                             >
                               ✓ Integritas Aman
                             </span>
@@ -302,7 +288,7 @@ function ScoreTable({
 
                     {showActions && (
                       <td className="is-center is-nowrap">
-                        <div className="action-buttons" style={{ justifyContent: "center" }}>
+                        <div className="action-buttons management-table-actions">
                           {showViewAction && (
                             <button
                               type="button"

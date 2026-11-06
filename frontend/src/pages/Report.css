@@ -4,6 +4,63 @@
    Dipindah dari App.css tanpa perubahan isi.
    ===================================================== */
 
+.report-page-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-card {
+  height: 100%;
+  min-width: 0;
+}
+
+.report-card-spaced {
+  margin-bottom: 14px;
+}
+
+.report-card-body {
+  padding: 6px 18px 18px;
+}
+
+.report-select-card {
+  margin-bottom: 14px;
+  padding: 14px 18px;
+}
+
+.report-select-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-select-label {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-accent-icon {
+  color: var(--accent);
+}
+
+.report-metric {
+  font-weight: 600;
+}
+
+.report-metric.is-danger {
+  color: var(--danger);
+}
+
+.report-metric.is-accent {
+  color: var(--accent);
+}
+
+.report-rank-badge.is-secondary {
+  background: var(--secondary-color, #8b5cf6);
+  color: white;
+}
+
 
 /* =====================================================
    LAPORAN (GURU) — DISTRIBUSI NILAI & SOAL TERSULIT
@@ -21,7 +78,8 @@
 
   font-size: 13px;
 
-  min-width: 240px;
+  width: min(100%, 360px);
+  min-width: min(240px, 100%);
 }
 
 
@@ -649,5 +707,21 @@
 @media (max-width: 900px) {
   .report-2-col {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .report-select-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .report-select {
+    width: 100%;
+  }
+
+  .report-card-body {
+    padding: 6px 14px 14px;
   }
 }

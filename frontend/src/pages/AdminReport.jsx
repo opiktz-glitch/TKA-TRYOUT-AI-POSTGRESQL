@@ -31,7 +31,7 @@ function AdminReport() {
     <>
       {/* HEADER */}
 
-      <div className="page-header">
+      <div className="page-header report-page-header">
         <div>
           <h1>Laporan</h1>
           <p>Ringkasan analitik seluruh sistem: mata pelajaran, guru, dan soal tersulit</p>
@@ -81,7 +81,7 @@ function AdminReport() {
           <div className="report-2-col">
           {/* RATA-RATA SKOR PER MAPEL */}
 
-          <div className="dashboard-card" style={{ height: "100%" }}>
+          <div className="dashboard-card report-card">
 
             <div className="card-header">
               <div>
@@ -90,7 +90,7 @@ function AdminReport() {
               </div>
             </div>
 
-            <div style={{ padding: "6px 18px 18px" }}>
+            <div className="report-card-body">
 
               {report.average_score_per_subject.length === 0 && (
                 <div className="empty-message">
@@ -126,7 +126,7 @@ function AdminReport() {
 
           {/* GURU PALING AKTIF */}
 
-          <div className="dashboard-card" style={{ height: "100%" }}>
+          <div className="dashboard-card report-card">
 
             <div className="card-header">
               <div>
@@ -161,7 +161,7 @@ function AdminReport() {
                             <span className="teacher-rank-badge">{index + 1}</span>
                             <span className="score-primary is-strong">{s.subject_name}</span>
                           </td>
-                          <td className="is-center" style={{ color: "var(--danger)", fontWeight: 600 }}>{s.average_percentage}%</td>
+                          <td className="is-center report-metric is-danger">{s.average_percentage}%</td>
                           <td className="is-center">{s.total_attempts}</td>
                         </tr>
                       ))}
@@ -180,7 +180,7 @@ function AdminReport() {
 
           {/* TREN JUMLAH ATTEMPT */}
 
-          <div className="dashboard-card" style={{ height: "100%" }}>
+          <div className="dashboard-card report-card">
 
             <div className="card-header">
               <div>
@@ -202,7 +202,7 @@ function AdminReport() {
 
           {/* SOAL PALING SERING SALAH (GLOBAL) */}
 
-          <div className="dashboard-card" style={{ height: "100%" }}>
+          <div className="dashboard-card report-card">
 
             <div className="card-header">
               <div>
@@ -210,7 +210,7 @@ function AdminReport() {
                 <p>10 soal dengan persentase jawaban salah tertinggi di seluruh sistem</p>
               </div>
 
-              <span className="menu-icon" style={{ color: "var(--accent)" }}>
+              <span className="menu-icon report-accent-icon">
                 <IconTrendingUp size={20} />
               </span>
             </div>
@@ -231,7 +231,7 @@ function AdminReport() {
           <div className="report-2-col">
 
           {/* TOP SISWA */}
-          <div className="dashboard-card" style={{ height: "100%" }}>
+          <div className="dashboard-card report-card">
             <div className="card-header">
               <div>
                 <h3>Top 5 Siswa Berprestasi</h3>
@@ -258,7 +258,7 @@ function AdminReport() {
                           <span className="score-primary">{student.student_name}</span>
                         </td>
                         <td className="is-center">{student.tryouts_taken}</td>
-                        <td className="is-center" style={{ color: "var(--accent)", fontWeight: 600 }}>{student.average_percentage}%</td>
+                        <td className="is-center report-metric is-accent">{student.average_percentage}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -268,7 +268,7 @@ function AdminReport() {
           </div>
 
           {/* POPULAR TRYOUTS */}
-          <div className="dashboard-card" style={{ height: "100%" }}>
+          <div className="dashboard-card report-card">
             <div className="card-header">
               <div>
                 <h3>Paket Tryout Paling Populer</h3>
@@ -290,10 +290,10 @@ function AdminReport() {
                     {report.popular_tryouts.map((tryout, index) => (
                       <tr key={tryout.tryout_id}>
                         <td>
-                          <span className="teacher-rank-badge" style={{ background: "var(--secondary-color, #8b5cf6)", color: "white" }}>{index + 1}</span>
+                          <span className="teacher-rank-badge report-rank-badge is-secondary">{index + 1}</span>
                           <span className="score-primary is-strong">{tryout.title}</span>
                         </td>
-                        <td className="is-center" style={{ fontWeight: 600 }}>{tryout.attempt_count}</td>
+                        <td className="is-center report-metric">{tryout.attempt_count}</td>
                       </tr>
                     ))}
                   </tbody>

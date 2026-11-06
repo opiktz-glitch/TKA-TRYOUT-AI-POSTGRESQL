@@ -109,16 +109,7 @@ export default function SecurityTab({ data }) {
             atau restart server untuk menggantinya.
           </p>
 
-          <div
-            style={{
-              backgroundColor: "#fff3cd",
-              color: "#856404",
-              padding: "10px 12px",
-              borderRadius: "6px",
-              fontSize: "13px",
-              marginBottom: "16px",
-            }}
-          >
+          <div className="settings-notice--warning" role="note">
             ⚠️ Menyimpan atau merotasi SECRET_KEY langsung membuat{" "}
             <strong>semua sesi login yang sedang aktif tidak valid</strong>{" "}
             — termasuk sesi Anda sendiri (Anda akan diminta login ulang),
@@ -127,31 +118,23 @@ export default function SecurityTab({ data }) {
           </div>
 
           {secretKeyError && (
-            <div className="error-message" style={{ marginBottom: 18 }}>
+            <div className="error-message">
               {secretKeyError}
             </div>
           )}
 
           {secretKeyLoading ? (
-            <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat status...</p>
+            <p className="settings-loading">Memuat status...</p>
           ) : (
             <>
-              <div
-                style={{
-                  border: "1px solid var(--line)",
-                  borderRadius: 8,
-                  padding: "12px 14px",
-                  marginBottom: 16,
-                  fontSize: 13,
-                }}
-              >
-                <div style={{ marginBottom: 4 }}>
+              <div className="settings-secret-key-status">
+                <div className="settings-secret-key-value">
                   <strong>Key saat ini:</strong>{" "}
                   <code>{secretKeyStatus?.masked_key || "-"}</code>
                 </div>
 
                 {secretKeyStatus?.updated_at && (
-                  <div style={{ color: "#6b7280" }}>
+                  <div className="settings-muted">
                     Terakhir diganti:{" "}
                     {new Date(secretKeyStatus.updated_at).toLocaleString("id-ID")}
                     {secretKeyStatus?.changed_by
@@ -166,18 +149,18 @@ export default function SecurityTab({ data }) {
               {/* ROTASI OTOMATIS */}
 
               <div className="settings-block">
-                <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>
+                <h3 className="settings-block-title">
                   Rotasi Otomatis
-                </label>
-                <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280", fontSize: 13 }}>
+                </h3>
+                <p className="settings-block-description">
                   Generate key acak baru secara otomatis — cara yang
                   direkomendasikan untuk rotasi rutin, tidak perlu
                   mengetik apa pun.
                 </p>
 
                 {secretKeyConfirm === "rotate" ? (
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, color: "#721c24" }}>
+                  <div className="settings-confirm-actions">
+                    <span className="settings-confirm-message">
                       Yakin? Semua orang akan ter-logout.
                     </span>
                     <button
@@ -213,16 +196,18 @@ export default function SecurityTab({ data }) {
               {/* ISI MANUAL */}
 
               <div className="settings-block">
-                <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6 }}>
+                <h3 className="settings-block-title">
                   Isi Manual
-                </label>
-                <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280", fontSize: 13 }}>
+                </h3>
+                <p className="settings-block-description">
                   Tempel SECRET_KEY Anda sendiri (mis. untuk menyamakan
                   dengan environment lain). Minimal 32 karakter.
                 </p>
 
-                <div className="form-group" style={{ marginBottom: 14 }}>
+                <div className="form-group">
+                  <label htmlFor="secret-key-draft">SECRET_KEY baru</label>
                   <input
+                    id="secret-key-draft"
                     type="password"
                     value={secretKeyDraft}
                     onChange={(e) => setSecretKeyDraft(e.target.value)}
@@ -232,8 +217,8 @@ export default function SecurityTab({ data }) {
                 </div>
 
                 {secretKeyConfirm === "save" ? (
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, color: "#721c24" }}>
+                  <div className="settings-confirm-actions">
+                    <span className="settings-confirm-message">
                       Yakin? Semua orang akan ter-logout.
                     </span>
                     <button
@@ -254,7 +239,7 @@ export default function SecurityTab({ data }) {
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div className="settings-form-actions">
                     <button
                       type="button"
                       className="primary-button"

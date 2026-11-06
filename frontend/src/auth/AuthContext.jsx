@@ -67,27 +67,23 @@ export function AuthProvider({
   // dipakai oleh listener sesi kedaluwarsa)
   // ==========================================
 
-  const logout = async () => {
-
-    try {
-      // Best-effort — kalau gagal (mis. sudah offline), tetap
-      // lanjut hapus token lokal di bawah supaya user tidak
-      // "kejebak" tidak bisa logout dari device ini sendiri.
-      await logoutApi();
-    } catch (error) {
-      console.error("Gagal memberi tahu server saat logout:", error);
-    }
-
-    localStorage.removeItem(
-      "access_token"
-    );
-
-    // Data dashboard user ini tidak boleh tertinggal di memori.
-    clearDashboardCache();
-    clearPageCache();
-
-    setUser(null);
-
+  const logout = () => {
+    // Start the server request while the token is still available,
+    // but do not let a slow response block logging out on this device.
+    logoutApi().catch((error) => {
+      console.error("Gagal memberi tahu server saat logout:", error);
+    });
+
+    localStorage.removeItem(
+      "access_token"
+    );
+
+    // Data dashboard user ini tidak boleh tertinggal di memori.
+    clearDashboardCache();
+    clearPageCache();
+
+    setUser(null);
+
   };
 
 

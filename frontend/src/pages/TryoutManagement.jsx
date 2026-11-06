@@ -6,6 +6,7 @@ import LeaderboardModal from "../components/LeaderboardModal";
 import ItemAnalysisModal from "../components/ItemAnalysisModal";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import "../components/ScoreTable.css";
 import "../components/TryoutWizard.css";
 import { useTryoutManagement } from "../hooks/useTryoutManagement";
 
@@ -87,13 +88,13 @@ function TryoutManagement() {
               PAGE HEADER
           ================================================= */}
 
-          <div className="page-header">
+          <div className="page-header management-page-header">
             <div>
               <h1>Paket Tryout</h1>
               <p>Kelola paket tryout TKA</p>
             </div>
 
-            <button className="primary-button" onClick={openModal}>
+            <button type="button" className="primary-button" onClick={openModal}>
               + Tambah Tryout
             </button>
           </div>

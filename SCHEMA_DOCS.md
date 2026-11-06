@@ -1,6 +1,6 @@
 # Dokumentasi Skema Database
 
-Backend memakai SQLAlchemy dan mendukung SQLite serta PostgreSQL. Model aplikasi berada di `backend/models.py`; file ini menjelaskan fungsi tabel secara konseptual dan bukan pengganti definisi model atau skrip migrasi.
+Backend memakai SQLAlchemy dengan PostgreSQL sebagai satu-satunya database yang didukung. Model aplikasi berada di `backend/models.py`; file ini menjelaskan fungsi tabel secara konseptual dan bukan pengganti definisi model atau skrip migrasi.
 
 Saat ini model mendefinisikan **13 tabel**:
 
@@ -72,6 +72,6 @@ Penyimpanan konfigurasi aplikasi berbentuk key-value, termasuk pemilihan/provide
 - `Base.metadata.create_all()` membuat tabel yang belum ada, tetapi tidak menambahkan kolom baru ke tabel yang sudah ada.
 - `backend/main.py` menjalankan penambahan beberapa kolom tertentu saat startup. Ini bukan migrasi umum dan tidak menggantikan pemeriksaan skema.
 - SQL migration files berada di `migrations/` (`v01` sampai `v04`). `scripts/run_migrations.py` saat ini hanya mendukung sampai `v03`; `v04_anti_cheat_telemetry.sql` ada terpisah. Untuk skema lama, verifikasi kolom/index yang dibutuhkan dan prosedur migrasi sebelum menjalankan aplikasi.
-- Jangan menerapkan perubahan skema langsung ke database production tanpa backup, rencana pemulihan, dan verifikasi kompatibilitas dialect SQLite/PostgreSQL.
+- Jangan menerapkan perubahan skema langsung ke database production tanpa backup, rencana pemulihan, dan verifikasi kompatibilitas PostgreSQL.
 
 Lihat juga [ERD.mermaid](ERD.mermaid) untuk diagram relasi dan [ARCHITECTURE.md](ARCHITECTURE.md) untuk alur sistem.

@@ -12,50 +12,25 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parent / _env_file, override=Tr
 
 
 # ==========================================
-# PATH DATABASE
+# DATABASE — PostgreSQL wajib
 # ==========================================
-# BASE_DIR = folder backend/ ini sendiri (tempat config.py
-# berada). Folder "database" sekarang ada DI DALAM backend/,
-# bukan lagi sejajar dengan backend/ dan frontend/.
-#
-#   login/
-#   ├── backend/
-#   │   ├── config.py      <- file ini
-#   │   └── database/      <- file .db dipindahkan ke sini
-#   └── frontend/
-#
-BASE_DIR = Path(__file__).resolve().parent
-DATABASE_DIR = BASE_DIR / "database"
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL wajib diatur dan harus menunjuk ke database PostgreSQL."
+    )
 
-DEFAULT_DATABASE_PATH = DATABASE_DIR / "project_tz.db"
+if not DATABASE_URL.startswith(
+    ("postgresql://", "postgresql+psycopg2://")
+):
+    raise ValueError(
+        "Database yang didukung hanya PostgreSQL "
+        "(gunakan skema postgresql:// atau postgresql+psycopg2://)."
+    )
 
-# Kalau DATABASE_URL diisi manual di file .env, nilai itu
-# yang dipakai. Kalau tidak diisi, dihapus dari .env, ATAU
-# dibiarkan kosong (baris "DATABASE_URL=" tanpa nilai — ini
-# yang dipakai di .env.example), otomatis fallback ke lokasi
-# backend/database/project_tz.db di atas.
-#
-# Dipakai "os.getenv(...) or default", BUKAN
-# "os.getenv(..., default)", karena os.getenv dengan argumen
-# kedua hanya fallback saat variabelnya benar-benar tidak ada
-# di environment. Kalau python-dotenv sudah men-set
-# DATABASE_URL="" (string kosong, bukan absen), argumen kedua
-# itu tidak pernah kepakai dan DATABASE_URL akan diam-diam jadi
-# string kosong -> SQLAlchemy gagal connect dengan error yang
-# membingungkan.
-DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DEFAULT_DATABASE_PATH}"
-
-# Folder "database/" HANYA dibuat kalau benar-benar dipakai (mode
-# fallback SQLite file lokal, DATABASE_URL tidak diisi). Sengaja
-# TIDAK dijalankan tanpa syarat seperti sebelumnya — di hosting
-# serverless dengan filesystem read-only (Vercel, dsb), memanggil
-# .mkdir() ke folder ini SELALU gagal ("Read-only file system") dan
-# MENJATUHKAN SELURUH APLIKASI saat import config.py, bahkan waktu
-# DATABASE_URL sudah diisi Turso/libSQL yang sama sekali tidak
-# butuh folder ini. Baru dibuat kalau memang fallback lokal dipakai.
-if DATABASE_URL.startswith("sqlite:///") and not os.getenv("DATABASE_URL"):
-    DATABASE_DIR.mkdir(parents=True, exist_ok=True)
-
+POSTGRES_BACKUP_ENABLED = (
+    os.getenv("POSTGRES_BACKUP_ENABLED", "").strip().lower() == "true"
+)
 
 SECRET_KEY = os.getenv(
     "SECRET_KEY"

@@ -40,7 +40,7 @@ function TeacherReport() {
     <>
       {/* HEADER */}
 
-      <div className="page-header">
+      <div className="page-header report-page-header">
         <div>
           <h1>Laporan</h1>
           <p>Analitik hasil tryout: rata-rata skor, distribusi nilai, dan soal tersulit</p>
@@ -49,15 +49,16 @@ function TeacherReport() {
 
       {/* PEMILIH TRYOUT */}
 
-      <div className="dashboard-card" style={{ padding: "14px 18px", marginBottom: 14 }}>
+      <div className="dashboard-card report-select-card">
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div className="report-select-row">
 
-          <label style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+          <label className="report-select-label" htmlFor="teacher-report-tryout">
             Pilih Tryout
           </label>
 
           <select
+            id="teacher-report-tryout"
             className="report-select"
             value={selectedTryoutId}
             onChange={(e) => setSelectedTryoutId(e.target.value)}
@@ -173,7 +174,7 @@ function TeacherReport() {
 
           {/* DISTRIBUSI NILAI */}
 
-          <div className="dashboard-card" style={{ marginBottom: 14 }}>
+          <div className="dashboard-card report-card report-card-spaced">
 
             <div className="card-header">
               <div>
@@ -182,7 +183,7 @@ function TeacherReport() {
               </div>
             </div>
 
-            <div style={{ padding: "6px 18px 18px" }}>
+            <div className="report-card-body">
 
               {report.total_attempts === 0 && (
                 <div className="empty-message">
@@ -247,7 +248,7 @@ function TeacherReport() {
                 <p>10 soal dengan persentase jawaban salah tertinggi</p>
               </div>
 
-              <span className="menu-icon" style={{ color: "var(--accent)" }}>
+              <span className="menu-icon report-accent-icon">
                 <IconTrendingUp size={20} />
               </span>
             </div>

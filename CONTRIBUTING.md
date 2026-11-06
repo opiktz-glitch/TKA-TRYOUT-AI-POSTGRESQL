@@ -8,7 +8,7 @@ Terima kasih telah berkontribusi pada TKA TryOut AI. Panduan ini melengkapi inst
 - Validasi input backend dengan schema Pydantic. Untuk SQL, gunakan ORM atau parameter binding; jangan membangun query dari input pengguna.
 - Letakkan konfigurasi backend baru di `backend/config.py` dan dokumentasikan variabel environment tanpa nilai rahasia.
 - Perubahan otorisasi harus diperiksa di backend. Pembatasan route di frontend bukan pengganti pemeriksaan server.
-- Perubahan skema perlu migration yang sesuai untuk SQLite/PostgreSQL. `create_all()` hanya membuat tabel yang belum ada dan migrasi startup hanya menangani kolom tertentu.
+- Perubahan skema harus ditargetkan ke PostgreSQL dan disertai migrasi yang sesuai. `create_all()` hanya membuat tabel yang belum ada dan migrasi startup hanya menangani kolom tertentu.
 
 ## Frontend
 

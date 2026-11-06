@@ -1094,99 +1094,91 @@ export async function rotateSecretKey() {
     method: "POST",
   });
 }
-
-
-// =========================================================
-// PENGATURAN > BACKUP — Backup Database SQLite
-//
-// getBackups() dipakai menampilkan daftar backup yang sudah ada.
-// createBackupNow() memicu backup baru di luar jadwal otomatis
-// (service "backup" di Docker sudah jalan sendiri tiap 24 jam).
-//
-// downloadBackup() SENGAJA tidak memakai apiFetch() biasa — respons
-// endpoint ini berupa file biner (.db), bukan JSON, jadi di-fetch
-// manual sebagai blob lalu dipicu download lewat elemen <a>
-// sementara (browser tidak mengizinkan window.location langsung ke
-// URL yang butuh header Authorization).
-// =========================================================
-
-export async function getBackups() {
-  return apiFetch("/api/settings/backups");
-}
-
-export async function createBackupNow() {
-  return apiFetch("/api/settings/backups", {
-    method: "POST",
-  });
-}
-
-export async function downloadBackup(filename) {
-  const token = localStorage.getItem("access_token");
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/settings/backups/${encodeURIComponent(filename)}/download`,
-    {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }
-  );
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(extractErrorMessage(data) || "Gagal mengunduh backup");
-  }
-
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  window.URL.revokeObjectURL(url);
-}
-
-
-// =========================================================
-// PENGATURAN > BACKUP > IMPORT — Restore Database
-//
-// restoreFromExistingBackup() memilih salah satu file dari daftar
-// backup yang sudah ada di server (hasil getBackups()).
-//
-// restoreFromUpload() mengirim file .db dari komputer admin sendiri
-// lewat FormData (mirip prepareDocumentExtraction() di atas).
-//
-// KEDUANYA mengirim confirm=true SETELAH admin menekan tombol
-// konfirmasi di UI (lihat AdminSettings.jsx) — backend menolak
-// request tanpa confirm=true sebagai lapisan pengaman kedua, karena
-// restore MENIMPA SELURUH DATABASE yang sedang aktif.
-// =========================================================
-
-export async function restoreFromExistingBackup(filename) {
-  return apiFetch(
-    `/api/settings/backups/${encodeURIComponent(filename)}/restore?confirm=true`,
-    {
-      method: "POST",
-    }
-  );
-}
-
-export async function restoreFromUpload(file) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("confirm", "true");
-
-  return apiFetch("/api/settings/backups/restore-upload", {
-    method: "POST",
-    body: formData,
-  });
-}
-
-// ==========================================
-// NOTIFIKASI
-// ==========================================
+
+export async function getPostgresBackupStatus() {
+  return apiFetch("/api/settings/postgres-backups/status");
+}
+
+export async function getPostgresBackups() {
+  return apiFetch("/api/settings/postgres-backups");
+}
+
+export async function getPostgresBackupSettings() {
+  return apiFetch("/api/settings/postgres-backups/config");
+}
+
+export async function updatePostgresBackupSettings(settings) {
+  return apiFetch("/api/settings/postgres-backups/config", {
+    method: "PUT",
+    body: settings,
+  });
+}
+
+async function downloadPostgresBackup(path, method = "GET", fallbackFilename = "tka-backup.dump") {
+  const token = localStorage.getItem("access_token");
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const message = extractErrorMessage(data) || "Gagal mengunduh backup PostgreSQL";
+    if (response.status === 401) {
+      localStorage.removeItem("access_token");
+      window.dispatchEvent(
+        new CustomEvent("auth:unauthorized", { detail: { message } })
+      );
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") || "";
+  const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const plainFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  const filename = encodedFilename
+    ? decodeURIComponent(encodedFilename)
+    : (plainFilename || fallbackFilename);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function createPostgresBackup() {
+  const backup = await apiFetch("/api/settings/postgres-backups", {
+    method: "POST",
+  });
+  await downloadExistingPostgresBackup(backup.filename);
+  return backup;
+}
+
+export async function downloadExistingPostgresBackup(filename) {
+  return downloadPostgresBackup(
+    `/api/settings/postgres-backups/${encodeURIComponent(filename)}`,
+    "GET",
+    filename
+  );
+}
+
+export async function restorePostgresBackup(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("confirm", "true");
+  return apiFetch("/api/settings/postgres-backups/restore", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+// ==========================================
+// NOTIFIKASI
+// ==========================================
 
 export async function getNotifications() {
   return await apiFetch("/api/notifications");

@@ -149,14 +149,14 @@ function QuestionManagement() {
               PAGE HEADER
               ============================================ */}
 
-          <div className="page-header">
+          <div className="page-header management-page-header">
             <div>
               <h1>Bank Soal</h1>
 
               <p>Kelola soal TKA Tryout</p>
             </div>
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className="management-page-actions">
               <button
                 type="button"
                 className="secondary-button"
@@ -185,7 +185,7 @@ function QuestionManagement() {
                 {aiGate.checking ? "Mengecek AI..." : "✨ Tambah Soal AI"}
               </button>
 
-              <button className="primary-button" onClick={openAddModal}>
+              <button type="button" className="primary-button" onClick={openAddModal}>
                 + Tambah Soal
               </button>
             </div>
@@ -196,10 +196,6 @@ function QuestionManagement() {
               ============================================ */}
 
           <div className="score-card">
-            {/* Filter dibiarkan seperti semula dulu (belum diseragamkan
-                dengan score-toolbar milik Paket Tryout) -- lihat
-                permintaan TZ. Hanya kartu & tabel di bawah ini yang
-                disamakan gayanya. */}
             <QuestionFilters
               search={search}
               setSearch={setSearch}

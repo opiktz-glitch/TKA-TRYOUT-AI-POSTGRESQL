@@ -8,13 +8,12 @@ Di dalam folder `backend`, Anda akan menemukan file-file inti berikut:
 
 - **`main.py`**: Entry point utama aplikasi. Mendefinisikan instance FastAPI, mengatur middleware (CORS), dan me-registrasi semua router API dari folder `routers/`.
 - **`config.py`**: Memuat konfigurasi dari file `.env` dan menyediakan nilai default.
-- **`database.py`**: Mengatur koneksi SQLAlchemy (mendukung **SQLite** dengan mode WAL maupun **PostgreSQL** dengan *pool pre-ping*).
+- **`database.py`**: Mengatur koneksi SQLAlchemy ke **PostgreSQL** dengan *pool pre-ping*.
 - **`models.py`**: Definisi 13 model/tabel database.
 - **`schemas.py`**: Definisi model Pydantic untuk validasi *request* dan *response* API.
 - **`auth.py`**: Logika autentikasi JWT, validasi kredensial pengguna, hashing password (menggunakan `bcrypt`), dan proteksi rute (*Dependency Injection*).
 - **`ai_providers.py` & `ai_vision.py`**: Modul integrasi AI. Menangani komunikasi baik ke Ollama (lokal) maupun Gemini (cloud) untuk tugas pembuatan soal otomatis berdasarkan prompt teks atau visi.
 - **`document_parser.py`**: Modul pembantu untuk mengekstrak teks mentah dari file upload seperti `.pdf` atau `.docx` sebelum diproses oleh AI.
-- **`backup_service.py`**: Layanan backup dan pemulihan database SQLite.
 
 ## 🚀 Panduan Menjalankan Spesifik Backend
 
@@ -34,7 +33,11 @@ Pastikan `SECRET_KEY` di `.env` terisi dengan nilai acak yang kuat. Buat nilainy
 venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(64))"
 ```
 
-Masukkan hasilnya ke `SECRET_KEY` pada `.env`. Jika `DATABASE_URL` kosong, backend memakai SQLite lokal di `backend/database/project_tz.db`. Jangan menimpa `.env` yang telah memiliki konfigurasi dan jangan membagikannya.
+Masukkan hasilnya ke `SECRET_KEY` pada `.env`. `DATABASE_URL` wajib menunjuk ke PostgreSQL; backend tidak membuat database lokal berbasis SQLite. Jangan menimpa `.env` yang telah memiliki konfigurasi dan jangan membagikannya.
+
+Backup dan pemulihan dikelola melalui layanan PostgreSQL/provider atau prosedur PostgreSQL operator; backend tidak menyediakan fitur backup/restore.
+
+Jika masih ada data lama dalam file SQLite, `scripts/migrate_sqlite_to_postgres.py` adalah alat impor satu kali ke PostgreSQL yang kosong. Alat tersebut bukan dukungan database runtime; simpan salinan sumber dan verifikasi hasil migrasi sebelum melanjutkan pemakaian.
 
 ### Menjalankan backend saja
 

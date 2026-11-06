@@ -10,6 +10,37 @@
   margin: 0 auto;
 }
 
+.student-history-detail-modal .question-image-container {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.student-history-detail-modal .question-image-container .question-image-attempt {
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .student-history-detail-modal .student-history-question-navigation {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .student-history-detail-modal .student-history-question-navigation > button {
+    min-width: 0;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .student-history-detail-modal .student-history-question-dots {
+    grid-column: 1 / -1;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
 .question-image-clickable {
   cursor: zoom-in;
   transition: opacity 0.15s ease, box-shadow 0.15s ease;

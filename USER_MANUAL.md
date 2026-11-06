@@ -117,10 +117,7 @@ Sistem ini mendukung transisi mulus antara AI berbasis Cloud dan Offline.
 2. Jika Anda menjadikan Laptop/PC Anda sebagai *Server Ujian* (dengan menjalankan skrip `run_server.py`), panel ini akan otomatis melacak IP Lokal Anda (contoh: `http://192.168.1.15:5173`).
 3. Berikan alamat frontend tersebut kepada pengguna. Perangkat harus terhubung ke jaringan yang sama dan dapat menjangkau server; akses tetap memerlukan koneksi jaringan lokal.
 
-### D. Backup Database Rutin
-1. Buka menu **Pengaturan** dan pilih bagian **Backup**.
-2. Klik **Backup Sekarang** untuk membuat backup SQLite. Backup yang tersedia dapat diunduh, dipulihkan ke database aplikasi, atau dipulihkan dari file SQLite yang diunggah.
-3. Pemulihan akan mengganti data database aktif. Pastikan file benar dan tinjau konfirmasi aplikasi sebelum melanjutkan.
-4. Di Docker Compose, service `backup` mencoba membuat backup SQLite tiap 24 jam. File backup berada pada folder host `backend/backups`; fitur bawaan ini tidak mencadangkan PostgreSQL.
+### D. Backup Database
+Backup dan pemulihan database dilakukan melalui layanan PostgreSQL/provider atau prosedur PostgreSQL yang dikelola operator. Aplikasi tidak menyediakan fitur backup/restore bawaan. Pastikan jadwal backup aktif dan uji pemulihan pada lingkungan terpisah secara berkala.
 
 > **Catatan:** Dokumentasi gambar antarmuka selain halaman login belum tersedia di repository. Nama menu atau susunan tab dapat berubah mengikuti versi UI.

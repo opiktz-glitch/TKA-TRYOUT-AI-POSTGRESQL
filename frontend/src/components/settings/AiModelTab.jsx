@@ -118,27 +118,17 @@ export default function AiModelTab({ data }) {
             </p>
 
             {providerLoading ? (
-              <p style={{ color: "#6b7280", fontSize: 13 }}>Memuat status provider...</p>
+              <p className="settings-loading">Memuat status provider...</p>
             ) : (
               <>
                 {providerError && (
-                  <div className="error-message" style={{ marginBottom: 18 }}>
+                  <div className="error-message">
                     {providerError}
                   </div>
                 )}
 
                 {providerSuccess && (
-                  <div
-                    className="alert-success"
-                    style={{
-                      backgroundColor: "#d4edda",
-                      color: "#155724",
-                      padding: "10px",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      marginBottom: "18px",
-                    }}
-                  >
+                  <div className="success-message">
                     {providerSuccess}
                   </div>
                 )}
@@ -151,18 +141,10 @@ export default function AiModelTab({ data }) {
                     return (
                       <label
                         key={option.provider}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          border: isChecked ? "1.5px solid var(--accent)" : "1px solid var(--line)",
-                          borderRadius: 8,
-                          padding: "12px 14px",
-                          cursor: "pointer",
-                          background: isChecked ? "rgba(var(--accent-rgb), 0.06)" : "transparent",
-                        }}
+                        className={`settings-provider-option${isChecked ? " is-selected" : ""}`}
                       >
                         <input
+                          id={`ai-provider-${option.provider}`}
                           type="radio"
                           name="ai-provider-choice"
                           value={option.provider}
@@ -170,45 +152,28 @@ export default function AiModelTab({ data }) {
                           onChange={() => setProviderChoice(option.provider)}
                         />
 
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        <div className="settings-provider-content">
+                          <div className="settings-provider-name">
                             {option.label}
                             {providers?.active_provider === option.provider && (
-                              <span
-                                style={{
-                                  marginLeft: 8,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  color: "var(--accent)",
-                                }}
-                              >
+                              <span className="settings-provider-active">
                                 &middot; SEDANG AKTIF
                               </span>
                             )}
                           </div>
 
-                          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                          <div className="settings-provider-model">
                             Model: <code>{option.model || "-"}</code>
                           </div>
 
                           {option.detail && (
-                            <div style={{ fontSize: 12, color: "#856404", marginTop: 2 }}>
+                            <div className="settings-provider-detail">
                               {option.detail}
                             </div>
                           )}
                         </div>
 
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: "3px 9px",
-                            borderRadius: 999,
-                            whiteSpace: "nowrap",
-                            backgroundColor: option.online ? "#d4edda" : "#f8d7da",
-                            color: option.online ? "#155724" : "#721c24",
-                          }}
-                        >
+                        <span className={`settings-provider-status${option.online ? " is-online" : " is-offline"}`}>
                           {option.online ? "Online" : "Offline"}
                         </span>
                       </label>
@@ -217,13 +182,7 @@ export default function AiModelTab({ data }) {
 
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    justifyContent: "flex-end",
-                  }}
-                >
+                <div className="settings-form-actions">
                   <button
                     type="button"
                     className="primary-button"
@@ -266,47 +225,29 @@ export default function AiModelTab({ data }) {
                 </p>
 
                 {errMsg && (
-                  <div className="error-message" style={{ marginBottom: 18 }}>
+                  <div className="error-message">
                     {errMsg}
                   </div>
                 )}
 
                 {okMsg && (
-                  <div
-                    className="alert-success"
-                    style={{
-                      backgroundColor: "#d4edda",
-                      color: "#155724",
-                      padding: "10px",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      marginBottom: "18px",
-                    }}
-                  >
+                  <div className="success-message">
                     {okMsg}
                   </div>
                 )}
 
                 {!option.online && option.detail && (
-                  <div
-                    style={{
-                      backgroundColor: "#fff3cd",
-                      color: "#856404",
-                      padding: "10px",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      marginBottom: "18px",
-                    }}
-                  >
+                  <div className="settings-notice--warning">
                     {option.detail}
                   </div>
                 )}
 
                 {option.requires_api_key && (
-                  <div className="form-group" style={{ marginBottom: 18 }}>
-                    <label>API Key</label>
+                  <div className="form-group">
+                    <label htmlFor={`ai-api-key-${option.provider}`}>API Key</label>
 
                     <input
+                      id={`ai-api-key-${option.provider}`}
                       type="password"
                       value={draft.apiKey}
                       onChange={(e) => updateDraft(option.provider, "apiKey", e.target.value)}
@@ -316,9 +257,10 @@ export default function AiModelTab({ data }) {
                           : "Tempel API key di sini"
                       }
                       autoComplete="off"
+                      aria-describedby={`ai-api-key-help-${option.provider}`}
                     />
 
-                    <small style={{ color: "#6b7280" }}>
+                    <small className="settings-help-text" id={`ai-api-key-help-${option.provider}`}>
                       {option.configured
                         ? "Sudah ada key tersimpan. Kosongkan kalau cuma mau ganti model, jangan ganti key."
                         : "Belum ada API key tersimpan."}
@@ -326,36 +268,40 @@ export default function AiModelTab({ data }) {
                   </div>
                 )}
 
-                <div className="form-group" style={{ marginBottom: 18 }}>
-                  <label>Model</label>
+                <div className="form-group">
+                  <label htmlFor={`ai-model-${option.provider}`}>Model</label>
 
                   <input
+                    id={`ai-model-${option.provider}`}
                     type="text"
                     value={draft.model}
                     onChange={(e) => updateDraft(option.provider, "model", e.target.value)}
                     placeholder="mis. nama-model"
+                    aria-describedby={`ai-model-help-${option.provider}`}
                   />
 
-                  <small style={{ color: "#6b7280" }}>
+                  <small className="settings-help-text" id={`ai-model-help-${option.provider}`}>
                     Dipakai untuk generate soal, pembahasan, dan Impor Soal
                     dari Dokumen (teks).
                   </small>
                 </div>
 
                 {option.vision_model != null && (
-                  <div className="form-group" style={{ marginBottom: 18 }}>
-                    <label>Model Vision</label>
+                  <div className="form-group">
+                    <label htmlFor={`ai-vision-model-${option.provider}`}>Model Vision</label>
 
                     <input
+                      id={`ai-vision-model-${option.provider}`}
                       type="text"
                       value={draft.visionModel}
                       onChange={(e) =>
                         updateDraft(option.provider, "visionModel", e.target.value)
                       }
                       placeholder="mis. qwen3vl:8b"
+                      aria-describedby={`ai-vision-model-help-${option.provider}`}
                     />
 
-                    <small style={{ color: "#6b7280" }}>
+                    <small className="settings-help-text" id={`ai-vision-model-help-${option.provider}`}>
                       Model TERPISAH khusus untuk fitur "Impor Soal dari
                       Gambar" — harus model vision (bisa membaca gambar),
                       BEDA dari Model di atas yang cuma untuk teks. Kosongkan
@@ -368,18 +314,20 @@ export default function AiModelTab({ data }) {
                 )}
 
                 {option.configurable_base_url && (
-                  <div className="form-group" style={{ marginBottom: 18 }}>
-                    <label>Alamat Server (Base URL)</label>
+                  <div className="form-group">
+                    <label htmlFor={`ai-base-url-${option.provider}`}>Alamat Server (Base URL)</label>
 
                     <input
+                      id={`ai-base-url-${option.provider}`}
                       type="text"
                       value={draft.baseUrl}
                       onChange={(e) => updateDraft(option.provider, "baseUrl", e.target.value)}
                       placeholder={option.default_base_url || "http://localhost:11434"}
                       autoComplete="off"
+                      aria-describedby={`ai-base-url-help-${option.provider}`}
                     />
 
-                    <small style={{ color: "#6b7280" }}>
+                    <small className="settings-help-text" id={`ai-base-url-help-${option.provider}`}>
                       Kosongkan lalu klik "Kembalikan ke Default" untuk
                       pakai mesin sendiri ({option.default_base_url || "http://localhost:11434"}).
                       Untuk production, isi manual dengan alamat server
@@ -391,13 +339,7 @@ export default function AiModelTab({ data }) {
                   </div>
                 )}
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    justifyContent: "flex-end",
-                  }}
-                >
+                <div className="settings-form-actions">
                   {option.configurable_base_url && (
                     <button
                       type="button"

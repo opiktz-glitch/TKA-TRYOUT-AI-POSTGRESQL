@@ -1,6 +1,6 @@
 """
-Script migrasi SEKALI JALAN untuk database yang SUDAH ADA (SQLite
-maupun PostgreSQL/Neon) — menambahkan 2 kolom baru di t_user yang
+Script migrasi SEKALI JALAN untuk database PostgreSQL yang SUDAH ADA —
+menambahkan 2 kolom baru di t_user yang
 dipakai untuk single-session enforcement (1 akun cuma boleh login
 di satu tempat pada satu waktu). Lihat catatan di models.py pada
 class User untuk detail lengkapnya.
@@ -11,9 +11,8 @@ sekali — tidak pernah menambah kolom baru ke tabel yang sudah ada.
 Untuk database yang sudah terlanjur jalan (sudah ada data user),
 kolom baru ini harus ditambahkan manual lewat ALTER TABLE.
 
-Aman dijalankan berkali-kali dan di kedua jenis database: kalau
-kolom sudah ada, script ini cuma memberi tahu dan tidak melakukan
-apa-apa lagi.
+Aman dijalankan berkali-kali: kalau kolom sudah ada, script ini cuma
+memberi tahu dan tidak melakukan apa-apa lagi.
 
 Cara pakai (dari folder backend/, dengan .env sudah menunjuk ke
 database yang mau dimigrasi):

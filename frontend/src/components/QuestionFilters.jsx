@@ -4,13 +4,14 @@ export default function QuestionFilters({
   search, setSearch, subjectFilter, setSubjectFilter, subjects, showAdvancedFilter, setShowAdvancedFilter, difficultyFilter, setDifficultyFilter, questionTypeFilter, setQuestionTypeFilter, statusFilter, setStatusFilter, explanationFilter, setExplanationFilter, hasImageFilter, setHasImageFilter, DIFFICULTIES
 }) {
   return (
-            <div className="question-filter" style={{ marginBottom: 0, padding: "12px 14px 12px", borderBottom: "1px solid #e5e7eb" }}>
+            <div className="question-filter management-list-filter">
               <div className="question-filter-row question-filter-row-primary">
                 <div className="filter-group">
                   <input
                     type="text"
                     placeholder="Cari pertanyaan..."
                     className="search-input"
+                    aria-label="Cari soal"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -21,6 +22,7 @@ export default function QuestionFilters({
                     value={subjectFilter}
                     onChange={(e) => setSubjectFilter(e.target.value)}
                     className="search-input"
+                    aria-label="Filter mata pelajaran"
                   >
                     <option value="">Semua Mata Pelajaran</option>
 
@@ -51,6 +53,7 @@ export default function QuestionFilters({
                     value={questionTypeFilter}
                     onChange={(e) => setQuestionTypeFilter(e.target.value)}
                     className="search-input"
+                    aria-label="Filter jenis soal"
                   >
                     <option value="">Semua Jenis Soal</option>
                     <option value="MULTIPLE_CHOICE">Pilihan Ganda</option>
@@ -64,6 +67,7 @@ export default function QuestionFilters({
                     value={difficultyFilter}
                     onChange={(e) => setDifficultyFilter(e.target.value)}
                     className="search-input"
+                    aria-label="Filter tingkat kesulitan"
                   >
                     <option value="">Semua Tingkat</option>
 
@@ -80,6 +84,7 @@ export default function QuestionFilters({
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="search-input"
+                    aria-label="Filter status soal"
                   >
                     <option value="">Semua Status</option>
 
@@ -94,6 +99,7 @@ export default function QuestionFilters({
                     value={explanationFilter}
                     onChange={(e) => setExplanationFilter(e.target.value)}
                     className="search-input"
+                    aria-label="Filter kelengkapan penjelasan"
                   >
                     <option value="">Semua Penjelasan</option>
 
@@ -108,6 +114,7 @@ export default function QuestionFilters({
                     value={hasImageFilter}
                     onChange={(e) => setHasImageFilter(e.target.value)}
                     className="search-input"
+                    aria-label="Filter gambar"
                   >
                     <option value="">Semua Gambar</option>
 

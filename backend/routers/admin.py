@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from database import IS_SQLITE, get_db, utc_now
+from database import get_db, utc_now
 from dependencies import require_role
 from fastapi import APIRouter, Depends
 from models import (
@@ -200,8 +200,7 @@ def _compose_attention(
       hanya berisi beberapa paket pertama (ATTENTION_MAX_TRYOUT_NAMES)
       supaya kartu tidak kepanjangan.
     - question_table_bytes : ukuran fisik tabel t_question (data +
-      index) di Postgres, None kalau lagi jalan di atas SQLite (dev
-      lokal), lihat get_question_table_bytes().
+      index) di PostgreSQL, lihat get_question_table_bytes().
     """
 
 
@@ -236,13 +235,8 @@ def _get_question_table_bytes(db: Session):
     image_data, tapi seluruh tabel bank soal (termasuk gambar WebP
     yang tersimpan di situ).
 
-    Postgres-only: pg_total_relation_size() tidak ada di SQLite, jadi
-    di dev lokal (IS_SQLITE) fungsi ini dilewati dan mengembalikan
-    None -- frontend menampilkan "Tidak tersedia" untuk kasus ini.
+    PostgreSQL menyediakan pg_total_relation_size().
     """
-
-    if IS_SQLITE:
-        return None
 
     result = db.execute(
         text("SELECT pg_total_relation_size('t_question')")
@@ -520,8 +514,7 @@ def get_admin_dashboard_summary(
 #                    (browser ditutup) tetap berstatus IN_PROGRESS
 #                    di database sampai ada request berikutnya, jadi
 #                    tanpa filter deadline angkanya akan membengkak.
-#                    Dihitung di Python (bukan SQL) supaya aman untuk
-#                    SQLite maupun PostgreSQL.
+#                    Dihitung di Python (bukan SQL).
 # - finished_today : jumlah pengerjaan yang selesai sejak pukul
 #                    00.00 WIB hari ini. Server menyimpan waktu UTC
 #                    (naive), sedangkan hari di WIB berganti pukul

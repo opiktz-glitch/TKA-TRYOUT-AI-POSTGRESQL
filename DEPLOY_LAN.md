@@ -25,7 +25,7 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 
 Masukkan hasilnya ke `SECRET_KEY` dalam `backend/.env`. Jangan membagikan atau melakukan commit file tersebut.
 
-Jika `DATABASE_URL` kosong, backend memakai SQLite lokal pada `backend/database/project_tz.db`. Jika mengatur PostgreSQL, sediakan database dan gunakan backup yang dikelola PostgreSQL/provider; service backup Compose hanya mendukung SQLite.
+`DATABASE_URL` wajib menunjuk ke database PostgreSQL yang sudah disiapkan. SQLite tidak didukung. Atur serta uji backup/pemulihan melalui layanan PostgreSQL/provider yang digunakan.
 
 Frontend secara default mengirim request ke API pada hostname yang sama dengan halaman, port `8000`. Jadi untuk setup LAN biasa tidak perlu membuat `.env` di root atau mengisi `VITE_API_URL`. Bila frontend dan API memakai host berbeda, `VITE_API_URL` harus tersedia ketika image frontend dibangun dan image perlu di-build ulang.
 
@@ -38,9 +38,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Compose memublikasikan frontend pada host port `5173` dan backend pada host port `8000`. Folder database SQLite dan backup di-bind mount ke `backend/database` dan `backend/backups`; keduanya bukan Docker named volume.
-
-Jika memakai database SQLite lama, buat backup dan verifikasi bahwa skema/indeks yang diperlukan sudah ada sebelum dipakai. `backend/scripts/create_attempt_index.py` hanya menargetkan file SQLite default (`backend/database/project_tz.db`) dan harus dijalankan dari folder `backend`; jangan gunakan skrip tersebut untuk PostgreSQL.
+Compose memublikasikan frontend pada host port `5173` dan backend pada host port `8000`. Data tersimpan di PostgreSQL eksternal, bukan di volume database container.
 
 Untuk memperoleh IPv4 server, jalankan:
 
@@ -88,7 +86,6 @@ docker compose up -d --build
 
 ## Backup dan batas keamanan
 
-- Service `backup` di Compose membuat backup SQLite berkala (retensi default 14 hari).
-- Backup manual, unduh, dan pemulihan SQLite tersedia melalui Pengaturan Admin. Uji pemulihan pada salinan terlebih dahulu.
-- Bila menggunakan PostgreSQL, service backup dan fitur backup/pemulihan SQLite tidak mencadangkan PostgreSQL. Atur serta uji backup dari layanan PostgreSQL/provider.
+- Aplikasi tidak menyediakan backup/restore database. Konfigurasikan backup dan uji pemulihan melalui layanan PostgreSQL/provider atau prosedur PostgreSQL yang dikelola operator.
+- Jangan mengandalkan Docker Compose untuk mencadangkan database PostgreSQL eksternal.
 - Jangan meneruskan port `5173` atau `8000` langsung ke internet publik. Untuk akses publik, siapkan HTTPS, reverse proxy, CORS yang sesuai, secret dan kontrol akses yang kuat.

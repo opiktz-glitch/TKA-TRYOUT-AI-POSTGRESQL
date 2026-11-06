@@ -44,7 +44,6 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BACKEND_DIR)
 
 import models
-from config import DATABASE_URL
 from database import engine as target_engine
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
@@ -72,16 +71,6 @@ TABLES_IN_ORDER = [
 
 
 def main():
-    if DATABASE_URL.startswith("sqlite"):
-        print(
-            "STOP: DATABASE_URL di .env kamu saat ini masih SQLite.\n"
-            "Isi dulu DATABASE_URL dengan connection string Postgres "
-            "(lihat backend/.env), baru jalankan skrip ini — supaya "
-            "target migrasinya benar Postgres, bukan menimpa file "
-            "SQLite yang sama."
-        )
-        sys.exit(1)
-
     source_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
         BACKEND_DIR, "database", "project_tz.db"
     )
@@ -90,7 +79,7 @@ def main():
         sys.exit(1)
 
     print(f"Sumber (SQLite) : {source_path}")
-    print(f"Target (Postgres): {DATABASE_URL.split('@')[-1]}")  # tanpa password
+    print("Target: PostgreSQL dari konfigurasi aplikasi")
     print()
 
     source_engine = create_engine(

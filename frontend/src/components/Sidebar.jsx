@@ -720,6 +720,7 @@ function Sidebar() {
         {/* Logout */}
 
         <button
+          type="button"
           className="sidebar-logout"
           data-tooltip="Logout"
           onMouseEnter={handleTooltipEnter}

@@ -10,15 +10,14 @@ Roadmap ini adalah usulan prioritas berdasarkan kondisi repository saat ini, buk
   - Dokumentasikan cara menyiapkan database tes tanpa mengekspos kredensial.
 - [ ] **Selaraskan migrasi skema**
   - Tambahkan dukungan migrasi `v04` ke `scripts/run_migrations.py` atau dokumentasikan secara eksplisit cara menerapkannya.
-  - Tetapkan prosedur versi skema, backup sebelum migrasi, serta pemeriksaan hasil pada SQLite dan PostgreSQL.
+  - Tetapkan prosedur versi skema, backup sebelum migrasi, serta pemeriksaan hasil pada PostgreSQL.
   - Hindari mengandalkan migrasi kolom startup yang terbatas sebagai satu-satunya mekanisme perubahan skema.
 - [ ] **Perkuat pengelolaan konfigurasi deployment**
   - Tegaskan pemisahan konfigurasi development, tes, LAN, dan production.
   - Pastikan secret kuat dan kredensial admin awal ditetapkan secara eksplisit untuk deployment baru.
   - Dokumentasikan pemeriksaan konektivitas database dan prosedur rotasi secret/API key.
-- [ ] **Verifikasi dan dokumentasikan backup/restore**
-  - Nyatakan dengan jelas bahwa skrip backup saat ini berorientasi SQLite.
-  - Sediakan dan uji prosedur backup serta pemulihan khusus PostgreSQL bila PostgreSQL dipakai.
+- [ ] **Verifikasi dan dokumentasikan backup/restore PostgreSQL**
+  - Sediakan dan uji prosedur backup serta pemulihan melalui provider/layanan PostgreSQL yang digunakan.
   - Pastikan pemulihan diuji pada salinan lingkungan, bukan database aktif.
 
 ## Prioritas 1 — Observabilitas dan performa berbasis pengukuran

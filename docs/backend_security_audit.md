@@ -18,7 +18,7 @@ Secara umum, arsitektur keamanan backend ini **sangat sangat baik** dan mengimpl
 
 ### 3. Enkripsi Kunci Sensitif Otomatis (`ai_providers.py`)
 - **Implementasi**: API Key untuk AI (seperti Gemini) dienkripsi dengan algoritma simetris `Fernet` (AES). Kunci master Fernet diturunkan dari `SECRET_KEY` utama.
-- **Analisis**: Anda tidak menyimpan *API keys* secara *plain-text* dalam database. Jika database bocor (*dump* SQLite/Postgres terekspos), penyerang tidak bisa langsung membaca kunci API Google Gemini Anda tanpa file `.env` (atau `SECRET_KEY`). 
+- **Analisis**: Anda tidak menyimpan *API keys* secara *plain-text* dalam database. Jika database bocor (dump PostgreSQL terekspos), penyerang tidak bisa langsung membaca kunci API Google Gemini Anda tanpa file `.env` (atau `SECRET_KEY`).
 
 ### 4. Pencegahan Kebocoran Struktur API (`main.py`)
 - **Implementasi**: Pengondisian `docs_url`, `redoc_url`, dan `openapi_url` menjadi `None` saat `APP_MODE="production"`.

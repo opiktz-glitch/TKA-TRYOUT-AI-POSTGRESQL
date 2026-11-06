@@ -8,17 +8,17 @@ Platform ujian/tryout berbasis sekolah untuk Admin, Guru, dan Siswa. Aplikasi me
 - Tipe soal Pilihan Ganda, PGK-MCMA, dan Benar/Salah.
 - Pembuatan/import soal serta draf pembahasan menggunakan provider AI yang dikonfigurasi.
 - Autentikasi JWT, pembatasan akses berbasis role, single-session, timer sisi server, dan telemetri perpindahan tab.
-- Riwayat dan laporan nilai, notifikasi, serta backup/pemulihan SQLite.
+- Riwayat dan laporan nilai serta notifikasi.
 - Mode akses lokal dan LAN.
 
 ## Teknologi dan konfigurasi
 
-- **Backend:** FastAPI, SQLAlchemy, SQLite atau PostgreSQL.
+- **Backend:** FastAPI, SQLAlchemy, PostgreSQL.
 - **Frontend:** React 19, React Router, Vite.
 - **AI:** Ollama dan Gemini melalui registry backend.
 - **Deployment:** frontend dan backend production berjalan terpisah di Vercel. Frontend tzserver di-deploy native melalui GitHub Actions; Docker Compose tersedia untuk setup self-hosted/LAN.
 
-Backend memakai SQLite lokal jika `DATABASE_URL` kosong; PostgreSQL dapat dikonfigurasi melalui `backend/.env` atau environment deployment. Fitur backup/pemulihan bawaan dan service backup Docker hanya mendukung SQLite.
+Backend mewajibkan PostgreSQL melalui `DATABASE_URL` di `backend/.env` atau environment deployment. SQLite tidak didukung. Backup dan pemulihan database harus dikelola melalui layanan PostgreSQL/provider atau prosedur PostgreSQL yang disiapkan operator.
 
 ## Menjalankan secara lokal di Windows
 

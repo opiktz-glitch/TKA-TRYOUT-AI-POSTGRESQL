@@ -30,12 +30,12 @@ function SubjectManagement() {
   return (
     <>
       {/* HEADER */}
-      <div className="page-header">
+      <div className="page-header management-page-header">
         <div>
           <h1>Mata Pelajaran</h1>
           <p>Kelola master mata pelajaran TKA Tryout</p>
         </div>
-        <button className="primary-button" onClick={openAddModal}>
+        <button type="button" className="primary-button" onClick={openAddModal}>
           + Tambah Mata Pelajaran
         </button>
       </div>
@@ -124,7 +124,7 @@ function SubjectManagement() {
                           )}
                         </td>
                         <td className="is-center is-nowrap">
-                          <div className="action-buttons" style={{ justifyContent: "center" }}>
+                          <div className="action-buttons management-table-actions">
                             <button
                               className="edit-button"
                               onClick={() => openEditModal(item)}

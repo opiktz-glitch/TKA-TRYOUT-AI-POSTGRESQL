@@ -132,7 +132,7 @@ python scripts/run_migrations.py --check
 python scripts/run_migrations.py --target v03
 ```
 
-Script ini aman dijalankan berulang kali (*idempotent*), otomatis mendeteksi dialect database (PostgreSQL / SQLite), dan memperbarui catatan `app:schema_version` di tabel `t_app_setting`.
+Script ini aman dijalankan berulang kali (*idempotent*), menggunakan PostgreSQL, dan memperbarui catatan `app:schema_version` di tabel `t_app_setting`.
 
 ---
 
@@ -274,4 +274,3 @@ Berdasarkan hasil eksekusi suite verifikasi pasca update, seluruh halaman terver
 
 4. **Verifikasi Output**:
    - Seluruh bukti hasil eksekusi tes (`OK` / `Exit code 0`) wajib dilaporkan secara transparan kepada pengguna.
-

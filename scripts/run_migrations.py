@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
-"""
-Database Migration Runner for TKA TryOut AI
-Supports PostgreSQL and SQLite.
-Manages schema evolution across v01, v02, and v03.
-"""
+"""PostgreSQL migration runner for schema versions v01 through v03."""
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -52,7 +47,7 @@ def get_current_schema_version(conn) -> str:
     return "v01"
 
 
-def apply_sql_file(conn, filepath: Path, dialect: str):
+def apply_sql_file(conn, filepath: Path):
     print(f"--> Membaca script: {filepath.name}")
     content = filepath.read_text(encoding="utf-8")
 
@@ -75,15 +70,6 @@ def apply_sql_file(conn, filepath: Path, dialect: str):
         sql = stmt.strip()
         if not sql:
             continue
-
-        # Adjust syntax if on sqlite
-        if dialect == "sqlite":
-            sql = sql.replace("BYTEA", "BLOB")
-            sql = sql.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
-            sql = sql.replace("TIMESTAMP WITHOUT TIME ZONE", "TIMESTAMP")
-            if "ALTER COLUMN difficulty TYPE VARCHAR(150)" in sql:
-                # SQLite is dynamically typed and ignores varchar length limits
-                continue
 
         try:
             conn.execute(text(sql))
@@ -118,17 +104,17 @@ def run_migrations(target_version: str = "v03", check_only: bool = False):
 
         if current_version == "none":
             print("\n[MIGRASI] Mengaplikasikan Skema Awal v01...")
-            apply_sql_file(conn, v01_file, dialect)
+            apply_sql_file(conn, v01_file)
             current_version = "v01"
 
         if current_version == "v01" and target_version in ["v02", "v03"]:
             print("\n[MIGRASI] Mengaplikasikan Upgrade v01 -> v02...")
-            apply_sql_file(conn, v02_file, dialect)
+            apply_sql_file(conn, v02_file)
             current_version = "v02"
 
         if current_version in ["v01", "v02"] and target_version == "v03":
             print("\n[MIGRASI] Mengaplikasikan Upgrade v02 -> v03...")
-            apply_sql_file(conn, v03_file, dialect)
+            apply_sql_file(conn, v03_file)
             current_version = "v03"
 
         # Explicitly ensure version tag is updated
@@ -139,11 +125,6 @@ def run_migrations(target_version: str = "v03", check_only: bool = False):
                     INSERT INTO t_app_setting (key, value, updated_at)
                     VALUES ('app:schema_version', 'v03', CURRENT_TIMESTAMP)
                     ON CONFLICT (key) DO UPDATE SET value = 'v03', updated_at = CURRENT_TIMESTAMP;
-                    """
-                    if dialect == "postgresql"
-                    else """
-                    INSERT OR REPLACE INTO t_app_setting (key, value, updated_at)
-                    VALUES ('app:schema_version', 'v03', CURRENT_TIMESTAMP);
                     """
                 )
             )

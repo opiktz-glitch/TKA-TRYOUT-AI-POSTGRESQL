@@ -38,12 +38,12 @@ function TeacherManagement() {
   return (
     <>
       {/* HEADER */}
-      <div className="page-header">
+      <div className="page-header management-page-header">
         <div>
           <h1>Data Guru</h1>
           <p>Kelola profil guru (NIP, sekolah)</p>
         </div>
-        <button className="primary-button" onClick={openAddModal}>
+        <button type="button" className="primary-button" onClick={openAddModal}>
           + Tambah Guru
         </button>
       </div>
@@ -123,7 +123,7 @@ function TeacherManagement() {
                           {item.school_name || "-"}
                         </td>
                         <td className="is-center is-nowrap">
-                          <div className="action-buttons" style={{ justifyContent: "center" }}>
+                          <div className="action-buttons management-table-actions">
                             <button
                               className="edit-button"
                               onClick={() => openEditModal(item)}

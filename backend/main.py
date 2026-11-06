@@ -68,8 +68,6 @@ def _auto_migrate_columns_on_startup() -> None:
         from sqlalchemy import inspect, text
         inspector = inspect(engine)
         tables = inspector.get_table_names()
-        is_sqlite = engine.dialect.name == "sqlite"
-
         with engine.begin() as conn:
             # 1. t_attempt -> tab_switches_count
             if "t_attempt" in tables:
@@ -92,8 +90,7 @@ def _auto_migrate_columns_on_startup() -> None:
             if "t_question" in tables:
                 q_cols = {c["name"] for c in inspector.get_columns("t_question")}
                 if "image_data" not in q_cols:
-                    byte_type = "BLOB" if is_sqlite else "BYTEA"
-                    conn.execute(text(f"ALTER TABLE t_question ADD COLUMN image_data {byte_type}"))
+                    conn.execute(text("ALTER TABLE t_question ADD COLUMN image_data BYTEA"))
                 if "image_mime_type" not in q_cols:
                     conn.execute(text("ALTER TABLE t_question ADD COLUMN image_mime_type VARCHAR(50)"))
                 if "question_type" not in q_cols:
@@ -259,7 +256,7 @@ app = FastAPI(
     title="TZ Login API",
 
     description=(
-        "React + FastAPI + SQLite "
+        "React + FastAPI + PostgreSQL "
         "Authentication System"
     ),
 

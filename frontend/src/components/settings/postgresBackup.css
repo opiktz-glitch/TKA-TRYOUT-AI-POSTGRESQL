@@ -1,0 +1,281 @@
+.postgres-backup-grid {
+  align-items: stretch;
+}
+
+.postgres-backup-grid > .settings-card {
+  min-width: 0;
+}
+
+.postgres-backup-header {
+  display: grid;
+  gap: 12px;
+}
+
+.postgres-backup-header .settings-desc {
+  margin-bottom: 0;
+}
+
+.postgres-backup-header .error-message,
+.postgres-backup-header .success-message {
+  margin: 0;
+}
+
+.postgres-backup-notice {
+  padding: 12px 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.postgres-backup-settings,
+.postgres-backup-create {
+  display: flex;
+  flex-direction: column;
+}
+
+.postgres-backup-grid h2 {
+  margin-bottom: 8px;
+}
+
+.postgres-backup-grid h3 {
+  margin: 0 0 8px;
+}
+
+.postgres-backup-grid .settings-desc {
+  margin-bottom: 16px;
+}
+
+.postgres-backup-settings .form-group {
+  margin-bottom: 14px;
+}
+
+.postgres-backup-settings .form-group small {
+  margin-top: 5px;
+}
+
+.postgres-backup-settings .form-group input[type="number"] {
+  max-width: 180px;
+}
+
+.postgres-backup-optional {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.postgres-backup-paths {
+  display: grid;
+  gap: 10px;
+  margin: 2px 0 16px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.postgres-backup-paths > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.postgres-backup-paths span,
+.postgres-backup-create-info > span {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.postgres-backup-paths code,
+.postgres-backup-create-info code {
+  overflow-wrap: anywhere;
+  color: #374151;
+}
+
+.postgres-backup-settings-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.postgres-backup-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.postgres-backup-status > span {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fef3c7;
+}
+
+.postgres-backup-status.is-ready {
+  color: #166534;
+}
+
+.postgres-backup-status.is-ready > span {
+  background: #dcfce7;
+}
+
+.postgres-backup-create-info {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.postgres-backup-create-info > strong {
+  margin-bottom: 8px;
+  color: #111827;
+  font-size: 14px;
+}
+
+.postgres-backup-create > .primary-button {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.postgres-backup-hint {
+  margin-top: 10px;
+  color: #92400e;
+}
+
+.postgres-backup-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.postgres-backup-section-heading .settings-desc {
+  margin-bottom: 16px;
+}
+
+.postgres-backup-count {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.postgres-backup-empty {
+  padding: 24px 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
+.postgres-backup-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.postgres-backup-table-wrap .score-table {
+  min-width: 680px;
+}
+
+.postgres-backup-table-wrap .score-table td {
+  text-align: center;
+}
+
+.postgres-backup-table-wrap .score-table td:first-child {
+  text-align: left;
+}
+
+.postgres-backup-filename {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.postgres-backup-restore-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.postgres-backup-restore-controls > label {
+  flex: 0 0 100%;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.postgres-backup-restore-controls input[type="file"] {
+  min-width: 0;
+  flex: 1 1 280px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.postgres-backup-confirm-modal {
+  width: min(520px, 92vw);
+}
+
+.postgres-backup-confirm-body {
+  padding: 4px 22px 22px;
+}
+
+.postgres-backup-confirm-warning {
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.postgres-backup-confirm-actions {
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.postgres-backup-confirm-button {
+  background: #b45309;
+}
+
+@media (max-width: 600px) {
+  .postgres-backup-settings-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .postgres-backup-settings-footer .secondary-button,
+  .postgres-backup-create > .primary-button,
+  .postgres-backup-restore-controls .secondary-button {
+    width: 100%;
+  }
+
+  .postgres-backup-section-heading {
+    flex-direction: column;
+  }
+
+  .postgres-backup-confirm-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

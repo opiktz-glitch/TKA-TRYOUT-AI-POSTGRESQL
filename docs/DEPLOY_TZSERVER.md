@@ -50,3 +50,26 @@ Karena repository bersifat publik, lindungi branch `main` dan jangan memberi sec
 - Backend, perubahan skema, dan migrasi database **tidak** diperbarui otomatis. Ikuti prosedur backend terpisah setelah perubahan backend ditinjau.
 - Setelah pemasangan, workflow memastikan `http://127.0.0.1:8081/` membalas HTTP 200 dan `/api/auth/me` membalas 401 atau 403 tanpa autentikasi.
 - Jika persiapan SSH/sudo atau smoke test gagal, job akan gagal dan log Actions menunjukkan langkah yang bermasalah.
+
+## Backup penuh PostgreSQL
+
+Backup file manual tersedia di halaman Pengaturan Admin pada backend native tzserver. Endpoint tersebut dinonaktifkan secara default dan hanya aktif jika `POSTGRES_BACKUP_ENABLED=true` ditetapkan pada environment backend tzserver. Jangan aktifkan variabel ini pada Vercel. Vercel Cron dapat menjadwalkan HTTP request ke Vercel Function, tetapi file lokal function bukan penyimpanan arsip permanen; backup/restore dump besar lebih aman dikerjakan pada tzserver/provider. Lihat [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) dan [Function Limits](https://vercel.com/docs/functions/limitations).
+
+Skrip `backend/scripts/backup_postgres.py` membuat dump format custom yang mencakup seluruh database, termasuk gambar soal, lalu memeriksa arsip dengan `pg_restore --list`. Password koneksi tidak ditaruh di argumen proses; skrip memakai file `.pgpass` sementara dengan izin privat dan menghapusnya setelah selesai. File backup dibuat dengan izin pemilik saja. Retensi default menyimpan 14 dump terakhir.
+
+Persiapan fitur manual di tzserver:
+
+1. Pastikan `pg_dump` dan `pg_restore` tersedia dan versinya kompatibel dengan PostgreSQL provider.
+2. Pada `backend/.env` tzserver, tambahkan `POSTGRES_BACKUP_ENABLED=true`. Jangan set variabel ini pada konfigurasi Vercel.
+3. Opsional, atur `POSTGRES_BACKUP_DIR` sebagai folder dasar yang diizinkan. User service backend harus bisa menulis ke sana. Jika kosong/tidak diatur, folder default adalah `backend/backups/postgresql`.
+4. Backend mencari executable `pg_dump` dan `pg_restore` lewat `PATH`. Jika service tidak mewarisi PATH yang tepat, isi `POSTGRES_PG_DUMP_PATH` dan `POSTGRES_PG_RESTORE_PATH` dengan path executable penuh pada `.env` server. Nilai ini berbeda sesuai OS dan lokasi instalasi.
+5. Restart backend tzserver agar pengaturan terbaca. Pengaturan > Backup Database hanya muncul jika fitur diaktifkan dan kedua utilitas PostgreSQL tersedia.
+6. Login sebagai Admin. Di bagian **Lokasi dan retensi backup**, pilih subfolder relatif (atau biarkan kosong untuk memakai folder dasar) dan jumlah backup. Klik **Simpan & Verifikasi Folder**; backend membuat folder bila belum ada, menguji izin tulis, dan menolak path absolut atau path yang keluar dari folder dasar. Mengganti subfolder tidak memindahkan file backup yang sudah ada.
+7. Pilih **Buat & Unduh Backup** untuk membuat file dump dan mengunduhnya. File yang disimpan di server juga bisa diunduh kembali dari daftar. Subfolder dan retensi yang diatur lewat UI tersimpan di pengaturan aplikasi dan hanya berlaku untuk endpoint aplikasi; skrip CLI memakai `POSTGRES_BACKUP_DIR` dan `POSTGRES_BACKUP_RETENTION` secara langsung.
+8. Untuk restore, unggah file `.dump` hasil backup lalu konfirmasi. Backend memvalidasi arsip, membuat backup pengaman terlebih dahulu, lalu menjalankan `pg_restore` dalam satu transaksi. Jika `pg_restore` gagal, transaksinya dibatalkan. `pg_restore --clean` menghapus objek yang tercantum dalam arsip; objek yang dibuat setelah backup tetapi tidak ada di arsip dapat tetap ada. Jika API melaporkan error setelah proses restore selesai, periksa database dan minta pengguna login ulang karena pemulihan sesi merupakan langkah setelah transaksi restore. Seluruh sesi login di-reset setelah restore berhasil; pengguna perlu login ulang.
+
+Backup dibuat di `backend/backups/postgresql/` secara default. Admin dapat mengatur subfolder dan retensi untuk backup lewat UI. File berisi seluruh data aplikasi dan harus dianggap sensitif. Jangan menyimpan direktori backup di Git atau menyajikannya melalui Nginx. Download yang dilakukan dari browser adalah salinan yang harus disimpan admin dengan aman.
+
+Penjadwalan backup otomatis belum termasuk tahap ini dan tidak aktif hanya dengan menyalakan fitur manual. Mekanisme jadwal akan diselaraskan terpisah.
+
+Backup ini berada di tzserver dan **belum merupakan salinan off-site**. Jika server atau disk tzserver hilang, backup lokal ikut hilang. Aktifkan juga backup/PITR dari provider PostgreSQL atau tentukan tujuan kedua yang terpisah (misalnya object storage terenkripsi). Uji restore dump secara berkala ke database terpisah; `pg_restore --list` hanya memeriksa struktur arsip, bukan membuktikan pemulihan database berhasil.

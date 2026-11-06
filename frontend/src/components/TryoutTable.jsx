@@ -20,13 +20,14 @@ export default function TryoutTable({
 ================================================= */}
 
 <div className="score-card">
-  <div className="question-filter" style={{ marginBottom: 0, padding: "12px 14px 12px", borderBottom: "1px solid #e5e7eb" }}>
+  <div className="question-filter management-list-filter">
     <div className="question-filter-row question-filter-row-primary">
       <div className="filter-group">
         <input
           type="text"
           placeholder="Cari judul tryout..."
           className="search-input"
+          aria-label="Cari paket tryout"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -37,6 +38,7 @@ export default function TryoutTable({
           value={subjectFilter}
           onChange={(e) => setSubjectFilter(e.target.value)}
           className="search-input"
+          aria-label="Filter mata pelajaran"
         >
           <option value="">Semua Mapel</option>
           {subjects.map((subject) => (
@@ -52,6 +54,7 @@ export default function TryoutTable({
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="search-input"
+          aria-label="Filter status tryout"
         >
           <option value="">Semua Status</option>
           <option value="ACTIVE">Aktif</option>
@@ -176,7 +179,7 @@ export default function TryoutTable({
                     </td>
 
                     <td className="is-center is-nowrap">
-                      <div className="action-buttons" style={{ justifyContent: "center" }}>
+                      <div className="action-buttons management-table-actions">
                         <button
                           className="edit-button"
                           onClick={() => openEditModal(tryout)}

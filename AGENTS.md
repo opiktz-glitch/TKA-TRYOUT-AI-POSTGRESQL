@@ -17,6 +17,18 @@ npm run build
 
 Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terverifikasi.
 
+## Panduan UI frontend
+
+- Pertahankan bahasa UI dalam Bahasa Indonesia dan ikuti sistem visual yang sudah ada: warna/token di `frontend/src/App.css`, kartu dan form Pengaturan di `frontend/src/components/settings/settings.css`, serta pola toolbar/tabel nilai di `frontend/src/components/ScoreTable.css`. Gunakan token seperti `--accent`, `--accent-hover`, `--accent-soft`, `--paper`, dan `--line`; jangan memperkenalkan palet atau gaya tombol baru tanpa kebutuhan yang jelas.
+- Sebelum membuat komponen visual baru, cari dan gunakan komponen/class yang sudah ada—misalnya `dashboard-card`, `settings-card`, `settings-grid`, `form-group`, `score-card`, `score-toolbar`, `score-table`, `score-badge`, `Pagination`, dan komponen modal bersama. Jangan menduplikasi pola yang sudah tersedia.
+- Halaman baru mengikuti pola route/layout di `frontend/src/App.jsx` dan layout bersama `frontend/src/components/Layout.jsx`. Jangan merender `Sidebar` atau `Header` kedua kali di halaman yang sudah berada dalam layout bersama; periksa route dan halaman serupa terlebih dahulu karena sebagian halaman lama belum dimigrasikan.
+- Letakkan CSS khusus komponen di file CSS komponen dengan nama class yang ter-namespace. Hindari selector global baru dan perubahan luas di `App.css` kecuali memang memperbaiki sistem bersama. Untuk pola berulang, gunakan class/CSS bersama daripada menyalin inline style.
+- Buat halaman tetap rapi pada layar sempit: gunakan grid/flex yang dapat membungkus atau menjadi satu kolom, cegah teks/path panjang meluber, dan bungkus tabel lebar dengan area scroll horizontal. Ikuti breakpoint yang sudah dipakai di stylesheet terkait, bukan menambahkan breakpoint berbeda tanpa alasan.
+- Setiap alur data perlu tampilan yang jelas untuk loading, kosong, gagal, berhasil, dan aksi yang sedang berjalan. Nonaktifkan tombol selama aksi yang berkonflik dan tampilkan pesan yang menjelaskan tindakan berikutnya.
+- Gunakan elemen semantik dan aksesibel: `button type="button"` untuk aksi, label yang terhubung ke input, nama aksesibel untuk kontrol ikon, fokus keyboard yang terlihat, serta `role`/atribut dialog yang sesuai. Jangan mengandalkan warna saja untuk menyampaikan status.
+- Jaga hierarki informasi: judul dan deskripsi singkat, kelompokkan pengaturan terkait, gunakan label aksi spesifik, dan tampilkan peringatan dekat tindakan berdampak tinggi. Konfirmasi eksplisit diperlukan untuk aksi destruktif atau sulit dibatalkan.
+- Setelah perubahan UI, jalankan build frontend dan lint untuk file yang diubah. Jika aplikasi lokal dapat diakses, periksa tampilan desktop dan mobile serta state utama; jika terhalang login, data, atau konfigurasi, nyatakan batas verifikasi dan jangan mengklaim pemeriksaan visual sudah dilakukan.
+
 ## Deployment
 
 - Vercel dan tzserver adalah deployment terpisah. Jangan mengubah environment variable Vercel untuk memenuhi kebutuhan tzserver.

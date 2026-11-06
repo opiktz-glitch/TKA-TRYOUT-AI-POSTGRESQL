@@ -20,12 +20,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Database SQLite lokal (mode fallback dev) dan folder backup --
-# JANGAN sampai data lokal/lama ikut ter-bundle ke image production
-# yang memang seharusnya connect ke Neon, bukan file lokal.
-database/
-backups/
-
 # Git & file editor/OS, tidak relevan sama sekali di dalam image.
 .git/
 .gitignore
@@ -35,9 +29,7 @@ backups/
 .DS_Store
 Thumbs.db
 
-# File cadangan manual (pola " lama" yang beberapa kali dipakai
-# selama pengembangan project ini) -- jangan ikut ke image kalau
-# kebetulan masih ada tercecer di folder lokal.
+# File cadangan manual yang mungkin tersisa dari pengembangan.
 *lama*.py
 *lama*.js
 *lama*.jsx
