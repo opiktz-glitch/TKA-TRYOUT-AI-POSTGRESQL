@@ -1,0 +1,105 @@
+name: Deploy backend to tzserver
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-tzserver-backend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tzserver-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: tzserver-production
+    steps:
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:gha-tz-deploy
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TZSERVER_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH host verification
+        env:
+          TZSERVER_SSH_HOST: ${{ secrets.TZSERVER_SSH_HOST }}
+          TZSERVER_SSH_KNOWN_HOSTS: ${{ secrets.TZSERVER_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TZSERVER_SSH_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::TZSERVER_SSH_HOST must be a DNS name or IPv4 address."
+            exit 1
+          fi
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$TZSERVER_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh-keygen -F "$TZSERVER_SSH_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null
+
+      - name: Deploy backend and smoke test
+        env:
+          TZSERVER_SSH_HOST: ${{ secrets.TZSERVER_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes "admintz@$TZSERVER_SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          repo=/var/www/tka/app
+          git=/usr/bin/git
+
+          branch="$(sudo -n -u tka -- "$git" -C "$repo" branch --show-current)"
+          if [ "$branch" != "main" ]; then
+            echo "Backend checkout must be on main; found: $branch"
+            exit 1
+          fi
+
+          origin="$(sudo -n -u tka -- "$git" -C "$repo" remote get-url origin)"
+          case "$origin" in
+            https://github.com/opiktz-glitch/TKA-TRYOUT-AI-POSTGRESQL.git|git@github.com:opiktz-glitch/TKA-TRYOUT-AI-POSTGRESQL.git) ;;
+            *)
+              echo "Backend checkout origin does not match the expected repository."
+              exit 1
+              ;;
+          esac
+
+          changes="$(sudo -n -u tka -- "$git" -C "$repo" status --porcelain)"
+          if [ -n "$changes" ]; then
+            echo "Backend checkout has local changes; refusing to deploy."
+            exit 1
+          fi
+
+          sudo -n -u tka -- "$git" -C "$repo" pull --ff-only origin main
+          sudo -n -u tka -- /var/www/tka/app/backend/venv/bin/pip install \
+            -r /var/www/tka/app/backend/requirements.txt
+          sudo -n /usr/bin/systemctl restart tka-backend.service
+
+          endpoint=http://127.0.0.1:8081/api/settings/postgres-backups/status
+          for attempt in $(seq 1 12); do
+            status="$(curl --connect-timeout 3 --max-time 8 -sS -o /dev/null \
+              -w '%{http_code}' "$endpoint" 2>/dev/null || true)"
+            case "$status" in
+              401|403)
+                echo "Backend deployment smoke test passed (HTTP $status)."
+                exit 0
+                ;;
+            esac
+            sleep 5
+          done
+
+          sudo -n /usr/bin/systemctl --no-pager --full status tka-backend.service || true
+          echo "Backend smoke test failed: expected HTTP 401 or 403, got ${status:-no response}."
+          exit 1
+          REMOTE
