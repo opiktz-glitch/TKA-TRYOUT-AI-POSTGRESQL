@@ -1,4 +1,5 @@
 import { IconShield, IconRefresh } from "../Icons";
+import { formatDateTime } from "../../utils/date";
 
 export default function SecurityTab({ data }) {
           const {
@@ -136,7 +137,7 @@ export default function SecurityTab({ data }) {
                 {secretKeyStatus?.updated_at && (
                   <div className="settings-muted">
                     Terakhir diganti:{" "}
-                    {new Date(secretKeyStatus.updated_at).toLocaleString("id-ID")}
+                    {formatDateTime(secretKeyStatus.updated_at)}
                     {secretKeyStatus?.changed_by
                       ? ` oleh @${secretKeyStatus.changed_by}`
                       : ""}

@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useUI } from "../context/UIContext";
 import { IconMenu, IconBell, IconSearch } from "./Icons";
 import { NAV_ITEMS } from "../navItems";
+import { formatDateTime } from "../utils/date";
 import {
   getNotifications,
   markNotificationRead,
@@ -273,15 +274,7 @@ function Header() {
   }
 
   function formatNotifTime(isoString) {
-
-    const date = new Date(isoString);
-
-    return date.toLocaleString("id-ID", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatDateTime(isoString);
   }
 
 

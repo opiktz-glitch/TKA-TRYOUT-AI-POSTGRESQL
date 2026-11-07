@@ -2,6 +2,7 @@ import { useState } from "react";
 import Pagination from "./Pagination";
 import { IconTrash, IconEye, IconTrophy } from "./Icons";
 import "./ScoreTable.css";
+import { formatDate, formatTime, parseUtcDate } from "../utils/date";
 
 
 // =====================================================
@@ -47,20 +48,6 @@ import "./ScoreTable.css";
 // =====================================================
 
 const PAGE_SIZE = 10;
-
-
-// Backend mengirim timestamp tanpa zona waktu (UTC) -> tambahkan "Z"
-// supaya tampil sesuai jam lokal browser (lihat engineering notes).
-function parseUtcDate(value) {
-  if (!value) {
-    return null;
-  }
-
-  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(value);
-  const date = new Date(hasTimezone ? value : `${value}Z`);
-
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 
 function formatNumber(value) {
@@ -269,19 +256,12 @@ function ScoreTable({
                     <td className="is-nowrap">
                       <div>
                         {finished
-                          ? finished.toLocaleDateString("id-ID", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })
+                          ? formatDate(finished)
                           : "-"}
                       </div>
                       <div className="score-secondary">
                         {finished
-                          ? finished.toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                          ? formatTime(finished)
                           : ""}
                       </div>
                     </td>

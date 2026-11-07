@@ -8,7 +8,8 @@ import {
 import StatCard from "../StatCard";
 import { Link } from "react-router-dom";
 import "../ScoreTable.css";
-import { timeAgo, shortDate, scoreTier, TREND_WIDTH, TREND_HEIGHT, TREND_PADDING_X, TREND_PADDING_BOTTOM, TREND_GRID_VALUES, trendValueToY, buildTrendPoints } from "../../utils/dashboardUtils";
+import { shortDate, scoreTier, TREND_WIDTH, TREND_HEIGHT, TREND_PADDING_X, TREND_PADDING_BOTTOM, TREND_GRID_VALUES, trendValueToY, buildTrendPoints } from "../../utils/dashboardUtils";
+import { formatDate } from "../../utils/date";
 
 export default function StudentDashboard({ data }) {
   const {
@@ -46,7 +47,7 @@ export default function StudentDashboard({ data }) {
               dashFailed
                 ? "Gagal dimuat"
                 : studentStats.lastAttemptDate
-                  ? timeAgo(studentStats.lastAttemptDate)
+                  ? formatDate(studentStats.lastAttemptDate)
                   : "Belum ada nilai"
             }
             linkLabel="Lihat semua →"

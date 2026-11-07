@@ -3569,9 +3569,11 @@ button {
 
   margin-top: 2px;
 
-  font-size: 11px;
+  font-size: 10px;
 
   color: #9ca3af;
+
+  white-space: nowrap;
 
 }
 

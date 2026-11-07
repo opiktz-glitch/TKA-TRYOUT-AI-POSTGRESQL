@@ -1,4 +1,4 @@
-import { parseUtcDate } from "./date";
+import { formatDate, parseUtcDate } from "./date";
 
 
 
@@ -36,53 +36,8 @@ export function truncateText(text, maxLength = 70) {
 
 
 // =====================================================
-// HELPER — format tanggal jadi relatif ("2 jam lalu", dst)
-// =====================================================
-
-export function timeAgo(dateString) {
-  // parseUtcDate: timestamp backend berupa UTC tanpa "Z", jangan
-  // langsung new Date() (meleset 7 jam di WIB, lihat utils/date.js).
-  const date = parseUtcDate(dateString);
-
-  if (!date) {
-    return null;
-  }
-
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-
-  if (diffMinutes < 1) {
-    return "Baru saja";
-  }
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes} menit lalu`;
-  }
-
-  const diffHours = Math.floor(diffMinutes / 60);
-
-  if (diffHours < 24) {
-    return `${diffHours} jam lalu`;
-  }
-
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays < 7) {
-    return `${diffDays} hari lalu`;
-  }
-
-  return date.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-
-// =====================================================
-// HELPER — format tanggal singkat ("21 Sep") untuk label
-// sumbu grafik "Tren Nilai" (dashboard Siswa), beda dari
-// timeAgo() yang untuk teks relatif di kartu lain.
+// HELPER — format tanggal "dd-mm-yyyy" untuk label grafik
+// Tren Nilai pada dashboard Siswa.
 // =====================================================
 
 export function shortDate(dateString) {
@@ -92,10 +47,7 @@ export function shortDate(dateString) {
     return "-";
   }
 
-  return date.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-  });
+  return formatDate(date);
 }
 
 
@@ -263,5 +215,3 @@ export function roleCacheKey(role) {
 
   return null;
 }
-
-

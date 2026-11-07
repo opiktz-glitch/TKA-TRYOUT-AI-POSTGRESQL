@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import "./ScoreReportModal.css";
 import { IconPrinter } from "./Icons";
 import { exportScoresToCsv, exportScoresToExcel } from "../utils/scoreExport";
+import { formatDate } from "../utils/date";
 
 function ScoreReportModal({
   isOpen,
@@ -42,11 +43,7 @@ function ScoreReportModal({
     return { total, avg, max, min, passed, failed, passRate, cheated };
   }, [scores]);
 
-  const currentDate = new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const currentDate = formatDate(new Date());
 
   if (!isOpen) return null;
 
@@ -199,12 +196,7 @@ function ScoreReportModal({
             <tbody>
               {scores.map((item, idx) => {
                 const finished = item.finished_at
-                  ? new Date(item.finished_at).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                  ? formatDate(item.finished_at)
                   : "-";
 
                 const isCheated =

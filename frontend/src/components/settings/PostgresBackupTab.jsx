@@ -10,6 +10,7 @@ import {
 } from "../../services/api";
 import "../ScoreTable.css";
 import "./postgresBackup.css";
+import { formatDateTime } from "../../utils/date";
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -349,7 +350,7 @@ export default function PostgresBackupTab() {
                     <tr key={backup.filename}>
                       <td className="postgres-backup-filename">{backup.filename}</td>
                       <td>
-                        {new Date(backup.created_at).toLocaleString("id-ID", {
+                        {formatDateTime(backup.created_at, {
                           timeZone: "Asia/Jakarta",
                         })}
                       </td>

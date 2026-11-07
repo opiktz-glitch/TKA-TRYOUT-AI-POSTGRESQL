@@ -13,6 +13,7 @@ import {
   IconTrophy,
 } from "../components/Icons";
 import "../components/ScoreTable.css";
+import { formatDateTime } from "../utils/date";
 
 import {
   getAttemptHistory,
@@ -20,34 +21,6 @@ import {
   getMyProfile,
   getStudentWeaknessAnalysis,
 } from "../services/api";
-
-
-// =====================================================
-// HELPER — format tanggal "8 Sep 2026, 14:30"
-// =====================================================
-
-function formatDate(value) {
-  if (!value) {
-    return "-";
-  }
-
-  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(value);
-  const isoString = hasTimezone ? value : `${value}Z`;
-
-  const date = new Date(isoString);
-
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 
 // =====================================================
@@ -484,7 +457,7 @@ function StudentHistory() {
                         {profile?.student_code && <span>NIS: {profile.student_code}</span>}
                         {profile?.school_name && <span>Sekolah: {profile.school_name}</span>}
                         <span>Mapel: {detail.subject_name || "-"}</span>
-                        <span>Selesai: {formatDate(detail.finished_at)}</span>
+                        <span>Selesai: {formatDateTime(detail.finished_at)}</span>
                       </div>
                       <div
                         className={`review-print-score ${detail.passed ? "is-pass" : "is-fail"}`}

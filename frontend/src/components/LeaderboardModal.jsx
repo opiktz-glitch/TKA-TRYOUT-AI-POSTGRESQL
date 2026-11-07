@@ -2,17 +2,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { getTryoutLeaderboard } from "../services/api";
 import Pagination from "./Pagination";
-
-function formatDate(value) {
-  if (!value) return "-";
-  const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(value);
-  const date = new Date(hasTimezone ? value : `${value}Z`);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("id-ID", {
-    day: "numeric", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+import { formatDateTime } from "../utils/date";
 
 export default function LeaderboardModal({ tryoutId, title, onClose, currentUserId, currentUserRole }) {
   const [data, setData] = useState([]);
@@ -80,7 +70,7 @@ export default function LeaderboardModal({ tryoutId, title, onClose, currentUser
                       <td className="is-left is-nowrap">
                         {row.student_name}
                       </td>
-                      <td className="is-left is-nowrap">{formatDate(row.finished_at)}</td>
+                      <td className="is-left is-nowrap">{formatDateTime(row.finished_at)}</td>
                     <td style={{ textAlign: "right" }}>{row.duration_seconds}s</td>
                     <td style={{ textAlign: "right", fontWeight: "bold", fontSize: 16 }}>{row.score}</td>
                     <td className="is-left">

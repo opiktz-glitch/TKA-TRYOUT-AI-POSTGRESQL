@@ -11,6 +11,8 @@ Platform ujian/tryout berbasis sekolah untuk Admin, Guru, dan Siswa. Aplikasi me
 - Riwayat dan laporan nilai serta notifikasi.
 - Mode akses lokal dan LAN.
 
+Tanggal yang ditampilkan aplikasi menggunakan format `dd-mm-yyyy`; tanggal beserta waktu menggunakan `dd-mm-yyyy HH:mm`. Format ISO tetap digunakan pada pertukaran data API dan penyimpanan.
+
 ## Teknologi dan konfigurasi
 
 - **Backend:** FastAPI, SQLAlchemy, PostgreSQL.

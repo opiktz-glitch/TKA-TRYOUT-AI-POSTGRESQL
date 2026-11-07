@@ -1,3 +1,5 @@
+import { formatDate } from "../utils/date";
+
 export default function TrendChart({ attemptsTrend, maxTrendCount, trendTotal, trendDays, busiestDay }) {
   if (trendTotal === 0) {
     return (
@@ -11,12 +13,14 @@ export default function TrendChart({ attemptsTrend, maxTrendCount, trendTotal, t
     <>
       <div className="trend-summary">
         Total {trendTotal} attempt dalam {trendDays} hari terakhir
-        {busiestDay && ` · tersibuk ${new Date(busiestDay.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} (${busiestDay.count})`}
+        {busiestDay && ` · tersibuk ${formatDate(busiestDay.date)} (${busiestDay.count})`}
       </div>
       
       <div className="trend-chart">
         {attemptsTrend.map((day, index) => {
-          const showDate = (attemptsTrend.length - 1 - index) % 2 === 0;
+          const showDate =
+            index === attemptsTrend.length - 1 ||
+            (attemptsTrend.length - 1 - index) % 7 === 0;
 
           return (
             <div className="trend-bar-col" key={day.date}>
@@ -32,7 +36,7 @@ export default function TrendChart({ attemptsTrend, maxTrendCount, trendTotal, t
               />
               
               <div className="trend-tooltip">
-                <strong>{new Date(day.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</strong>
+                <strong>{formatDate(day.date)}</strong>
                 <br />
                 {day.count} attempt
               </div>
@@ -41,7 +45,7 @@ export default function TrendChart({ attemptsTrend, maxTrendCount, trendTotal, t
                 className="trend-bar-date"
                 style={showDate ? undefined : { visibility: "hidden" }}
               >
-                {new Date(day.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                {formatDate(day.date)}
               </div>
             </div>
           );

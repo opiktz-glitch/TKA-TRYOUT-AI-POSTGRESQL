@@ -14,6 +14,8 @@ Terima kasih telah berkontribusi pada TKA TryOut AI. Panduan ini melengkapi inst
 
 Gunakan functional components dan React hooks dengan mengikuti Rules of Hooks. Pemanggilan API sebaiknya memakai wrapper/service yang sudah ada, terutama `frontend/src/services/api.js`, agar autentikasi dan penanganan error konsisten.
 
+Semua tanggal yang ditampilkan di UI, grafik, laporan, notifikasi, dan ekspor wajib berformat `dd-mm-yyyy`; bila waktu disertakan, gunakan `dd-mm-yyyy HH:mm`. Gunakan formatter bersama di `frontend/src/utils/date.js`. Jangan mengubah format timestamp ISO pada API/database.
+
 Setelah mengubah frontend, jalankan dari folder `frontend`:
 
 ```powershell

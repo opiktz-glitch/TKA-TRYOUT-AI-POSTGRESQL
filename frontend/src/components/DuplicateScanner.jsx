@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getDuplicates, bulkDeleteQuestions } from '../services/api';
+import { formatDate } from '../utils/date';
 import toast from 'react-hot-toast';
 import './DuplicateScanner.css';
 
@@ -87,7 +88,7 @@ const DuplicateScanner = ({ onClose }) => {
                       >
                         <div className="duplicate-scanner-meta">
                           <span>ID: {q.id}</span>
-                          {q.created_at && <span>{new Date(q.created_at).toLocaleDateString('id-ID')}</span>}
+                          {q.created_at && <span>{formatDate(q.created_at)}</span>}
                         </div>
                         <div className="duplicate-scanner-text">
                           {q.text}

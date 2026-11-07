@@ -3,6 +3,8 @@
  * Mendukung format UTF-8 with BOM agar karakter Indonesia & simbol terbaca sempurna di Excel.
  */
 
+import { formatDate, formatDateTime } from "./date";
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -34,7 +36,7 @@ export function exportScoresToCsv(scores, filename = "Rekap_Nilai.csv") {
   ];
 
   const rows = scores.map((item, idx) => {
-    const finished = item.finished_at ? new Date(item.finished_at).toLocaleString("id-ID") : "-";
+    const finished = item.finished_at ? formatDateTime(item.finished_at) : "-";
     const integrity = typeof item.tab_switches_count === "number" && item.tab_switches_count > 0
       ? `${item.tab_switches_count}x Pindah Tab`
       : "Aman (0x)";
@@ -66,11 +68,7 @@ export function exportScoresToCsv(scores, filename = "Rekap_Nilai.csv") {
 export function exportScoresToExcel(scores, filename = "Rekap_Nilai.xls", meta = {}) {
   const title = meta.title || "Rekapitulasi Nilai Siswa";
   const subject = meta.subject || "-";
-  const dateStr = new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const dateStr = formatDate(new Date());
 
   let tableHtml = `
   <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -116,7 +114,7 @@ export function exportScoresToExcel(scores, filename = "Rekap_Nilai.xls", meta =
   `;
 
   scores.forEach((item, idx) => {
-    const finished = item.finished_at ? new Date(item.finished_at).toLocaleString("id-ID") : "-";
+    const finished = item.finished_at ? formatDateTime(item.finished_at) : "-";
     const statusClass = item.passed ? "badge-pass" : "badge-fail";
     const statusText = item.passed ? "Lulus" : "Tidak Lulus";
     const isCheated = typeof item.tab_switches_count === "number" && item.tab_switches_count > 0;
