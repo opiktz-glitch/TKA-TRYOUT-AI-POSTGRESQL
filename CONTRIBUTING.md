@@ -30,6 +30,19 @@ Backend memakai konfigurasi `backend/.env` secara default; `backend/config.py` m
 
 Jalankan tes hanya jika konfigurasi tes menunjuk ke database tes terisolasi dan runner secara eksplisit menggunakan serta memvalidasi konfigurasi tersebut. Jika prasyarat itu belum terpenuhi, jangan jalankan tes yang dapat menulis ke database; laporkan keterbatasannya.
 
+## Cakupan pemeriksaan yang tersedia
+
+Repository memiliki pemeriksaan frontend dan beberapa suite backend:
+
+- `frontend`: `npm run build` untuk memvalidasi bundle production; `npm run lint` untuk lint Oxlint.
+- `tests/test_frontend_pages_integrity.py`: pemeriksaan integritas route/halaman frontend.
+- `tests/test_database_migrations.py`: pemeriksaan struktur skema dan migrasi.
+- `tests/test_impacted_features.py`: pemeriksaan alur fitur yang terdampak.
+- `tests/test_backend_api_and_pages.py`: pemeriksaan API dan halaman.
+- `scripts/run_post_update_checks.py`: master runner yang mencakup pengujian backend, sehingga tunduk pada aturan isolasi database di atas.
+
+Daftar suite bukan bukti bahwa tes pernah berhasil dijalankan. Jangan mengeksekusi suite backend sampai database tes serta runner aman tersedia.
+
 Sebelum migrasi skema:
 
 1. Periksa dialect dan struktur database yang didukung oleh SQL migration.

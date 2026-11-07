@@ -71,7 +71,25 @@ Penyimpanan konfigurasi aplikasi berbentuk key-value, termasuk pemilihan/provide
 - Relasi, kolom, tipe data, nilai default, dan indeks lengkap ditentukan di `backend/models.py`.
 - `Base.metadata.create_all()` membuat tabel yang belum ada, tetapi tidak menambahkan kolom baru ke tabel yang sudah ada.
 - `backend/main.py` menjalankan penambahan beberapa kolom tertentu saat startup. Ini bukan migrasi umum dan tidak menggantikan pemeriksaan skema.
-- SQL migration files berada di `migrations/` (`v01` sampai `v04`). `scripts/run_migrations.py` saat ini hanya mendukung sampai `v03`; `v04_anti_cheat_telemetry.sql` ada terpisah. Untuk skema lama, verifikasi kolom/index yang dibutuhkan dan prosedur migrasi sebelum menjalankan aplikasi.
+- File migrasi SQL yang tersedia:
+
+  | File | Perubahan utama |
+  |---|---|
+  | `migrations/v01_initial_schema.sql` | Skema dasar aplikasi dan tabel relasional awal. |
+  | `migrations/v02_update_media_session_settings.sql` | Media soal, pengaturan aplikasi, sesi aktif, label Benar/Salah, dan bobot soal. |
+  | `migrations/v03_optimize_concurrency_indexes_pgk.sql` | Indeks unik untuk attempt aktif, indeks query, dan perluasan keterangan tryout. |
+  | `migrations/v04_anti_cheat_telemetry.sql` | Kolom penghitung perpindahan tab selama attempt. |
+
+- `scripts/run_migrations.py` saat ini hanya menerapkan target `v01` sampai `v03`; migrasi `v04` belum didukung runner tersebut dan harus ditangani secara eksplisit sebelum deployment yang membutuhkannya.
+- Runner migrasi memakai konfigurasi database aplikasi. Periksa target konfigurasi terlebih dahulu dan buat backup yang dapat dipulihkan sebelum menerapkan migrasi; opsi `--check` hanya memeriksa versi skema, bukan memvalidasi keamanan atau lingkungan database.
+
+Contoh penggunaan runner dari root repository setelah target database dipastikan:
+
+```powershell
+python scripts/run_migrations.py --check
+python scripts/run_migrations.py --target v03
+```
+
 - Jangan menerapkan perubahan skema langsung ke database production tanpa backup, rencana pemulihan, dan verifikasi kompatibilitas PostgreSQL.
 
 Lihat juga [ERD.mermaid](ERD.mermaid) untuk diagram relasi dan [ARCHITECTURE.md](ARCHITECTURE.md) untuk alur sistem.

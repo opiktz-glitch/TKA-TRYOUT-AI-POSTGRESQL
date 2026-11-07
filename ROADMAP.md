@@ -19,6 +19,7 @@ Roadmap ini adalah usulan prioritas berdasarkan kondisi repository saat ini, buk
 - [ ] **Verifikasi dan dokumentasikan backup/restore PostgreSQL**
   - Sediakan dan uji prosedur backup serta pemulihan melalui provider/layanan PostgreSQL yang digunakan.
   - Pastikan pemulihan diuji pada salinan lingkungan, bukan database aktif.
+  - Untuk setup self-hosted, evaluasi otomasi CLI backup/restore bila alur yang tersedia belum memadai.
 
 ## Prioritas 1 — Observabilitas dan performa berbasis pengukuran
 
@@ -58,6 +59,18 @@ Roadmap ini adalah usulan prioritas berdasarkan kondisi repository saat ini, buk
   - Sediakan ringkasan validasi/pratinjau dan cara melanjutkan atau mengulang bagian yang gagal.
 - [ ] **Tingkatkan analitik tryout**
   - Kembangkan laporan berdasarkan kebutuhan guru/admin, dengan definisi metrik yang konsisten dan akses berbasis role.
+- [ ] **Tonjolkan tryout prioritas pada Dashboard Siswa**
+  - Buat tryout yang belum dikerjakan atau perlu dilanjutkan lebih mudah ditemukan daripada riwayat nilai.
+- [ ] **Sederhanakan aksi tryout pada Dashboard Guru**
+  - Tinjau pengulangan aksi “Buat Tryout” di bagian Aktivitas dan Akses Cepat agar pilihan tindakan tidak terasa berulang.
+- [ ] **Jaga keterbacaan grafik nilai di ponsel**
+  - Pastikan label tanggal dan nilai tetap mudah dibaca di layar kecil saat jumlah data bertambah.
+- [ ] **Kustomisasi identitas sekolah pada laporan**
+  - Evaluasi pengaturan nama sekolah, logo, dan identitas penanggung jawab untuk ditampilkan pada laporan nilai.
+- [ ] **Sediakan leaderboard tryout untuk guru**
+  - Tampilkan peringkat peserta per paket tryout dengan aturan akses data siswa yang sesuai.
+- [ ] **Evaluasi pembersihan data berkala**
+  - Tinjau kebijakan retensi sesi dan notifikasi lama sebelum menambahkan pembersihan otomatis; pertahankan data yang dibutuhkan untuk audit dan riwayat.
 - [ ] **Tingkatkan kesiapan jaringan dan deployment**
   - Tinjau endpoint admin `/api/system/status` yang sudah ada dan pastikan dokumentasi menjelaskan status API, database, dan AI sesuai implementasinya.
   - Tambahkan endpoint readiness terpisah hanya jika endpoint status yang ada tidak memenuhi kebutuhan deployment/monitoring.

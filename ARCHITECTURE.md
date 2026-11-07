@@ -47,6 +47,22 @@ Model utama di `backend/models.py` meliputi:
 
 Relasi antarentitas dan aturan database menjadi sumber kebenaran untuk integritas data. Daftar kolom dan relasi rinci dapat dilihat di `backend/models.py`, `SCHEMA_DOCS.md`, dan `ERD.mermaid`.
 
+## Cakupan fitur dan peran
+
+- **Admin** mengelola pengguna dan data master, memantau dashboard, melihat rekap nilai seluruh tryout, serta mengatur layanan AI dan konfigurasi aplikasi.
+- **Guru** mengelola mata pelajaran yang menjadi kewenangannya, bank soal dan paket tryout, peserta, rekap nilai, laporan analitik, serta profil.
+- **Siswa** melihat tryout, mengerjakan ujian dengan timer yang divalidasi backend, dan mengakses riwayat nilai serta pembahasan.
+- Tipe soal yang didukung mencakup pilihan ganda (`MULTIPLE_CHOICE`), pilihan ganda kompleks/MCMA (`MULTIPLE_RESPONSE`), dan kategori Benar/Salah (`TRUE_FALSE`) dengan label yang dapat dikustomisasi.
+- Fitur pendukung mencakup impor soal dari dokumen/gambar, bantuan AI untuk membuat soal dan pembahasan, pemindaian duplikat, notifikasi, ekspor rekap nilai, dan pencatatan perpindahan tab saat ujian.
+
+Rute frontend dibatasi menurut peran, tetapi otorisasi sebenarnya tetap ditegakkan oleh backend:
+
+| Peran | Cakupan utama |
+|---|---|
+| Admin | `/dashboard`, `/users`, `/students`, `/teachers`, `/subjects`, `/questions`, `/tryouts`, `/admin/scores`, `/admin/reports`, `/admin/settings` |
+| Guru | `/dashboard`, `/subjects`, `/questions`, `/tryouts`, `/teacher/students`, `/teacher/scores`, `/teacher/reports`, `/teacher/profile` |
+| Siswa | `/dashboard`, `/student/tryouts`, `/student/attempt/:id`, `/student/history`, `/student/profile` |
+
 ## Alur autentikasi dan pengerjaan tryout
 
 1. Pengguna masuk melalui endpoint autentikasi; backend memverifikasi kata sandi dan mengembalikan token.

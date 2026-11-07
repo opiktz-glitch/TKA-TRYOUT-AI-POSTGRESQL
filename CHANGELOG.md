@@ -35,6 +35,7 @@ Semua perubahan penting pada proyek **TKA-AI (TKA Tryout)** didokumentasikan di 
 - **Optimasi Polling Notifikasi**: Menambahkan deteksi visibilitas tab (`document.visibilityState`) pada komponen Header sehingga polling HTTP otomatis dijeda saat tab diminimalkan atau tidak aktif, dan langsung diperbarui saat pengguna kembali.
 - **Pencatatan Telemetri Anti-Cheat**: Menambahkan kolom `tab_switches_count` pada `t_attempt` untuk mencatat frekuensi siswa meninggalkan tab/jendela ujian secara real-time dan menampilkannya sebagai badge indikator integritas pada tabel Rekap Nilai Guru dan Admin.
 - **Pratinjau Dokumen Rekap Nilai (View PDF) & Ekspor Excel/CSV**: Menambahkan modal pratinjau lembar rekapitulasi evaluasi siap cetak/simpan PDF A4 dengan kop resmi, ringkasan KPI (rata-rata, tertinggi, kelulusan, dan status anti-cheat), serta tombol ekspor langsung ke format CSV dan Microsoft Excel (.xls).
+- **Panduan dan Kisi-Kisi Pembuatan Soal**: Menambahkan panduan konstruksi soal dan referensi indikator Kurikulum Merdeka melalui modal bertab, dengan pencarian materi serta filter fase.
 
 ### Diubah
 - **Skema Keterangan Paket Tryout**: Atribut `difficulty` pada `t_tryout` dinaikkan limitasinya dari 20 karakter menjadi 150 karakter untuk membebaskan teks label paket ujian (misal: "Kelas Unggulan", "Tryout Akbar SNBT").
