@@ -1166,6 +1166,13 @@ export async function downloadExistingPostgresBackup(filename) {
   );
 }
 
+export async function deletePostgresBackup(filename) {
+  return apiFetch(
+    `/api/settings/postgres-backups/${encodeURIComponent(filename)}`,
+    { method: "DELETE" }
+  );
+}
+
 export async function restorePostgresBackup(file) {
   const formData = new FormData();
   formData.append("file", file);

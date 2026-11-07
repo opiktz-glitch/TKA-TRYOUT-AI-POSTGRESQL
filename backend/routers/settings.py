@@ -19,6 +19,7 @@ from schemas import (
     AIProviderUpdate,
     AIStatusResponse,
     PostgresBackupAvailabilityResponse,
+    PostgresBackupDeleteResponse,
     PostgresBackupFileResponse,
     PostgresBackupListResponse,
     PostgresBackupSettingsRequest,
@@ -294,6 +295,52 @@ def download_postgres_backup(
         media_type="application/octet-stream",
         headers={"Cache-Control": "no-store"},
     )
+
+
+@router.delete(
+    "/postgres-backups/{filename}",
+    response_model=PostgresBackupDeleteResponse,
+)
+async def delete_postgres_backup(
+    filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    _require_postgres_backup()
+    if not BACKUP_FILENAME_PATTERN.fullmatch(filename):
+        raise HTTPException(status_code=404, detail="File backup tidak ditemukan.")
+    if BACKUP_OPERATION_LOCK.locked():
+        raise HTTPException(
+            status_code=409,
+            detail="Operasi backup atau restore sedang berjalan.",
+        )
+
+    await BACKUP_OPERATION_LOCK.acquire()
+    try:
+        backup_path = _backup_directory(db) / filename
+        if not backup_path.is_file() or backup_path.is_symlink():
+            raise HTTPException(
+                status_code=404,
+                detail="File backup tidak ditemukan.",
+            )
+        try:
+            backup_path.unlink()
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=404,
+                detail="File backup tidak ditemukan.",
+            ) from exc
+        except OSError as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Gagal menghapus file backup: {exc}",
+            ) from exc
+        return PostgresBackupDeleteResponse(
+            success=True,
+            message="File backup berhasil dihapus.",
+        )
+    finally:
+        _release_backup_operation_lock()
 
 
 @router.post(

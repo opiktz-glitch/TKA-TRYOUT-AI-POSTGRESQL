@@ -194,7 +194,7 @@
 }
 
 .postgres-backup-table-wrap .score-table {
-  min-width: 680px;
+  min-width: 760px;
 }
 
 .postgres-backup-table-wrap .score-table td {
@@ -208,6 +208,19 @@
 .postgres-backup-filename {
   overflow-wrap: anywhere;
   font-weight: 500;
+}
+
+.postgres-backup-table-wrap .score-table td:last-child {
+  white-space: nowrap;
+}
+
+.postgres-backup-delete-button {
+  margin-left: 8px;
+  color: var(--danger);
+}
+
+.postgres-backup-delete-confirm-button {
+  background: var(--danger);
 }
 
 .postgres-backup-restore-controls {

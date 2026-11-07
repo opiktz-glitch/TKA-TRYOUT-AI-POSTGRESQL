@@ -16,6 +16,21 @@ npm run build
 ```
 
 Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terverifikasi.
+Untuk perubahan frontend, jalankan build dan lint file yang diubah dalam satu pemanggilan dari folder `frontend`, misalnya:
+
+```powershell
+npm run build; if ($?) { npm run lint -- src/components/SomeComponent.jsx src/services/api.js }
+```
+
+Pilih hanya file yang memang diubah. Jangan mengulang build atau lint yang sudah lulus tanpa ada perubahan lanjutan yang memengaruhinya.
+
+## Pemeriksaan yang efektif
+
+- Pilih pemeriksaan terkecil yang memvalidasi perubahan secara langsung. Jangan menjalankan beberapa suite luas atau pemeriksaan berulang untuk satu perubahan kecil.
+- Gabungkan pemeriksaan yang berkaitan dalam satu pemanggilan jika dapat dilakukan tanpa mengaburkan hasil; pemeriksaan independen boleh dijalankan bersamaan.
+- Jalankan `git diff --check` sekali pada akhir perubahan, bukan setelah setiap edit.
+- Untuk perubahan frontend dan backend sekaligus, validasi build/lint frontend serta pemeriksaan backend yang paling relevan. Jangan mengklaim pemeriksaan statis sebagai pengganti tes runtime.
+- Jika tes runtime backend berisiko memakai database, patuhi pengamanan database di bawah. Bila database tes aman belum disiapkan, gunakan pemeriksaan yang tidak terhubung ke database dan nyatakan batas verifikasinya.
 
 ## Panduan UI frontend
 
@@ -45,6 +60,7 @@ Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terveri
 - Sebelum tes backend dijalankan, pastikan file konfigurasi tes mengarah hanya ke database khusus tes yang terisolasi, dan runner secara eksplisit memilih serta memvalidasi konfigurasi itu. Jangan mengandalkan fixture pembersihan sebagai perlindungan database.
 - Jika menambah atau mengubah kolom model SQLAlchemy, periksa migrasi yang berlaku. `backend/main.py` memiliki `_auto_migrate_columns_on_startup()` untuk beberapa kolom tertentu, tetapi tidak otomatis mencakup setiap perubahan skema.
 - Jika pengaman database tes belum tersedia, jangan jalankan tes backend yang dapat menulis ke database; laporkan keterbatasan ini dengan jelas.
+- Untuk perubahan backend yang tidak memerlukan database, gunakan pemeriksaan terarah yang aman (misalnya pemeriksaan sintaks atau tes unit dengan dependency database di-mock) alih-alih menjalankan seluruh suite backend.
 
 ## Konfigurasi dan data sensitif
 

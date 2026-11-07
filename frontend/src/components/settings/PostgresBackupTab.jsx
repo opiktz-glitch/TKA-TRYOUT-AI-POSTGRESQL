@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   createPostgresBackup,
+  deletePostgresBackup,
   downloadExistingPostgresBackup,
   getPostgresBackups,
   getPostgresBackupSettings,
@@ -28,9 +29,11 @@ export default function PostgresBackupTab() {
   const [creating, setCreating] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [downloading, setDownloading] = useState("");
+  const [deleting, setDeleting] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
+  const [backupToDelete, setBackupToDelete] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -138,6 +141,24 @@ export default function PostgresBackupTab() {
     }
   }
 
+  async function handleDeleteBackup() {
+    if (!backupToDelete) return;
+    setError("");
+    setMessage("");
+    setDeleting(backupToDelete.filename);
+    try {
+      const result = await deletePostgresBackup(backupToDelete.filename);
+      setMessage(result.message || "File backup berhasil dihapus.");
+      setBackupToDelete(null);
+      await loadBackups();
+    } catch (err) {
+      console.error("DELETE POSTGRES BACKUP ERROR:", err);
+      setError(err.message || "Gagal menghapus file backup.");
+    } finally {
+      setDeleting("");
+    }
+  }
+
   async function handleRestore() {
     if (!selectedFile) return;
     setError("");
@@ -202,7 +223,7 @@ export default function PostgresBackupTab() {
               type="text"
               value={backupSubdirectory}
               maxLength={200}
-              disabled={savingSettings || creating || restoring}
+              disabled={savingSettings || creating || restoring || !!deleting}
               placeholder="Contoh: arsip-mingguan"
               onChange={(event) => {
                 setBackupSubdirectory(event.target.value);
@@ -221,7 +242,7 @@ export default function PostgresBackupTab() {
               max="1000"
               step="1"
               value={retentionCount}
-              disabled={savingSettings || creating || restoring}
+              disabled={savingSettings || creating || restoring || !!deleting}
               onChange={(event) => {
                 setRetentionCount(event.target.value);
                 setFolderReady(false);
@@ -256,6 +277,7 @@ export default function PostgresBackupTab() {
                 savingSettings ||
                 creating ||
                 restoring ||
+                !!deleting ||
                 !Number.isInteger(Number(retentionCount)) ||
                 Number(retentionCount) < 1 ||
                 Number(retentionCount) > 1000
@@ -281,7 +303,9 @@ export default function PostgresBackupTab() {
           <button
             type="button"
             className="primary-button"
-            disabled={creating || restoring || savingSettings || !folderReady}
+            disabled={
+              creating || restoring || !!deleting || savingSettings || !folderReady
+            }
             onClick={handleCreateBackup}
           >
             {creating ? "Membuat backup..." : "Buat & Unduh Backup"}
@@ -334,10 +358,30 @@ export default function PostgresBackupTab() {
                         <button
                           type="button"
                           className="secondary-button"
-                          disabled={creating || restoring || !!downloading}
+                          disabled={
+                            creating ||
+                            restoring ||
+                            savingSettings ||
+                            !!downloading ||
+                            !!deleting
+                          }
                           onClick={() => handleDownload(backup.filename)}
                         >
                           {downloading === backup.filename ? "Mengunduh..." : "Unduh"}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button postgres-backup-delete-button"
+                          disabled={
+                            creating ||
+                            restoring ||
+                            savingSettings ||
+                            !!downloading ||
+                            !!deleting
+                          }
+                          onClick={() => setBackupToDelete(backup)}
+                        >
+                          Hapus
                         </button>
                       </td>
                     </tr>
@@ -361,7 +405,7 @@ export default function PostgresBackupTab() {
               ref={fileInput}
               type="file"
               accept=".dump,application/octet-stream"
-              disabled={creating || restoring}
+              disabled={creating || restoring || !!deleting}
               onChange={(event) => {
                 setSelectedFile(event.target.files?.[0] || null);
                 setError("");
@@ -371,7 +415,7 @@ export default function PostgresBackupTab() {
             <button
               type="button"
               className="secondary-button"
-              disabled={!selectedFile || creating || restoring}
+              disabled={!selectedFile || creating || restoring || !!deleting}
               onClick={() => setConfirmRestore(true)}
             >
               Pulihkan Database
@@ -428,6 +472,62 @@ export default function PostgresBackupTab() {
                   onClick={handleRestore}
                 >
                   {restoring ? "Memulihkan..." : "Ya, Pulihkan Database"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {backupToDelete && (
+        <div
+          className="modal-overlay"
+          onClick={() => !deleting && setBackupToDelete(null)}
+        >
+          <div
+            className="modal postgres-backup-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="postgres-backup-delete-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 id="postgres-backup-delete-title">Hapus file backup?</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Tutup dialog"
+                disabled={!!deleting}
+                onClick={() => setBackupToDelete(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="postgres-backup-confirm-body">
+              <p>
+                File yang akan dihapus:{" "}
+                <strong>{backupToDelete.filename}</strong>
+              </p>
+              <p className="postgres-backup-confirm-warning">
+                File backup akan dihapus permanen dari server dan tidak dapat
+                dipulihkan melalui aplikasi. Pastikan file ini tidak lagi
+                diperlukan.
+              </p>
+              <div className="settings-form-actions postgres-backup-confirm-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={!!deleting}
+                  onClick={() => setBackupToDelete(null)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="primary-button postgres-backup-delete-confirm-button"
+                  disabled={!!deleting}
+                  onClick={handleDeleteBackup}
+                >
+                  {deleting ? "Menghapus..." : "Ya, Hapus Backup"}
                 </button>
               </div>
             </div>

@@ -490,6 +490,11 @@ class PostgresBackupListResponse(BaseModel):
     retention_count: int
 
 
+class PostgresBackupDeleteResponse(BaseModel):
+    success: bool
+    message: str
+
+
 class PostgresRestoreResponse(BaseModel):
     success: bool
     message: str
