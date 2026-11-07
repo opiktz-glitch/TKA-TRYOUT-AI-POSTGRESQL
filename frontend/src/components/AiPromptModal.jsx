@@ -25,6 +25,7 @@ export default function AiPromptModal({
               <button
                 type="button"
                 className="modal-close"
+                aria-label="Tutup dialog"
                 onClick={closeAiModal}
                 disabled={aiGenerating || aiPromptLoading}
               >
@@ -36,9 +37,10 @@ export default function AiPromptModal({
               <form onSubmit={handleShowPrompt}>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Mata Pelajaran *</label>
+                    <label htmlFor="ai-question-subject">Mata Pelajaran *</label>
 
                     <select
+                      id="ai-question-subject"
                       name="subject_id"
                       value={aiForm.subject_id}
                       onChange={handleAiFormChange}
@@ -58,9 +60,10 @@ export default function AiPromptModal({
                   </div>
 
                   <div className="form-group">
-                    <label>Tingkat Kesulitan *</label>
+                    <label htmlFor="ai-question-difficulty">Tingkat Kesulitan *</label>
 
                     <select
+                      id="ai-question-difficulty"
                       name="difficulty"
                       value={aiForm.difficulty}
                       onChange={handleAiFormChange}
@@ -77,9 +80,10 @@ export default function AiPromptModal({
                 </div>
 
                 <div className="form-group">
-                  <label>Jenis Soal</label>
+                  <label htmlFor="ai-question-type">Jenis Soal</label>
 
                   <select
+                    id="ai-question-type"
                     name="question_type"
                     value={aiForm.question_type}
                     onChange={handleAiFormChange}
@@ -93,9 +97,10 @@ export default function AiPromptModal({
                 </div>
 
                 <div className="form-group">
-                  <label>Materi / Lingkup Soal *</label>
+                  <label htmlFor="ai-question-topic">Materi / Lingkup Soal *</label>
 
                   <input
+                    id="ai-question-topic"
                     type="text"
                     name="materi"
                     value={aiForm.materi}
@@ -137,9 +142,10 @@ export default function AiPromptModal({
                 </div>
 
                 <div className="form-group">
-                  <label>Perintah Tambahan (opsional)</label>
+                  <label htmlFor="ai-question-instructions">Perintah Tambahan (opsional)</label>
 
                   <textarea
+                    id="ai-question-instructions"
                     name="additional_instruction"
                     value={aiForm.additional_instruction}
                     onChange={handleAiFormChange}
@@ -184,9 +190,10 @@ export default function AiPromptModal({
             {aiStep === "prompt" && (
               <form onSubmit={handleAiGenerate}>
                 <div className="form-group">
-                  <label>Prompt untuk AI</label>
+                  <label htmlFor="ai-question-prompt">Prompt untuk AI</label>
 
                   <textarea
+                    id="ai-question-prompt"
                     name="prompt"
                     value={aiPrompt}
                     onChange={(event) => setAiPrompt(event.target.value)}

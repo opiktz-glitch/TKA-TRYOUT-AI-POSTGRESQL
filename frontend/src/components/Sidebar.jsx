@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useUI } from "../context/UIContext";
 import { NavLink } from "react-router-dom";
@@ -35,6 +35,30 @@ function Sidebar() {
 
 
   const role = user?.role;
+  const wasMobileMenuOpen = useRef(mobileMenuOpen);
+
+  useLayoutEffect(() => {
+    if (!mobileMenuOpen && wasMobileMenuOpen.current) {
+      document.getElementById("mobile-menu-toggle")?.focus();
+    }
+
+    wasMobileMenuOpen.current = mobileMenuOpen;
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return undefined;
+    }
+
+    function handleMenuKeyDown(event) {
+      if (event.key === "Escape") {
+        closeMobileMenu();
+      }
+    }
+
+    document.addEventListener("keydown", handleMenuKeyDown);
+    return () => document.removeEventListener("keydown", handleMenuKeyDown);
+  }, [mobileMenuOpen, closeMobileMenu]);
 
 
   // =====================================================
@@ -103,13 +127,16 @@ function Sidebar() {
           ================================================= */}
 
       {mobileMenuOpen && (
-        <div
+        <button
+          type="button"
           className="sidebar-overlay"
+          aria-label="Tutup menu"
           onClick={closeMobileMenu}
         />
       )}
 
       <aside
+        id="app-sidebar"
         className={`sidebar${mobileMenuOpen ? " sidebar-mobile-open" : ""}`}
       >
 
@@ -124,7 +151,8 @@ function Sidebar() {
         type="button"
         className="sidebar-collapse-toggle"
         onClick={toggleSidebarCollapsed}
-        title={sidebarCollapsed ? "Perluas menu" : "Ciutkan menu"}
+        aria-label={sidebarCollapsed ? "Perluas menu" : "Ciutkan menu"}
+        aria-expanded={!sidebarCollapsed}
       >
         <IconChevronDown size={14} />
       </button>
@@ -159,10 +187,7 @@ function Sidebar() {
           MENU
           ================================================= */}
 
-      <nav
-        className="sidebar-menu"
-        onClick={closeMobileMenu}
-      >
+      <nav className="sidebar-menu">
 
 
         {/* =================================================
@@ -177,7 +202,9 @@ function Sidebar() {
         {/* Dashboard */}
 
         <NavLink
+          id="sidebar-dashboard-link"
           to="/dashboard"
+          onClick={closeMobileMenu}
           className={menuClass}
           data-tooltip="Dashboard"
           onMouseEnter={handleTooltipEnter}
@@ -213,6 +240,7 @@ function Sidebar() {
 
             <NavLink
               to="/users"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Kelola User"
               onMouseEnter={handleTooltipEnter}
@@ -234,6 +262,7 @@ function Sidebar() {
 
             <NavLink
               to="/subjects"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Mata Pelajaran"
               onMouseEnter={handleTooltipEnter}
@@ -255,6 +284,7 @@ function Sidebar() {
 
             <NavLink
               to="/questions"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Bank Soal"
               onMouseEnter={handleTooltipEnter}
@@ -276,6 +306,7 @@ function Sidebar() {
 
             <NavLink
               to="/tryouts"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Paket Tryout"
               onMouseEnter={handleTooltipEnter}
@@ -297,6 +328,7 @@ function Sidebar() {
 
             <NavLink
               to="/students"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Data Siswa"
               onMouseEnter={handleTooltipEnter}
@@ -318,6 +350,7 @@ function Sidebar() {
 
             <NavLink
               to="/teachers"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Data Guru"
               onMouseEnter={handleTooltipEnter}
@@ -339,6 +372,7 @@ function Sidebar() {
 
             <NavLink
               to="/admin/scores"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Nilai"
               onMouseEnter={handleTooltipEnter}
@@ -360,6 +394,7 @@ function Sidebar() {
 
             <NavLink
               to="/admin/reports"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Laporan"
               onMouseEnter={handleTooltipEnter}
@@ -390,6 +425,7 @@ function Sidebar() {
 
             <NavLink
               to="/admin/settings"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Pengaturan"
               onMouseEnter={handleTooltipEnter}
@@ -430,6 +466,7 @@ function Sidebar() {
 
             <NavLink
               to="/subjects"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Mata Pelajaran"
               onMouseEnter={handleTooltipEnter}
@@ -451,6 +488,7 @@ function Sidebar() {
 
             <NavLink
               to="/questions"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Bank Soal"
               onMouseEnter={handleTooltipEnter}
@@ -472,6 +510,7 @@ function Sidebar() {
 
             <NavLink
               to="/tryouts"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Paket Tryout"
               onMouseEnter={handleTooltipEnter}
@@ -493,6 +532,7 @@ function Sidebar() {
 
             <NavLink
               to="/teacher/students"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Peserta"
               onMouseEnter={handleTooltipEnter}
@@ -514,6 +554,7 @@ function Sidebar() {
 
             <NavLink
               to="/teacher/scores"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Nilai"
               onMouseEnter={handleTooltipEnter}
@@ -535,6 +576,7 @@ function Sidebar() {
 
             <NavLink
               to="/teacher/reports"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Laporan"
               onMouseEnter={handleTooltipEnter}
@@ -565,6 +607,7 @@ function Sidebar() {
 
             <NavLink
               to="/teacher/profile"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Profil"
               onMouseEnter={handleTooltipEnter}
@@ -605,6 +648,7 @@ function Sidebar() {
 
             <NavLink
               to="/student/tryouts"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Daftar Tryout"
               onMouseEnter={handleTooltipEnter}
@@ -623,6 +667,7 @@ function Sidebar() {
 
             <NavLink
               to="/student/history"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Riwayat & Hasil"
               onMouseEnter={handleTooltipEnter}
@@ -653,6 +698,7 @@ function Sidebar() {
 
             <NavLink
               to="/student/profile"
+              onClick={closeMobileMenu}
               className={menuClass}
               data-tooltip="Profil"
               onMouseEnter={handleTooltipEnter}

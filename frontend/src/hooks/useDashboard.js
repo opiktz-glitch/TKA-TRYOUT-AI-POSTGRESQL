@@ -418,6 +418,11 @@ export function useDashboard() {
       (a.attempt_status === "IN_PROGRESS" ? 1 : 0)
   );
 
+  async function retryDashboardData() {
+    if (user) {
+      await loadDashboardData(user);
+    }
+  }
 
     return {
     adminStats,
@@ -430,6 +435,7 @@ export function useDashboard() {
     liveStats,
     navigate,
     questionBank,
+    retryDashboardData,
     show,
     sortedStudentPreview,
     studentScoreTrend,

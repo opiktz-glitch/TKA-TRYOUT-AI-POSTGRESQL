@@ -191,8 +191,9 @@ function StudentProfile() {
 
               <div className="settings-fields">
                 <div className="form-group">
-                  <label>Nama Lengkap</label>
+                  <label htmlFor="student-profile-full-name">Nama Lengkap</label>
                   <input
+                    id="student-profile-full-name"
                     type="text"
                     name="full_name"
                     value={form.full_name}
@@ -203,8 +204,9 @@ function StudentProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Asal Sekolah</label>
+                  <label htmlFor="student-profile-school">Asal Sekolah</label>
                   <input
+                    id="student-profile-school"
                     type="text"
                     name="school_name"
                     value={form.school_name}
@@ -214,8 +216,9 @@ function StudentProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Tingkat / Kelas</label>
+                  <label htmlFor="student-profile-grade">Tingkat / Kelas</label>
                   <input
+                    id="student-profile-grade"
                     type="text"
                     name="grade"
                     value={form.grade}
@@ -225,8 +228,9 @@ function StudentProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Rombel</label>
+                  <label htmlFor="student-profile-class">Rombel</label>
                   <input
+                    id="student-profile-class"
                     type="text"
                     name="class_name"
                     value={form.class_name}
@@ -236,8 +240,9 @@ function StudentProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Username</label>
+                  <label htmlFor="student-profile-username">Username</label>
                   <input
+                    id="student-profile-username"
                     type="text"
                     value={profile.username || ""}
                     disabled
@@ -245,8 +250,9 @@ function StudentProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>NIS</label>
+                  <label htmlFor="student-profile-code">NIS</label>
                   <input
+                    id="student-profile-code"
                     type="text"
                     value={profile.student_code || ""}
                     disabled

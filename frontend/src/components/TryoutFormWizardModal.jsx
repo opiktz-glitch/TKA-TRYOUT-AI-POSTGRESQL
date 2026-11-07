@@ -78,6 +78,7 @@ export default function TryoutFormWizardModal({
               <button
                 type="button"
                 className="modal-close"
+                aria-label="Tutup dialog"
                 onClick={closeModal}
                 disabled={saving}
               >
@@ -94,8 +95,9 @@ export default function TryoutFormWizardModal({
                 {wizardStep === 1 && (
                   <>
                     <div className="form-group">
-                      <label>Judul Tryout *</label>
+                      <label htmlFor="tryout-title">Judul Tryout *</label>
                       <input
+                        id="tryout-title"
                         type="text"
                         name="title"
                         placeholder="Contoh: TKA Matematika Kelas 12 - Tryout 1"
@@ -107,8 +109,9 @@ export default function TryoutFormWizardModal({
                     </div>
 
                     <div className="form-group">
-                      <label>Deskripsi</label>
+                      <label htmlFor="tryout-description">Deskripsi</label>
                       <textarea
+                        id="tryout-description"
                         name="description"
                         rows="3"
                         placeholder="Deskripsi paket tryout..."
@@ -120,8 +123,9 @@ export default function TryoutFormWizardModal({
 
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Mata Pelajaran *</label>
+                        <label htmlFor="tryout-subject">Mata Pelajaran *</label>
                         <select
+                          id="tryout-subject"
                           name="subject_id"
                           value={form.subject_id}
                           onChange={handleChange}
@@ -140,8 +144,9 @@ export default function TryoutFormWizardModal({
                       </div>
 
                       <div className="form-group">
-                        <label>Kelas</label>
+                        <label htmlFor="tryout-grade">Kelas</label>
                         <select
+                          id="tryout-grade"
                           name="grade"
                           value={form.grade}
                           onChange={handleChange}
@@ -159,8 +164,9 @@ export default function TryoutFormWizardModal({
 
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Durasi (menit) *</label>
+                        <label htmlFor="tryout-duration">Durasi (menit) *</label>
                         <input
+                          id="tryout-duration"
                           type="number"
                           name="duration_minutes"
                           min="1"
@@ -172,8 +178,9 @@ export default function TryoutFormWizardModal({
                       </div>
 
                       <div className="form-group">
-                        <label>Nilai Maksimal *</label>
+                        <label htmlFor="tryout-max-score">Nilai Maksimal *</label>
                         <input
+                          id="tryout-max-score"
                           type="number"
                           name="max_score"
                           min="1"
@@ -187,15 +194,18 @@ export default function TryoutFormWizardModal({
                     </div>
 
                     <div className="form-group" style={{ marginTop: '5px', marginBottom: '15px' }}>
-                      <label><strong>Konfigurasi Bobot Penilaian (%) *</strong></label>
+                      <p style={{ margin: "0 0 10px" }}>
+                        <strong>Konfigurasi Bobot Penilaian (%) *</strong>
+                      </p>
                       <small style={{ color: "#777", display: "block", marginBottom: "10px" }}>
                         Total bobot dari ketiga jenis soal harus berjumlah 100%.
                       </small>
                       
                       <div className="form-row" style={{ gap: '10px' }}>
                         <div className="form-group" style={{ flex: 1 }}>
-                          <label style={{ fontSize: "13px" }}>Pilihan Ganda</label>
+                          <label htmlFor="tryout-weight-pg" style={{ fontSize: "13px" }}>Pilihan Ganda</label>
                           <input
+                            id="tryout-weight-pg"
                             type="number"
                             name="weight_pg"
                             min="0"
@@ -208,8 +218,9 @@ export default function TryoutFormWizardModal({
                         </div>
 
                         <div className="form-group" style={{ flex: 1 }}>
-                          <label style={{ fontSize: "13px" }}>PG Kompleks (MCMA)</label>
+                          <label htmlFor="tryout-weight-mcma" style={{ fontSize: "13px" }}>PG Kompleks (MCMA)</label>
                           <input
+                            id="tryout-weight-mcma"
                             type="number"
                             name="weight_mcma"
                             min="0"
@@ -222,8 +233,9 @@ export default function TryoutFormWizardModal({
                         </div>
 
                         <div className="form-group" style={{ flex: 1 }}>
-                          <label style={{ fontSize: "13px" }}>Benar/Salah</label>
+                          <label htmlFor="tryout-weight-bs" style={{ fontSize: "13px" }}>Benar/Salah</label>
                           <input
+                            id="tryout-weight-bs"
                             type="number"
                             name="weight_bs"
                             min="0"
@@ -244,8 +256,9 @@ export default function TryoutFormWizardModal({
                     </div>
 
                     <div className="form-group">
-                      <label>Keterangan</label>
+                      <label htmlFor="tryout-difficulty">Keterangan</label>
                       <input
+                        id="tryout-difficulty"
                         type="text"
                         name="difficulty"
                         value={form.difficulty}

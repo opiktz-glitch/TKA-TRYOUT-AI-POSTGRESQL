@@ -72,6 +72,27 @@ button {
 
 }
 
+.skip-link {
+  position: absolute;
+  z-index: 10000;
+  top: 8px;
+  left: 8px;
+  padding: 8px 12px;
+  transform: translateY(-150%);
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
 
 
 
@@ -2963,10 +2984,13 @@ button {
    bisa diklik langsung ke Bank Soal / Paket Tryout. */
 
 .activity-item-clickable {
-
   cursor: pointer;
-
   border-radius: 8px;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
 
 }
 
@@ -2990,13 +3014,8 @@ button {
 
 
 
-/* Tombol CTA kecil di baris aktivitas guru saat datanya masih kosong
-
-   (mis. "Belum ada soal yang Anda buat") -- e.stopPropagation() di
-
-   JSX supaya klik tombol ini tidak ikut memicu klik baris (keduanya
-
-   menuju halaman yang sama, tapi biar tidak terasa dobel-navigasi). */
+/* Penanda CTA pada baris aktivitas yang dapat diklik; aksi navigasi
+   ditangani oleh seluruh baris agar tidak ada kontrol interaktif bersarang. */
 
 .activity-cta {
 
@@ -4615,14 +4634,11 @@ button {
 
 
   .sidebar {
-
     height: 100vh;
-
     height: 100dvh;
-
     transform: translateX(-100%);
-
-    transition: transform 0.25s ease;
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0s linear 0.25s;
 
 
 
@@ -4646,8 +4662,8 @@ button {
   .sidebar.sidebar-mobile-open {
 
 
-
-    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.25s ease, visibility 0s;
 
 
 
@@ -4667,7 +4683,12 @@ button {
 
   .sidebar-overlay {
 
-
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
 
     position: fixed;
 

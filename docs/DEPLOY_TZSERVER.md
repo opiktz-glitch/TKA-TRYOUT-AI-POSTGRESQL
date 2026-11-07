@@ -6,6 +6,10 @@ Workflow `.github/workflows/deploy-tzserver-frontend.yml` otomatis membangun dan
 
 Per 5 November 2026, konfigurasi deploy otomatis sudah terpasang dan workflow berhasil berjalan (run #2 hijau). Deploy memerlukan tzserver aktif dan dapat dijangkau melalui Tailscale. Jika job gagal karena server sedang mati, jalankan ulang workflow setelah server menyala.
 
+Per 6 November 2026, workflow deploy backend juga telah berjalan sukses (run [#42236477591](https://github.com/opiktz-glitch/TKA-TRYOUT-AI-POSTGRESQL/actions/runs/42236477591)). Endpoint backend lulus smoke test (`401` tanpa autentikasi), dan Admin telah mengonfirmasi fitur Backup aktif di UI.
+
+Pada tzserver saat ini, persiapan SSH/sudo untuk workflow backend sudah dilakukan. Bagian persiapan di bawah tetap menjadi acuan untuk memeriksa konfigurasi atau menyiapkan server pengganti.
+
 Build memakai `VITE_API_URL=/`, sehingga request API memakai path relatif `/api` dan diteruskan oleh Nginx tzserver. Build diperiksa agar tidak mengandung hostname Tailscale, domain `rumahzafira`, atau `localhost:8000`. Workflow tidak mengubah environment variable Vercel.
 
 ## Persiapan di tzserver
@@ -48,11 +52,12 @@ Karena repository bersifat publik, lindungi branch `main` dan jangan memberi sec
 
 - Workflow hanya memperbarui frontend statis di `/var/www/tka-dist`.
 - Workflow backend memperbarui checkout aplikasi, memasang dependensi dari `backend/requirements.txt`, me-restart `tka-backend.service`, lalu memastikan endpoint backend merespons `401` atau `403` tanpa autentikasi.
+- Kedua workflow memerlukan tzserver yang aktif dan dapat dijangkau melalui Tailscale; secrets deployment hanya tersedia pada workflow branch `main`/dispatch.
 - Perubahan skema dan migrasi database harus ditinjau sebelum perubahan backend digabung ke `main`. Backend memiliki migrasi kolom otomatis tertentu saat startup; deploy dapat menjalankan perubahan tersebut terhadap database production.
 - Setelah pemasangan, workflow memastikan `http://127.0.0.1:8081/` membalas HTTP 200 dan `/api/auth/me` membalas 401 atau 403 tanpa autentikasi.
 - Jika persiapan SSH/sudo atau smoke test gagal, job akan gagal dan log Actions menunjukkan langkah yang bermasalah.
 
-## Memperbarui backend tzserver
+## Deploy otomatis backend tzserver
 
 Setelah persiapan satu kali di server, perubahan di `backend/` yang masuk ke `main` akan dideploy otomatis oleh workflow backend. Workflow SSH masuk sebagai `admintz`, memverifikasi checkout, menjalankan `git pull --ff-only` dan pemasangan dependensi sebagai user `tka`, me-restart `tka-backend.service`, lalu memeriksa endpoint status Backup. Workflow tidak mengirim `.env`, kredensial, backup database, atau data aplikasi. Nilai-nilai berikut sesuai instalasi tzserver saat ini; verifikasi dahulu sebelum dipakai pada instalasi lain:
 
@@ -65,7 +70,7 @@ Setelah persiapan satu kali di server, perubahan di `backend/` yang masuk ke `ma
 
 Pastikan path Git, systemd, checkout, virtual environment, dan nama service sesuai dengan server. Jangan melanjutkan jika checkout memiliki perubahan lokal atau bukan repository/branch yang dimaksud. Workflow menolak checkout kotor, remote yang tidak dikenal, dan branch selain `main`.
 
-Tambahkan aturan sudo terbatas untuk akun SSH `admintz` di `/etc/sudoers.d/deploy-tka-backend`. Aturan ini hanya mengizinkan pemeriksaan checkout, fast-forward ke `main`, instalasi requirements pada virtual environment aplikasi, dan restart/status service backend:
+Jika menyiapkan server baru atau aturan tersebut belum ada, tambahkan aturan sudo terbatas untuk akun SSH `admintz` di `/etc/sudoers.d/deploy-tka-backend`. Aturan ini hanya mengizinkan pemeriksaan checkout, fast-forward ke `main`, instalasi requirements pada virtual environment aplikasi, dan restart/status service backend:
 
 Buka file dengan `sudo visudo -f /etc/sudoers.d/deploy-tka-backend`, lalu masukkan aturan berikut:
 
@@ -115,11 +120,11 @@ Untuk mengaktifkan tab **Pengaturan → Backup Database**:
 
 ## Backup penuh PostgreSQL
 
-Backup file manual tersedia di halaman Pengaturan Admin pada backend native tzserver setelah backend diperbarui dan dikonfigurasi seperti bagian di atas. Endpoint tersebut dinonaktifkan secara default dan hanya aktif jika `POSTGRES_BACKUP_ENABLED=true` ditetapkan pada environment backend tzserver. Jangan aktifkan variabel ini pada Vercel. Vercel Cron dapat menjadwalkan HTTP request ke Vercel Function, tetapi file lokal function bukan penyimpanan arsip permanen; backup/restore dump besar lebih aman dikerjakan pada tzserver/provider. Lihat [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) dan [Function Limits](https://vercel.com/docs/functions/limitations).
+Backup file manual tersedia di halaman Pengaturan Admin pada backend native tzserver dan saat ini telah dikonfirmasi aktif. Endpoint dinonaktifkan secara default pada instalasi baru dan hanya aktif jika `POSTGRES_BACKUP_ENABLED=true` ditetapkan pada environment backend tzserver. Jangan aktifkan variabel ini pada Vercel. Vercel Cron dapat menjadwalkan HTTP request ke Vercel Function, tetapi file lokal function bukan penyimpanan arsip permanen; backup/restore dump besar lebih aman dikerjakan pada tzserver/provider. Lihat [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) dan [Function Limits](https://vercel.com/docs/functions/limitations).
 
 Skrip `backend/scripts/backup_postgres.py` membuat dump format custom yang mencakup seluruh database, termasuk gambar soal, lalu memeriksa arsip dengan `pg_restore --list`. Password koneksi tidak ditaruh di argumen proses; skrip memakai file `.pgpass` sementara dengan izin privat dan menghapusnya setelah selesai. File backup dibuat dengan izin pemilik saja. Retensi default menyimpan 14 dump terakhir.
 
-Persiapan fitur manual di tzserver:
+Pengoperasian fitur Backup di tzserver:
 
 1. Ikuti langkah konfigurasi di bagian **Memperbarui backend tzserver**. Jangan menganggap `.env` wajib ada: konfigurasi dapat dikelola oleh systemd atau mekanisme environment lain. Aktifkan `POSTGRES_BACKUP_ENABLED=true` hanya pada sumber konfigurasi backend tzserver, bukan Vercel.
 2. Pastikan `pg_dump` dan `pg_restore` tersedia dan versinya kompatibel dengan PostgreSQL provider. Backend mencari executable lewat `PATH`; bila proses service tidak mewarisi PATH yang tepat, atur `POSTGRES_PG_DUMP_PATH` dan `POSTGRES_PG_RESTORE_PATH` ke path yang benar untuk sistem operasi server. Jangan gunakan path Windows pada Linux.

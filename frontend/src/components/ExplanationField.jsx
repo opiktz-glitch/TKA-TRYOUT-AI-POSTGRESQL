@@ -265,7 +265,7 @@ function ExplanationField({
           marginBottom: 7,
         }}
       >
-        <label style={{ margin: 0 }}>Pembahasan</label>
+        <label htmlFor="question-explanation" style={{ margin: 0 }}>Pembahasan</label>
 
         <div style={{ display: "flex", gap: 8 }}>
           <button
@@ -307,6 +307,7 @@ function ExplanationField({
       </div>
 
       <textarea
+        id="question-explanation"
         name="explanation"
         value={value}
         onChange={handleTextChange}

@@ -16,9 +16,9 @@ Platform ujian/tryout berbasis sekolah untuk Admin, Guru, dan Siswa. Aplikasi me
 - **Backend:** FastAPI, SQLAlchemy, PostgreSQL.
 - **Frontend:** React 19, React Router, Vite.
 - **AI:** Ollama dan Gemini melalui registry backend.
-- **Deployment:** frontend dan backend production berjalan terpisah di Vercel. Frontend tzserver di-deploy native melalui GitHub Actions; Docker Compose tersedia untuk setup self-hosted/LAN.
+- **Deployment:** Vercel dan tzserver adalah deployment terpisah. Di tzserver, frontend dan backend native masing-masing di-deploy otomatis melalui GitHub Actions; Docker Compose tersedia untuk setup self-hosted/LAN.
 
-Backend mewajibkan PostgreSQL melalui `DATABASE_URL` di `backend/.env` atau environment deployment. SQLite tidak didukung. Backup dan pemulihan database harus dikelola melalui layanan PostgreSQL/provider atau prosedur PostgreSQL yang disiapkan operator.
+Backend mewajibkan PostgreSQL melalui `DATABASE_URL` di `backend/.env` atau environment deployment. SQLite tidak didukung. Backup PostgreSQL manual melalui UI aktif pada backend native tzserver; workflow deploy backend terpisah dari workflow frontend dan tidak mengirim `.env` atau kredensial. Lihat [panduan deploy dan backup tzserver](docs/DEPLOY_TZSERVER.md) untuk pengoperasian. Di deployment lain, gunakan layanan PostgreSQL/provider atau prosedur PostgreSQL yang disiapkan operator.
 
 ## Menjalankan secara lokal di Windows
 
@@ -42,7 +42,7 @@ frontend/      Aplikasi React/Vite
 migrations/    Skrip SQL migrasi v01-v04
 scripts/       Runner migrasi dan pemeriksaan pasca-update
 tests/         Tes alur backend, migrasi, API, dan integritas frontend
-docs/          Panduan deployment tzserver, dokumentasi perubahan, dan laporan audit
+docs/          Panduan deployment tzserver dan laporan audit
 ```
 
 ## Database dan migrasi
@@ -67,7 +67,7 @@ npm run build
 - [frontend/README.md](frontend/README.md) — setup, development, dan build frontend.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — arsitektur dan alur sistem.
 - [DEPLOY_LAN.md](DEPLOY_LAN.md) — deployment Docker pada jaringan lokal.
-- [docs/DEPLOY_TZSERVER.md](docs/DEPLOY_TZSERVER.md) — otomatisasi deploy frontend ke tzserver.
+- [docs/DEPLOY_TZSERVER.md](docs/DEPLOY_TZSERVER.md) — otomatisasi deploy frontend/backend dan panduan backup tzserver.
 - [USER_MANUAL.md](USER_MANUAL.md) — panduan penggunaan aplikasi.
 - [SCHEMA_DOCS.md](SCHEMA_DOCS.md) — ringkasan tabel database.
 - [CHANGELOG.md](CHANGELOG.md) — catatan perubahan historis.

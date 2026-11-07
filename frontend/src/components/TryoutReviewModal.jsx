@@ -48,6 +48,7 @@ export default function TryoutReviewModal({
                 <button
                   type="button"
                   className="modal-close"
+                  aria-label="Tutup dialog"
                   onClick={closeReviewModal}
                 >
                   ×

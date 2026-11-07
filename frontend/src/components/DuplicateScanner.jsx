@@ -58,7 +58,7 @@ const DuplicateScanner = ({ onClose }) => {
             <h2>Pembersih Soal Duplikat</h2>
             <p>Sistem memindai soal dengan kemiripan teks &gt;85%.</p>
           </div>
-          <button type="button" className="modal-close" onClick={onClose}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onClose}>
             ✕
           </button>
         </div>

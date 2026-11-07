@@ -15,7 +15,7 @@ export default function AdminDashboard({ data }) {
   const { adminStats, attention, dashFailed, dashLoading, show, navigate, liveStats, questionBank } = data;
   return (
     <>
-        <div className="stat-grid">
+        <div className="stat-grid dashboard-stat-grid">
           <StatCard
             icon={<IconGraduationCap />}
             title="Siswa"

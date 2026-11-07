@@ -107,11 +107,12 @@ function LoginForm({
 
           <div className="form-group">
 
-            <label>
+            <label htmlFor="login-username">
               User Name
             </label>
 
             <input
+              id="login-username"
               type="text"
 
               value={username}
@@ -126,7 +127,6 @@ function LoginForm({
                 "Masukkan user name"
               }
 
-              autoFocus
             />
 
           </div>
@@ -134,11 +134,12 @@ function LoginForm({
 
           <div className="form-group">
 
-            <label>
+            <label htmlFor="login-password">
               Password
             </label>
 
             <input
+              id="login-password"
               type="password"
 
               value={password}

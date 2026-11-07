@@ -99,15 +99,16 @@ export default function SubjectFormModal({ isOpen, onClose, onSaveSuccess, editi
             <h2>{editingSubject ? "Edit Mata Pelajaran" : "Tambah Mata Pelajaran"}</h2>
             <p>{editingSubject ? "Perbaharui data mata pelajaran" : "Tambahkan mata pelajaran baru"}</p>
           </div>
-          <button className="modal-close" onClick={onClose} disabled={saving}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onClose} disabled={saving}>
             ×
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Kode Mata Pelajaran</label>
+            <label htmlFor="subject-code">Kode Mata Pelajaran</label>
             <input
+              id="subject-code"
               type="text"
               name="code"
               value={form.code}
@@ -120,8 +121,9 @@ export default function SubjectFormModal({ isOpen, onClose, onSaveSuccess, editi
           </div>
 
           <div className="form-group">
-            <label>Nama Mata Pelajaran</label>
+            <label htmlFor="subject-name">Nama Mata Pelajaran</label>
             <input
+              id="subject-name"
               type="text"
               name="name"
               value={form.name}
@@ -134,8 +136,9 @@ export default function SubjectFormModal({ isOpen, onClose, onSaveSuccess, editi
           </div>
 
           <div className="form-group">
-            <label>Deskripsi</label>
+            <label htmlFor="subject-description">Deskripsi</label>
             <textarea
+              id="subject-description"
               name="description"
               value={form.description}
               onChange={handleChange}

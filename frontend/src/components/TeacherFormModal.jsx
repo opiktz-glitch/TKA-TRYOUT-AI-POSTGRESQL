@@ -131,7 +131,7 @@ export default function TeacherFormModal({ isOpen, onClose, onSaveSuccess, editi
                 : "Hubungkan akun GURU dengan data profilnya"}
             </p>
           </div>
-          <button className="modal-close" onClick={onClose} disabled={saving}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onClose} disabled={saving}>
             ×
           </button>
         </div>
@@ -139,9 +139,10 @@ export default function TeacherFormModal({ isOpen, onClose, onSaveSuccess, editi
         <form onSubmit={handleSubmit}>
           {!editingTeacher && (
             <div className="form-group">
-              <label>Akun Login (User GURU)</label>
+              <label htmlFor="teacher-user">Akun Login (User GURU)</label>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <select
+                  id="teacher-user"
                   name="user_id"
                   value={form.user_id}
                   onChange={handleChange}
@@ -175,8 +176,9 @@ export default function TeacherFormModal({ isOpen, onClose, onSaveSuccess, editi
           )}
 
           <div className="form-group">
-            <label>NIP / Kode Guru</label>
+            <label htmlFor="teacher-code">NIP / Kode Guru</label>
             <input
+              id="teacher-code"
               type="text"
               name="teacher_code"
               value={form.teacher_code}
@@ -188,8 +190,9 @@ export default function TeacherFormModal({ isOpen, onClose, onSaveSuccess, editi
           </div>
 
           <div className="form-group">
-            <label>Nama Lengkap</label>
+            <label htmlFor="teacher-full-name">Nama Lengkap</label>
             <input
+              id="teacher-full-name"
               type="text"
               name="full_name"
               value={form.full_name}
@@ -201,8 +204,9 @@ export default function TeacherFormModal({ isOpen, onClose, onSaveSuccess, editi
           </div>
 
           <div className="form-group">
-            <label>Asal Sekolah</label>
+            <label htmlFor="teacher-school">Asal Sekolah</label>
             <input
+              id="teacher-school"
               type="text"
               name="school_name"
               value={form.school_name}

@@ -112,7 +112,7 @@ function ImageCropDialog({ sourceFile, initialBox, canRemove, onApply, onRemove,
             <p>Tarik (drag) pada gambar untuk memilih bagian yang mau dilampirkan ke soal.</p>
           </div>
 
-          <button type="button" className="modal-close" onClick={onCancel}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onCancel}>
             ×
           </button>
         </div>

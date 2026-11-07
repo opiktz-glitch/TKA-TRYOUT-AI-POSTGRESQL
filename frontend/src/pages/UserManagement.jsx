@@ -198,28 +198,36 @@ function UserManagement() {
                             className="action-buttons management-table-actions"
                           >
                             <button
+                              type="button"
                               className="edit-button"
+                              aria-label={`Edit ${item.username}`}
                               onClick={() => openEditModal(item)}
                               title="Edit"
                             >
                               <IconEdit size={16} />
                             </button>
                             <button
+                              type="button"
                               className="delete-button"
+                              aria-label={`Hapus ${item.username}`}
                               onClick={() => handleDelete(item)}
                               title="Hapus"
                             >
                               <IconTrash size={16} />
                             </button>
                             <button
+                              type="button"
                               className="password-button"
+                              aria-label={`Reset password ${item.username}`}
                               onClick={() => openPasswordModal(item)}
                               title="Reset Password"
                             >
                               <IconKey size={16} />
                             </button>
                             <button
+                              type="button"
                               className="password-button"
+                              aria-label={`Paksa logout ${item.username}`}
                               title="Paksa Logout"
                               onClick={() => handleForceLogout(item)}
                             >

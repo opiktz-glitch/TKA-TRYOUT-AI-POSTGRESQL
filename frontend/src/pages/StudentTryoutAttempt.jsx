@@ -622,28 +622,26 @@ function StudentTryoutAttempt() {
                                 <tr key={option.code} style={{ backgroundColor: "white" }}>
                                   <td style={{ padding: "12px 16px", borderBottom: isLast ? "none" : "1px solid #e5e7eb" }}>{option.text}</td>
                                   <td style={{ padding: "12px 16px", textAlign: "center", borderBottom: isLast ? "none" : "1px solid #e5e7eb" }}>
-                                    <label style={{ display: "flex", justifyContent: "center", width: "100%", cursor: "pointer" }}>
-                                      <input
-                                        type="radio"
-                                        name={`tf_${currentQuestion.question_id}_${option.code}`}
-                                        checked={isBenar}
-                                        onChange={() => handleSelectTrueFalseOption(currentQuestion.question_id, option.code, true)}
-                                        disabled={savingQuestionId === currentQuestion.question_id}
-                                        style={{ transform: "scale(1.2)", cursor: "pointer" }}
-                                      />
-                                    </label>
+                                    <input
+                                      type="radio"
+                                      name={`tf_${currentQuestion.question_id}_${option.code}`}
+                                      aria-label={`${option.text} - ${currentQuestion.true_label || "Benar"}`}
+                                      checked={isBenar}
+                                      onChange={() => handleSelectTrueFalseOption(currentQuestion.question_id, option.code, true)}
+                                      disabled={savingQuestionId === currentQuestion.question_id}
+                                      style={{ transform: "scale(1.2)", cursor: "pointer" }}
+                                    />
                                   </td>
                                   <td style={{ padding: "12px 16px", textAlign: "center", borderBottom: isLast ? "none" : "1px solid #e5e7eb" }}>
-                                    <label style={{ display: "flex", justifyContent: "center", width: "100%", cursor: "pointer" }}>
-                                      <input
-                                        type="radio"
-                                        name={`tf_${currentQuestion.question_id}_${option.code}`}
-                                        checked={isSalah}
-                                        onChange={() => handleSelectTrueFalseOption(currentQuestion.question_id, option.code, false)}
-                                        disabled={savingQuestionId === currentQuestion.question_id}
-                                        style={{ transform: "scale(1.2)", cursor: "pointer" }}
-                                      />
-                                    </label>
+                                    <input
+                                      type="radio"
+                                      name={`tf_${currentQuestion.question_id}_${option.code}`}
+                                      aria-label={`${option.text} - ${currentQuestion.false_label || "Salah"}`}
+                                      checked={isSalah}
+                                      onChange={() => handleSelectTrueFalseOption(currentQuestion.question_id, option.code, false)}
+                                      disabled={savingQuestionId === currentQuestion.question_id}
+                                      style={{ transform: "scale(1.2)", cursor: "pointer" }}
+                                    />
                                   </td>
                                 </tr>
                               );

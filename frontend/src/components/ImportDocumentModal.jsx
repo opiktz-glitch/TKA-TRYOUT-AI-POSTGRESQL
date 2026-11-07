@@ -544,6 +544,7 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
           <button
             type="button"
             className="modal-close"
+            aria-label="Tutup dialog"
             onClick={closeImportModal}
             disabled={importLoading || importSaving || importStep === "processing"}
           >
@@ -554,9 +555,10 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
         {importStep === "upload" && (
           <form onSubmit={handleExtractSubmit}>
             <div className="form-group">
-              <label>Mata Pelajaran *</label>
+              <label htmlFor="import-document-subject">Mata Pelajaran *</label>
 
               <select
+                id="import-document-subject"
                 value={importSubjectId}
                 onChange={(e) => setImportSubjectId(e.target.value)}
                 disabled={importLoading}
@@ -575,9 +577,10 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
             </div>
 
             <div className="form-group">
-              <label>Tipe Soal *</label>
+              <label htmlFor="import-document-type">Tipe Soal *</label>
               
               <select
+                id="import-document-type"
                 value={importQuestionType}
                 onChange={(e) => setImportQuestionType(e.target.value)}
                 disabled={importLoading}
@@ -590,9 +593,10 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
             </div>
 
             <div className="form-group">
-              <label>File Dokumen *</label>
+              <label htmlFor="import-document-file">File Dokumen *</label>
 
               <input
+                id="import-document-file"
                 type="file"
                 accept=".pdf,.docx,.txt"
                 onChange={(e) => setImportFile(e.target.files?.[0] || null)}
@@ -836,9 +840,10 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
                   )}
 
                   <div className="form-group">
-                    <label>Pertanyaan</label>
+                    <label htmlFor={`import-document-question-${item.key}`}>Pertanyaan</label>
 
                     <textarea
+                      id={`import-document-question-${item.key}`}
                       value={item.question_text}
                       onChange={(e) => handleImportQuestionTextChange(item.key, e.target.value)}
                       rows={3}
@@ -849,8 +854,9 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
                   {item.question_type === "TRUE_FALSE" && (
                     <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
                       <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                        <label>Label Kategori Kiri (Benar)</label>
+                        <label htmlFor={`import-document-true-${item.key}`}>Label Kategori Kiri (Benar)</label>
                         <input
+                          id={`import-document-true-${item.key}`}
                           type="text"
                           value={item.true_label || ""}
                           onChange={(e) => setImportedQuestions(prev => prev.map(q => q.key === item.key ? { ...q, true_label: e.target.value } : q))}
@@ -859,8 +865,9 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
                         />
                       </div>
                       <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                        <label>Label Kategori Kanan (Salah)</label>
+                        <label htmlFor={`import-document-false-${item.key}`}>Label Kategori Kanan (Salah)</label>
                         <input
+                          id={`import-document-false-${item.key}`}
                           type="text"
                           value={item.false_label || ""}
                           onChange={(e) => setImportedQuestions(prev => prev.map(q => q.key === item.key ? { ...q, false_label: e.target.value } : q))}
@@ -890,9 +897,10 @@ function ImportDocumentModal({ subjects, onClose, onImported }) {
                   />
 
                   <div className="form-group">
-                    <label>Pembahasan (opsional)</label>
+                    <label htmlFor={`import-document-explanation-${item.key}`}>Pembahasan (opsional)</label>
 
                     <textarea
+                      id={`import-document-explanation-${item.key}`}
                       value={item.explanation}
                       onChange={(e) => handleImportExplanationChange(item.key, e.target.value)}
                       rows={2}

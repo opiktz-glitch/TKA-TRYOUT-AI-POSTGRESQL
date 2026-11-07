@@ -6,14 +6,24 @@ import {
   IconBarChart,
 } from "../Icons";
 import StatCard from "../StatCard";
+import { Link } from "react-router-dom";
 import "../ScoreTable.css";
 import { timeAgo, shortDate, scoreTier, TREND_WIDTH, TREND_HEIGHT, TREND_PADDING_X, TREND_PADDING_BOTTOM, TREND_GRID_VALUES, trendValueToY, buildTrendPoints } from "../../utils/dashboardUtils";
 
 export default function StudentDashboard({ data }) {
-  const { studentStats, sortedStudentPreview, dashFailed, show, navigate, studentScoreTrend, studentSubjectBreakdown } = data;
+  const {
+    studentStats,
+    sortedStudentPreview,
+    dashFailed,
+    dashLoading,
+    show,
+    navigate,
+    studentScoreTrend,
+    studentSubjectBreakdown,
+  } = data;
   return (
     <>
-        <div className="stat-grid">
+        <div className="stat-grid dashboard-stat-grid">
           <StatCard
             icon={<IconClipboard />}
             title="Tryout Tersedia"
@@ -76,12 +86,18 @@ export default function StudentDashboard({ data }) {
 
                   <div className="activity-content">
                     <strong>
-                      {dashFailed ? "Gagal memuat tryout" : "Belum ada tryout"}
+                      {dashLoading
+                        ? "Memuat tryout..."
+                        : dashFailed
+                          ? "Gagal memuat tryout"
+                          : "Belum ada tryout"}
                     </strong>
 
                     <span>
-                      {dashFailed
-                        ? 'Klik "Coba lagi" di atas untuk memuat ulang'
+                      {dashLoading
+                        ? "Mengambil tryout yang tersedia"
+                        : dashFailed
+                        ? "Gunakan tombol Coba lagi di bagian atas dashboard"
                         : "Tryout yang tersedia akan muncul di sini"}
                     </span>
                   </div>
@@ -101,17 +117,12 @@ export default function StudentDashboard({ data }) {
                   : "/student/tryouts";
 
                 return (
-                  <div
+                  <Link
+                    to={targetPath}
                     className={`activity-item activity-item-clickable${
                       isInProgress ? " activity-item-urgent" : ""
                     }`}
-                    role="button"
-                    tabIndex={0}
                     key={tryout.id}
-                    onClick={() => navigate(targetPath)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") navigate(targetPath);
-                    }}
                   >
                     <div className="activity-icon">
                       <IconClipboard size={18} />
@@ -142,18 +153,11 @@ export default function StudentDashboard({ data }) {
                     )}
 
                     {isInProgress && (
-                      <button
-                        type="button"
-                        className="activity-cta"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(targetPath);
-                        }}
-                      >
+                      <span className="activity-cta">
                         Lanjutkan
-                      </button>
+                      </span>
                     )}
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -220,14 +224,18 @@ export default function StudentDashboard({ data }) {
 
                 <div className="activity-content">
                   <strong>
-                    {dashFailed
-                      ? "Gagal memuat tren nilai"
-                      : "Belum ada tren nilai"}
+                    {dashLoading
+                      ? "Memuat tren nilai..."
+                      : dashFailed
+                        ? "Gagal memuat tren nilai"
+                        : "Belum ada tren nilai"}
                   </strong>
 
                   <span>
-                    {dashFailed
-                      ? 'Klik "Coba lagi" di atas untuk memuat ulang'
+                    {dashLoading
+                      ? "Mengambil data nilai tryout"
+                      : dashFailed
+                      ? "Gunakan tombol Coba lagi di bagian atas dashboard"
                       : "Selesaikan beberapa tryout untuk melihat grafiknya di sini"}
                   </span>
                 </div>
@@ -453,12 +461,18 @@ export default function StudentDashboard({ data }) {
 
                 <div className="activity-content">
                   <strong>
-                    {dashFailed ? "Gagal memuat nilai" : "Belum ada nilai"}
+                    {dashLoading
+                      ? "Memuat nilai..."
+                      : dashFailed
+                        ? "Gagal memuat nilai"
+                        : "Belum ada nilai"}
                   </strong>
 
                   <span>
-                    {dashFailed
-                      ? 'Klik "Coba lagi" di atas untuk memuat ulang'
+                    {dashLoading
+                      ? "Mengambil nilai per mata pelajaran"
+                      : dashFailed
+                      ? "Gunakan tombol Coba lagi di bagian atas dashboard"
                       : "Kerjakan tryout untuk melihat breakdown nilai per mata pelajaran"}
                   </span>
                 </div>

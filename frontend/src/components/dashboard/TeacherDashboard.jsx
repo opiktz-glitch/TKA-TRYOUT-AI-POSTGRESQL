@@ -1,4 +1,5 @@
 import StatCard from "../StatCard";
+import { Link } from "react-router-dom";
 import "../ScoreTable.css";
 import {
   IconBarChart,
@@ -13,12 +14,13 @@ export default function TeacherDashboard({ data }) {
     teacherStats,
     teacherActivity,
     dashFailed,
+    dashLoading,
     show,
     navigate,
   } = data;
   return (
     <>
-        <div className="stat-grid">
+        <div className="stat-grid dashboard-stat-grid">
           <StatCard
             icon={<IconNotebook />}
             title="Soal Saya"
@@ -63,14 +65,9 @@ export default function TeacherDashboard({ data }) {
             </div>
 
             <div className="activity-list">
-              <div
+              <Link
+                to="/questions"
                 className="activity-item activity-item-clickable"
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate("/questions")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") navigate("/questions");
-                }}
               >
                 <div className="activity-icon">
                   <IconNotebook size={18} />
@@ -80,7 +77,9 @@ export default function TeacherDashboard({ data }) {
                   <strong>Bank Soal</strong>
 
                   <span>
-                    {dashFailed
+                    {dashLoading
+                      ? "Memuat aktivitas soal..."
+                      : dashFailed
                       ? "Gagal dimuat"
                       : teacherActivity.latestQuestion
                         ? truncateText(
@@ -91,28 +90,16 @@ export default function TeacherDashboard({ data }) {
                   </span>
                 </div>
 
-                {!dashFailed && !teacherActivity.latestQuestion && (
-                  <button
-                    type="button"
-                    className="activity-cta"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate("/questions");
-                    }}
-                  >
+                {!dashLoading && !dashFailed && !teacherActivity.latestQuestion && (
+                  <span className="activity-cta">
                     + Tambah Soal
-                  </button>
+                  </span>
                 )}
-              </div>
+              </Link>
 
-              <div
+              <Link
+                to="/tryouts"
                 className="activity-item activity-item-clickable"
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate("/tryouts")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") navigate("/tryouts");
-                }}
               >
                 <div className="activity-icon">
                   <IconClipboard size={18} />
@@ -122,7 +109,9 @@ export default function TeacherDashboard({ data }) {
                   <strong>Tryout</strong>
 
                   <span>
-                    {dashFailed
+                    {dashLoading
+                      ? "Memuat aktivitas tryout..."
+                      : dashFailed
                       ? "Gagal dimuat"
                       : teacherActivity.latestTryout
                         ? teacherActivity.latestTryout.title
@@ -130,19 +119,12 @@ export default function TeacherDashboard({ data }) {
                   </span>
                 </div>
 
-                {!dashFailed && !teacherActivity.latestTryout && (
-                  <button
-                    type="button"
-                    className="activity-cta"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate("/tryouts");
-                    }}
-                  >
+                {!dashLoading && !dashFailed && !teacherActivity.latestTryout && (
+                  <span className="activity-cta">
                     + Buat Tryout
-                  </button>
+                  </span>
                 )}
-              </div>
+              </Link>
             </div>
           </section>
 

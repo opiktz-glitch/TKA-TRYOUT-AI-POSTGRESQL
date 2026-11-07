@@ -31,7 +31,7 @@ function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose 
             <p>Tampilan soal beserta kunci jawaban dan pembahasan.</p>
           </div>
 
-          <button type="button" className="modal-close" onClick={onClose}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onClose}>
             ×
           </button>
         </div>

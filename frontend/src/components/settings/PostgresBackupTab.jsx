@@ -394,6 +394,7 @@ export default function PostgresBackupTab() {
               <button
                 type="button"
                 className="modal-close"
+                aria-label="Tutup dialog"
                 disabled={restoring}
                 onClick={() => setConfirmRestore(false)}
               >

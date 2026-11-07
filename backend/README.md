@@ -35,7 +35,7 @@ venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(64))"
 
 Masukkan hasilnya ke `SECRET_KEY` pada `.env`. `DATABASE_URL` wajib menunjuk ke PostgreSQL; backend tidak membuat database lokal berbasis SQLite. Jangan menimpa `.env` yang telah memiliki konfigurasi dan jangan membagikannya.
 
-Backup dan pemulihan dikelola melalui layanan PostgreSQL/provider atau prosedur PostgreSQL operator; backend tidak menyediakan fitur backup/restore.
+Fitur backup/restore PostgreSQL melalui UI tersedia pada backend native tzserver dan saat ini telah diaktifkan. Fitur ini memerlukan utilitas `pg_dump` serta `pg_restore`. Perubahan backend yang masuk ke branch `main` di-deploy otomatis melalui GitHub Actions; workflow tidak mengirim `.env` atau kredensial. Untuk prosedur deploy, konfigurasi, dan pengoperasian backup, lihat [panduan deploy tzserver](../docs/DEPLOY_TZSERVER.md). Pada deployment lain, kelola backup melalui layanan PostgreSQL/provider atau prosedur operator.
 
 Jika masih ada data lama dalam file SQLite, `scripts/migrate_sqlite_to_postgres.py` adalah alat impor satu kali ke PostgreSQL yang kosong. Alat tersebut bukan dukungan database runtime; simpan salinan sumber dan verifikasi hasil migrasi sebelum melanjutkan pemakaian.
 

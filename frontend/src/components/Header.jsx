@@ -67,9 +67,7 @@ function getPageTitle(pathname) {
 
 function Header() {
 
-  const {
-    toggleMobileMenu
-  } = useUI();
+  const { mobileMenuOpen, toggleMobileMenu } = useUI();
 
   const {
     user
@@ -80,6 +78,17 @@ function Header() {
   const navigate = useNavigate();
 
   const pageTitle = getPageTitle(location.pathname);
+
+  function handleMobileMenuToggle() {
+    const opening = !mobileMenuOpen;
+    toggleMobileMenu();
+
+    if (opening) {
+      window.setTimeout(() => {
+        document.getElementById("sidebar-dashboard-link")?.focus();
+      }, 0);
+    }
+  }
 
   // =====================================================
   // QUICK-NAV SEARCH
@@ -283,9 +292,13 @@ function Header() {
       <div className="header-left">
 
         <button
+          id="mobile-menu-toggle"
+          type="button"
           className="mobile-menu-button"
-          onClick={toggleMobileMenu}
-          aria-label="Buka menu"
+          onClick={handleMobileMenuToggle}
+          aria-label={mobileMenuOpen ? "Tutup menu" : "Buka menu"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="app-sidebar"
         >
           <IconMenu size={20} />
         </button>
@@ -309,6 +322,7 @@ function Header() {
 
         <input
           type="text"
+          aria-label="Cari menu"
           placeholder="Cari menu..."
           value={navQuery}
           onChange={event => setNavQuery(event.target.value)}
@@ -355,7 +369,9 @@ function Header() {
           <button
             type="button"
             className="notification-button"
-            title="Notifikasi"
+            aria-label={`Notifikasi${unreadCount > 0 ? `, ${unreadCount} belum dibaca` : ""}`}
+            aria-expanded={notifOpen}
+            aria-haspopup="true"
             onClick={() => {
               const willOpen = !notifOpen;
               setNotifOpen(willOpen);

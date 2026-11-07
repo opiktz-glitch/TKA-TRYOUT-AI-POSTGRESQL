@@ -887,7 +887,7 @@ function ImportImageModal({ subjects, onClose, onImported }) {
 
     return (
       <div className="form-group">
-        <label>Gambar Soal</label>
+        <div style={{ fontWeight: 600, marginBottom: "8px" }}>Gambar Soal</div>
 
         {item.imageBusy && <small style={{ color: "#6b7280" }}>⏳ Memotong gambar...</small>}
 
@@ -1008,6 +1008,7 @@ function ImportImageModal({ subjects, onClose, onImported }) {
           <button
             type="button"
             className="modal-close"
+            aria-label="Tutup dialog"
             onClick={closeModal}
             disabled={saving || step === "processing"}
           >
@@ -1018,9 +1019,9 @@ function ImportImageModal({ subjects, onClose, onImported }) {
         {step === "upload" && (
           <form onSubmit={handleExtract}>
             <div className="form-group">
-              <label>Mata Pelajaran *</label>
+              <label htmlFor="image-import-subject">Mata Pelajaran *</label>
 
-              <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} required>
+              <select id="image-import-subject" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} required>
                 <option value="">-- Pilih Mata Pelajaran --</option>
 
                 {subjects
@@ -1034,8 +1035,8 @@ function ImportImageModal({ subjects, onClose, onImported }) {
             </div>
 
             <div className="form-group">
-              <label>Jenis Soal *</label>
-              <select value={questionType} onChange={(e) => setQuestionType(e.target.value)} required>
+              <label htmlFor="image-import-question-type">Jenis Soal *</label>
+              <select id="image-import-question-type" value={questionType} onChange={(e) => setQuestionType(e.target.value)} required>
                 <option value="MULTIPLE_CHOICE">Pilihan Ganda (PG)</option>
                 <option value="MULTIPLE_RESPONSE">Pilihan Ganda Kompleks - Pilihan Jamak (PGK-MCMA)</option>
                 <option value="TRUE_FALSE">Pilihan Ganda Kompleks - Kategori (Benar/Salah)</option>
@@ -1043,19 +1044,11 @@ function ImportImageModal({ subjects, onClose, onImported }) {
             </div>
 
             <div className="form-group">
-              <label>Gambar Soal *</label>
+              <div style={{ fontWeight: 600, marginBottom: "8px" }}>Gambar Soal *</div>
 
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-
-                    fileInputRef.current?.click();
-                  }
-                }}
                 onDragOver={(e) => {
                   e.preventDefault();
 
@@ -1070,6 +1063,8 @@ function ImportImageModal({ subjects, onClose, onImported }) {
                   padding: "22px 16px",
                   textAlign: "center",
                   cursor: "pointer",
+                  width: "100%",
+                  fontFamily: "inherit",
                 }}
               >
                 <div style={{ fontWeight: 600, color: "#374151", fontSize: "15px" }}>
@@ -1080,7 +1075,7 @@ function ImportImageModal({ subjects, onClose, onImported }) {
                   PDF, PNG, JPG, WebP · maks {MAX_FILE_BYTES / (1024 * 1024)} MB per halaman · maks{" "}
                   {MAX_IMAGES} halaman
                 </small>
-              </div>
+              </button>
 
               <input
                 ref={fileInputRef}
@@ -1392,9 +1387,10 @@ function ImportImageModal({ subjects, onClose, onImported }) {
                   )}
 
                   <div className="form-group">
-                    <label>Pertanyaan</label>
+                    <label htmlFor={`image-import-question-${item.key}`}>Pertanyaan</label>
 
                     <textarea
+                      id={`image-import-question-${item.key}`}
                       value={item.question_text}
                       onChange={(e) => updateItem(item.key, { question_text: e.target.value })}
                       rows={3}
@@ -1419,9 +1415,10 @@ function ImportImageModal({ subjects, onClose, onImported }) {
                   />
 
                   <div className="form-group">
-                    <label>Pembahasan (opsional)</label>
+                    <label htmlFor={`image-import-explanation-${item.key}`}>Pembahasan (opsional)</label>
 
                     <textarea
+                      id={`image-import-explanation-${item.key}`}
                       value={item.explanation}
                       onChange={(e) => updateItem(item.key, { explanation: e.target.value })}
                       rows={2}

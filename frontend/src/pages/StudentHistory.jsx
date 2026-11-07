@@ -404,7 +404,7 @@ function StudentHistory() {
                   )
                 )}
 
-                <button className="modal-close" onClick={closeDetail}>
+                <button className="modal-close" aria-label="Tutup dialog" onClick={closeDetail}>
                   ×
                 </button>
               </div>
@@ -726,20 +726,34 @@ function StudentHistory() {
 
                         <div className="student-history-question-dots" style={{ display: "flex", gap: 4 }}>
                           {detail.questions.map((_, idx) => (
-                            <span
+                            <button
+                              type="button"
                               key={idx}
+                              aria-label={`Buka soal ${idx + 1}`}
+                              aria-current={idx === questionIndex ? "step" : undefined}
                               onClick={() => setQuestionIndex(idx)}
                               style={{
-                                width: 7,
-                                height: 7,
+                                width: 24,
+                                height: 24,
+                                padding: 0,
+                                border: 0,
                                 borderRadius: "50%",
                                 cursor: "pointer",
-                                background:
-                                  idx === questionIndex
-                                    ? "var(--accent)"
-                                    : "#d1d5db",
+                                background: "transparent",
                               }}
-                            />
+                            >
+                              <span
+                                aria-hidden="true"
+                                style={{
+                                  display: "block",
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: "50%",
+                                  margin: "auto",
+                                  background: idx === questionIndex ? "var(--accent)" : "#d1d5db",
+                                }}
+                              />
+                            </button>
                           ))}
                         </div>
 

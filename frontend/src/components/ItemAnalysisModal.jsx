@@ -231,7 +231,7 @@ export default function ItemAnalysisModal({ tryoutId, title, onClose }) {
             <h2>Analisis Butir Soal</h2>
             <p style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>{title}</p>
           </div>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" aria-label="Tutup dialog" onClick={onClose}>×</button>
         </div>
 
         {loading && <div className="loading-message">Memuat analisis butir soal...</div>}

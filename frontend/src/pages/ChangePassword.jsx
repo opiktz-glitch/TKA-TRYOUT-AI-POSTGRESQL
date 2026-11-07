@@ -94,8 +94,9 @@ function ChangePassword() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Password Lama</label>
+            <label htmlFor="current-password">Password Lama</label>
             <input
+              id="current-password"
               type="password"
               value={currentPassword}
               onChange={(e) =>
@@ -108,8 +109,9 @@ function ChangePassword() {
           </div>
 
           <div className="form-group">
-            <label>Password Baru</label>
+            <label htmlFor="new-password">Password Baru</label>
             <input
+              id="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -120,8 +122,9 @@ function ChangePassword() {
           </div>
 
           <div className="form-group">
-            <label>Konfirmasi Password Baru</label>
+            <label htmlFor="confirm-password">Konfirmasi Password Baru</label>
             <input
+              id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) =>

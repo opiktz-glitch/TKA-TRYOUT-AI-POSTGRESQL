@@ -135,14 +135,6 @@ function OngoingAttemptBanner() {
       className={`ongoing-attempt-banner${
         isCritical || mostUrgent.time_expired ? " is-critical" : ""
       }`}
-      role="button"
-      tabIndex={0}
-      onClick={() => navigate(`/student/attempt/${mostUrgent.attempt_id}`)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          navigate(`/student/attempt/${mostUrgent.attempt_id}`);
-        }
-      }}
     >
       <IconClock size={16} />
 
@@ -157,10 +149,7 @@ function OngoingAttemptBanner() {
       <button
         type="button"
         className="ongoing-attempt-banner-cta"
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate(`/student/attempt/${mostUrgent.attempt_id}`);
-        }}
+        onClick={() => navigate(`/student/attempt/${mostUrgent.attempt_id}`)}
       >
         {mostUrgent.time_expired ? "Lihat Hasil" : "Lanjutkan"}
       </button>

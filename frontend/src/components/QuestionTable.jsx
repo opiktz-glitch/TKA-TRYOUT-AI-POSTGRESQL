@@ -84,7 +84,9 @@ export default function QuestionTable({
                             <td className="is-center is-nowrap">
                               <div className="action-buttons management-table-actions">
                                 <button
+                                  type="button"
                                   className="review-button"
+                                  aria-label={`Preview soal ${question.question_text?.slice(0, 60) || ""}`}
                                   title="Preview Soal"
                                   onClick={() => openPreviewModal(question)}
                                 >
@@ -92,7 +94,9 @@ export default function QuestionTable({
                                 </button>
 
                                 <button
+                                  type="button"
                                   className="edit-button"
+                                  aria-label={`Edit soal ${question.question_text?.slice(0, 60) || ""}`}
                                   onClick={() => openEditModal(question)}
                                   title="Edit"
                                 >
@@ -101,7 +105,9 @@ export default function QuestionTable({
 
                                 {canDeleteQuestion(question) && (
                                   <button
+                                    type="button"
                                     className="delete-button"
+                                    aria-label={`Hapus soal ${question.question_text?.slice(0, 60) || ""}`}
                                     onClick={() => handleDelete(question)}
                                     disabled={deletingId === question.id}
                                     title="Hapus"

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 
 import { fetchQuestionImageUrl } from "../services/api";
@@ -13,9 +13,8 @@ import "./QuestionImage.css";
 // yang urus fetch + convert ke blob URL di belakang layar, pemanggil
 // cukup kasih questionId saja.
 //
-// Dilengkapi fitur Click-to-Enlarge / Lightbox Modal Zoom:
-// jika allowZoom=true (default), gambar dapat diklik atau ditekan
-// tombol "Perbesar" untuk melihat resolusi penuh di layar.
+// Dilengkapi fitur Lightbox Modal Zoom yang dapat dibuka lewat tombol
+// "Perbesar" saat allowZoom=true.
 function QuestionImage({
   questionId,
   alt = "Gambar soal",
@@ -26,6 +25,9 @@ function QuestionImage({
   const [loadFailed, setLoadFailed] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+  const zoomTriggerRef = useRef(null);
+  const lightboxRef = useRef(null);
+  const closeZoomRef = useRef(null);
 
   useEffect(() => {
     let objectUrl = null;
@@ -60,20 +62,44 @@ function QuestionImage({
   useEffect(() => {
     if (!isZoomed) return;
 
+    const zoomTrigger = zoomTriggerRef.current;
+
+    closeZoomRef.current?.focus();
+
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         setIsZoomed(false);
         setZoomScale(1);
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const buttons = lightboxRef.current?.querySelectorAll(
+          'button:not(:disabled):not([tabindex="-1"])'
+        );
+        const firstButton = buttons?.[0];
+        const lastButton = buttons?.[buttons.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstButton) {
+          e.preventDefault();
+          lastButton?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastButton) {
+          e.preventDefault();
+          firstButton?.focus();
+        }
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = prevOverflow;
+      if (zoomTrigger?.isConnected) {
+        zoomTrigger.focus();
+      }
     };
   }, [isZoomed]);
 
@@ -82,18 +108,15 @@ function QuestionImage({
     setZoomScale(1);
   }, []);
 
-  const handleZoomIn = (e) => {
-    e.stopPropagation();
+  const handleZoomIn = () => {
     setZoomScale((prev) => Math.min(Number((prev + 0.25).toFixed(2)), 3));
   };
 
-  const handleZoomOut = (e) => {
-    e.stopPropagation();
+  const handleZoomOut = () => {
     setZoomScale((prev) => Math.max(Number((prev - 0.25).toFixed(2)), 0.5));
   };
 
-  const handleZoomReset = (e) => {
-    e.stopPropagation();
+  const handleZoomReset = () => {
     setZoomScale(1);
   };
 
@@ -119,20 +142,16 @@ function QuestionImage({
         <img
           src={imageUrl}
           alt={alt}
-          className={`question-image ${className} ${allowZoom ? "question-image-clickable" : ""}`}
-          onClick={allowZoom ? () => setIsZoomed(true) : undefined}
-          title={allowZoom ? "Klik untuk memperbesar gambar" : alt}
+          className={`question-image ${className}`}
+          title={alt}
         />
 
         {allowZoom && (
           <button
             type="button"
             className="question-image-zoom-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsZoomed(true);
-            }}
-            title="Klik untuk memperbesar gambar"
+            ref={zoomTriggerRef}
+            onClick={() => setIsZoomed(true)}
           >
             <svg
               width="13"
@@ -157,43 +176,47 @@ function QuestionImage({
       {isZoomed &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
+          <dialog
+            open
             className="image-lightbox-overlay"
-            onClick={handleCloseZoom}
-            role="dialog"
             aria-modal="true"
+            aria-labelledby="question-image-lightbox-title"
+            ref={lightboxRef}
           >
-            <div
-              className="image-lightbox-header"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="image-lightbox-title">
+            <button
+              type="button"
+              className="image-lightbox-backdrop"
+              aria-label="Tutup pratinjau gambar"
+              tabIndex="-1"
+              onClick={handleCloseZoom}
+            />
+
+            <div className="image-lightbox-header">
+              <span className="image-lightbox-title" id="question-image-lightbox-title">
                 Pratinjau Gambar Soal
               </span>
               <button
                 type="button"
                 className="image-lightbox-close-btn"
+                ref={closeZoomRef}
                 onClick={handleCloseZoom}
+                aria-label="Tutup pratinjau gambar"
                 title="Tutup (ESC)"
               >
                 ×
               </button>
             </div>
 
-            <div className="image-lightbox-body" onClick={handleCloseZoom}>
+            <div className="image-lightbox-body">
               <img
                 src={imageUrl}
                 alt={alt}
                 className="image-lightbox-img"
                 style={{ transform: `scale(${zoomScale})` }}
-                onClick={(e) => e.stopPropagation()}
               />
             </div>
 
-            <div
-              className="image-lightbox-controls"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="image-lightbox-controls">
               <button
                 type="button"
                 className="image-lightbox-btn"
@@ -207,6 +230,7 @@ function QuestionImage({
                 type="button"
                 className="image-lightbox-btn"
                 onClick={handleZoomReset}
+                aria-label={`Atur ulang pembesaran, ${Math.round(zoomScale * 100)}%`}
                 title="Kembalikan ke Ukuran Normal"
               >
                 {Math.round(zoomScale * 100)}%
@@ -224,7 +248,7 @@ function QuestionImage({
                 Klik di luar gambar atau tekan ESC untuk keluar
               </span>
             </div>
-          </div>,
+          </dialog>,
           document.body
         )}
     </>

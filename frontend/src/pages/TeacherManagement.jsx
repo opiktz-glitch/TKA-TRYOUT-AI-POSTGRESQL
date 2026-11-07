@@ -125,16 +125,20 @@ function TeacherManagement() {
                         <td className="is-center is-nowrap">
                           <div className="action-buttons management-table-actions">
                             <button
+                              type="button"
                               className="edit-button"
                               onClick={() => openEditModal(item)}
                               title="Edit"
+                              aria-label={`Edit guru ${item.full_name}`}
                             >
                               <IconEdit size={16} />
                             </button>
                             <button
+                              type="button"
                               className="delete-button"
                               onClick={() => handleDelete(item)}
                               title="Hapus"
+                              aria-label={`Hapus guru ${item.full_name}`}
                             >
                               <IconTrash size={16} />
                             </button>

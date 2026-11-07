@@ -49,7 +49,7 @@ showModal,
                 </p>
               </div>
 
-              <button type="button" className="modal-close" onClick={closeModal} disabled={saving}>
+              <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={closeModal} disabled={saving}>
                 ×
               </button>
             </div>
@@ -118,9 +118,10 @@ showModal,
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Mata Pelajaran *</label>
+                  <label htmlFor="question-subject">Mata Pelajaran *</label>
 
                   <select
+                    id="question-subject"
                     name="subject_id"
                     value={form.subject_id}
                     onChange={handleChange}
@@ -140,9 +141,10 @@ showModal,
                 </div>
 
                 <div className="form-group">
-                  <label>Tingkat Kesulitan *</label>
+                  <label htmlFor="question-difficulty">Tingkat Kesulitan *</label>
 
                   <select
+                    id="question-difficulty"
                     name="difficulty"
                     value={form.difficulty}
                     onChange={handleChange}
@@ -160,9 +162,10 @@ showModal,
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Jenis Soal *</label>
+                  <label htmlFor="question-type">Jenis Soal *</label>
 
                   <select
+                    id="question-type"
                     name="question_type"
                     value={form.question_type}
                     onChange={handleChange}
@@ -179,8 +182,9 @@ showModal,
               {form.question_type === "TRUE_FALSE" && (
                 <div className="form-row" style={{ display: "flex", gap: "15px", marginBottom: "15px" }}>
                   <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                    <label>Label Kolom Kiri (Positif) *</label>
+                    <label htmlFor="question-true-label">Label Kolom Kiri (Positif) *</label>
                     <input
+                      id="question-true-label"
                       type="text"
                       name="true_label"
                       value={form.true_label}
@@ -191,8 +195,9 @@ showModal,
                     />
                   </div>
                   <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                    <label>Label Kolom Kanan (Negatif) *</label>
+                    <label htmlFor="question-false-label">Label Kolom Kanan (Negatif) *</label>
                     <input
+                      id="question-false-label"
                       type="text"
                       name="false_label"
                       value={form.false_label}
@@ -206,9 +211,10 @@ showModal,
               )}
 
               <div className="form-group">
-                <label>Pertanyaan *</label>
+                <label htmlFor="question-text">Pertanyaan *</label>
 
                 <textarea
+                  id="question-text"
                   name="question_text"
                   value={form.question_text}
                   onChange={handleChange}
@@ -220,7 +226,7 @@ showModal,
               </div>
 
               <div className="form-group">
-                <label>Gambar Soal (opsional)</label>
+                <label htmlFor="question-image">Gambar Soal (opsional)</label>
 
                 {aiImageDescription && (
                   <div className="success-message" style={{ marginBottom: 10 }}>
@@ -248,6 +254,7 @@ showModal,
                 )}
 
                 <input
+                  id="question-image"
                   type="file"
                   accept="image/*"
                   onChange={handleImageFileChange}
@@ -311,9 +318,10 @@ showModal,
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Bobot Soal *</label>
+                  <label htmlFor="question-points">Bobot Soal *</label>
 
                   <input
+                    id="question-points"
                     type="number"
                     name="points"
                     value={form.points}

@@ -5,10 +5,12 @@ import AdminDashboard from "../components/dashboard/AdminDashboard";
 import TeacherDashboard from "../components/dashboard/TeacherDashboard";
 import StudentDashboard from "../components/dashboard/StudentDashboard";
 import "../components/ScoreTable.css";
+import "./Dashboard.css";
 
 function Dashboard() {
   const { user } = useAuth();
-  const dashboardData = useDashboard();
+  const { dashFailed, dashLoading, retryDashboardData, ...dashboardData } =
+    useDashboard();
 
   if (!user) {
     return (
@@ -23,19 +25,34 @@ function Dashboard() {
     GURU: "Guru / Pengajar",
     SISWA: "Siswa",
   };
+  const displayName =
+    user.full_name || user.name || user.username || "Pengguna";
 
-  const commonData = { ...dashboardData, user };
+  const commonData = { ...dashboardData, dashFailed, dashLoading, user };
 
   return (
     <>
       <div className="welcome-section">
         <div className="welcome-content">
-          <h1>Selamat Datang, {user.name}!</h1>
+          <h1>Selamat Datang, {displayName}!</h1>
           <p className="subtitle">
             Anda login sebagai <strong>{roleLabels[user.role] || user.role}</strong>
           </p>
         </div>
       </div>
+
+      {dashFailed && (
+        <div className="dashboard-load-error" role="alert">
+          <p>Data dashboard gagal dimuat. Periksa koneksi, lalu coba lagi.</p>
+          <button
+            type="button"
+            onClick={retryDashboardData}
+            disabled={dashLoading}
+          >
+            {dashLoading ? "Memuat..." : "Coba lagi"}
+          </button>
+        </div>
+      )}
 
       {user.role === "ADMIN" && <AdminDashboard data={commonData} />}
       {user.role === "GURU" && <TeacherDashboard data={commonData} />}

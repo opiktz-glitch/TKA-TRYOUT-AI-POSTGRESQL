@@ -167,8 +167,9 @@ function TeacherProfile() {
 
               <div className="settings-fields">
                 <div className="form-group">
-                  <label>Nama Lengkap</label>
+                  <label htmlFor="teacher-profile-full-name">Nama Lengkap</label>
                   <input
+                    id="teacher-profile-full-name"
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -178,8 +179,9 @@ function TeacherProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Asal Sekolah</label>
+                  <label htmlFor="teacher-profile-school">Asal Sekolah</label>
                   <input
+                    id="teacher-profile-school"
                     type="text"
                     value={schoolName}
                     onChange={(e) => setSchoolName(e.target.value)}
@@ -188,8 +190,9 @@ function TeacherProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Username</label>
+                  <label htmlFor="teacher-profile-username">Username</label>
                   <input
+                    id="teacher-profile-username"
                     type="text"
                     value={profile.username || ""}
                     disabled
@@ -197,8 +200,9 @@ function TeacherProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label>Kode Guru</label>
+                  <label htmlFor="teacher-profile-code">Kode Guru</label>
                   <input
+                    id="teacher-profile-code"
                     type="text"
                     value={profile.teacher_code || ""}
                     disabled

@@ -128,15 +128,16 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
             <h2>{editingUser ? "Edit User" : "Tambah User"}</h2>
             <p>{editingUser ? "Perbaharui data pengguna" : "Tambahkan pengguna baru"}</p>
           </div>
-          <button className="modal-close" onClick={onClose} disabled={saving}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onClose} disabled={saving}>
             ×
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Username</label>
+            <label htmlFor="user-username">Username</label>
             <input
+              id="user-username"
               type="text"
               name="username"
               value={form.username}
@@ -150,9 +151,10 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
           {!editingUser && (
             <>
               <div className="form-group">
-                <label>Password</label>
+                <label htmlFor="user-password">Password</label>
                 <div className="password-input-wrapper">
                   <input
+                    id="user-password"
                     type={showFormPassword ? "text" : "password"}
                     name="password"
                     value={form.password}
@@ -167,7 +169,7 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
                     className="password-toggle"
                     onClick={() => setShowFormPassword(!showFormPassword)}
                     disabled={saving}
-                    tabIndex="-1"
+                    aria-label={showFormPassword ? "Sembunyikan password" : "Tampilkan password"}
                   >
                     {showFormPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
                   </button>
@@ -175,9 +177,10 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
               </div>
 
               <div className="form-group">
-                <label>Konfirmasi Password</label>
+                <label htmlFor="user-password-confirm">Konfirmasi Password</label>
                 <div className="password-input-wrapper">
                   <input
+                    id="user-password-confirm"
                     type={showFormConfirm ? "text" : "password"}
                     value={formConfirmPassword}
                     onChange={(e) => setFormConfirmPassword(e.target.value)}
@@ -191,7 +194,7 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
                     className="password-toggle"
                     onClick={() => setShowFormConfirm(!showFormConfirm)}
                     disabled={saving}
-                    tabIndex="-1"
+                    aria-label={showFormConfirm ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
                   >
                     {showFormConfirm ? <IconEyeOff size={17} /> : <IconEye size={17} />}
                   </button>
@@ -210,8 +213,9 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
           )}
 
           <div className="form-group">
-            <label>Nama Lengkap</label>
+            <label htmlFor="user-full-name">Nama Lengkap</label>
             <input
+              id="user-full-name"
               type="text"
               name="full_name"
               value={form.full_name}
@@ -222,9 +226,9 @@ export default function UserFormModal({ isOpen, onClose, onSaveSuccess, editingU
           </div>
 
           <div className="form-group">
-            <label>Role</label>
+            <label htmlFor="user-role">Role</label>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <select name="role" value={form.role} onChange={handleChange} disabled={saving} style={{ flex: 1 }}>
+              <select id="user-role" name="role" value={form.role} onChange={handleChange} disabled={saving} style={{ flex: 1 }}>
                 <option value="ADMIN">ADMIN</option>
                 <option value="GURU">GURU</option>
                 <option value="SISWA">SISWA</option>

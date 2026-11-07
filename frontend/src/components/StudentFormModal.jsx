@@ -148,7 +148,7 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
                 : "Hubungkan akun SISWA dengan data profilnya"}
             </p>
           </div>
-          <button className="modal-close" onClick={onClose} disabled={saving}>
+          <button type="button" className="modal-close" aria-label="Tutup dialog" onClick={onClose} disabled={saving}>
             ×
           </button>
         </div>
@@ -156,9 +156,10 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
         <form onSubmit={handleSubmit}>
           {!editingStudent && (
             <div className="form-group">
-              <label>Akun Login (User SISWA)</label>
+              <label htmlFor="student-user">Akun Login (User SISWA)</label>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <select
+                  id="student-user"
                   name="user_id"
                   value={form.user_id}
                   onChange={handleChange}
@@ -192,8 +193,9 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
           )}
 
           <div className="form-group">
-            <label>NIS / Kode Siswa</label>
+            <label htmlFor="student-code">NIS / Kode Siswa</label>
             <input
+              id="student-code"
               type="text"
               name="student_code"
               value={form.student_code}
@@ -205,8 +207,9 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
           </div>
 
           <div className="form-group">
-            <label>Nama Lengkap</label>
+            <label htmlFor="student-full-name">Nama Lengkap</label>
             <input
+              id="student-full-name"
               type="text"
               name="full_name"
               value={form.full_name}
@@ -218,8 +221,9 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
           </div>
 
           <div className="form-group">
-            <label>Asal Sekolah</label>
+            <label htmlFor="student-school">Asal Sekolah</label>
             <input
+              id="student-school"
               type="text"
               name="school_name"
               value={form.school_name}
@@ -231,8 +235,9 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
 
           <div style={{ display: "flex", gap: 12 }}>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Tingkat / Kelas</label>
+              <label htmlFor="student-grade">Tingkat / Kelas</label>
               <input
+                id="student-grade"
                 type="text"
                 name="grade"
                 value={form.grade}
@@ -242,8 +247,9 @@ export default function StudentFormModal({ isOpen, onClose, onSaveSuccess, editi
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Rombel</label>
+              <label htmlFor="student-class">Rombel</label>
               <input
+                id="student-class"
                 type="text"
                 name="class_name"
                 value={form.class_name}

@@ -51,7 +51,7 @@ export default function LeaderboardModal({ tryoutId, title, onClose, currentUser
             <h2>Papan Peringkat</h2>
             {title && <p>{title}</p>}
           </div>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" aria-label="Tutup dialog" onClick={onClose}>×</button>
         </div>
 
         {loading ? (

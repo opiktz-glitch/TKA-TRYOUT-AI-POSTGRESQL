@@ -83,6 +83,7 @@ export default function ResetPasswordModal({ isOpen, onClose, passwordUser }) {
           <button
             type="button"
             className="modal-close"
+            aria-label="Tutup dialog"
             onClick={onClose}
             disabled={passwordLoading}
           >
@@ -98,9 +99,10 @@ export default function ResetPasswordModal({ isOpen, onClose, passwordUser }) {
 
         <form onSubmit={handleResetPassword}>
           <div className="form-group">
-            <label>Password Baru</label>
+            <label htmlFor="reset-password">Password Baru</label>
             <div className="password-input-wrapper">
               <input
+                id="reset-password"
                 type={showNewPassword ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -114,7 +116,7 @@ export default function ResetPasswordModal({ isOpen, onClose, passwordUser }) {
                 className="password-toggle"
                 onClick={() => setShowNewPassword(!showNewPassword)}
                 disabled={passwordLoading}
-                tabIndex="-1"
+                aria-label={showNewPassword ? "Sembunyikan password baru" : "Tampilkan password baru"}
               >
                 {showNewPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
               </button>
@@ -122,9 +124,10 @@ export default function ResetPasswordModal({ isOpen, onClose, passwordUser }) {
           </div>
 
           <div className="form-group">
-            <label>Konfirmasi Password</label>
+            <label htmlFor="reset-password-confirm">Konfirmasi Password</label>
             <div className="password-input-wrapper">
               <input
+                id="reset-password-confirm"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -138,7 +141,7 @@ export default function ResetPasswordModal({ isOpen, onClose, passwordUser }) {
                 className="password-toggle"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={passwordLoading}
-                tabIndex="-1"
+                aria-label={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
               >
                 {showConfirmPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
               </button>

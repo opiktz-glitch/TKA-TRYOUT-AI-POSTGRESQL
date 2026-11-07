@@ -126,16 +126,20 @@ function SubjectManagement() {
                         <td className="is-center is-nowrap">
                           <div className="action-buttons management-table-actions">
                             <button
+                              type="button"
                               className="edit-button"
                               onClick={() => openEditModal(item)}
                               title="Edit"
+                              aria-label={`Edit mata pelajaran ${item.name}`}
                             >
                               <IconEdit size={16} />
                             </button>
                             <button
+                              type="button"
                               className="delete-button"
                               onClick={() => handleDelete(item)}
                               title="Hapus"
+                              aria-label={`Hapus mata pelajaran ${item.name}`}
                             >
                               <IconTrash size={16} />
                             </button>

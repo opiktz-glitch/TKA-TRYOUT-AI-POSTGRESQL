@@ -51,13 +51,16 @@ function Layout() {
 
   return (
     <div className="app-layout">
+      <a className="skip-link" href="#main-content">
+        Lewati ke konten utama
+      </a>
       <Sidebar />
 
       <main className="main-content">
         <Header />
         <OngoingAttemptBanner />
 
-        <div className="content" ref={contentRef}>
+        <div className="content" id="main-content" ref={contentRef} tabIndex="-1">
           <Outlet />
         </div>
       </main>
