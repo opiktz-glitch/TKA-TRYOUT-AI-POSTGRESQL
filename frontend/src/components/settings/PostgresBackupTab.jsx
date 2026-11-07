@@ -315,7 +315,7 @@ export default function PostgresBackupTab() {
                 <thead>
                   <tr>
                     <th className="is-left">Nama file</th>
-                    <th>Waktu (UTC)</th>
+                    <th>Waktu (WIB)</th>
                     <th>Ukuran</th>
                     <th>Aksi</th>
                   </tr>
@@ -326,7 +326,7 @@ export default function PostgresBackupTab() {
                       <td className="postgres-backup-filename">{backup.filename}</td>
                       <td>
                         {new Date(backup.created_at).toLocaleString("id-ID", {
-                          timeZone: "UTC",
+                          timeZone: "Asia/Jakarta",
                         })}
                       </td>
                       <td>{formatBytes(backup.size_bytes)}</td>
