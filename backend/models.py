@@ -495,6 +495,113 @@ class TryoutQuestion(Base):
 
 
 # =========================================================
+# PRACTICE (LATIHAN NON-RESMI)
+# =========================================================
+
+class Practice(Base):
+    __tablename__ = "t_practice"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    subject_id = Column(Integer, ForeignKey("t_subject.id"), nullable=False)
+    created_by = Column(Integer, ForeignKey("t_user.id"), nullable=False)
+    status = Column(String(20), nullable=False, default="DRAFT")
+    shuffle_questions = Column(Boolean, nullable=False, default=True)
+    shuffle_options = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
+    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
+
+    __table_args__ = (
+        Index("idx_practice_status_subject", "status", "subject_id"),
+        Index("idx_practice_created_by", "created_by"),
+    )
+
+
+class PracticeQuestion(Base):
+    __tablename__ = "t_practice_question"
+
+    id = Column(Integer, primary_key=True, index=True)
+    practice_id = Column(
+        Integer,
+        ForeignKey("t_practice.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    question_id = Column(
+        Integer,
+        ForeignKey("t_question.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    question_number = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("practice_id", "question_id", name="uq_practice_question"),
+        UniqueConstraint(
+            "practice_id",
+            "question_number",
+            name="uq_practice_question_number",
+        ),
+        Index("idx_practice_question_question_id", "question_id"),
+    )
+
+
+class PracticeAttempt(Base):
+    __tablename__ = "t_practice_attempt"
+
+    id = Column(Integer, primary_key=True, index=True)
+    practice_id = Column(
+        Integer,
+        ForeignKey("t_practice.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    student_id = Column(Integer, ForeignKey("t_student.id"), nullable=False)
+    status = Column(String(20), nullable=False, default="IN_PROGRESS")
+    question_order = Column(Text, nullable=False)
+    option_order = Column(Text, nullable=False)
+    correct_count = Column(Integer, nullable=False, default=0)
+    wrong_count = Column(Integer, nullable=False, default=0)
+    unanswered_count = Column(Integer, nullable=False, default=0)
+    started_at = Column(DateTime, nullable=False, default=utc_now)
+    finished_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_practice_attempt_active_student",
+            "practice_id",
+            "student_id",
+            unique=True,
+            postgresql_where=text("status = 'IN_PROGRESS'"),
+        ),
+        Index("idx_practice_attempt_practice", "practice_id"),
+        Index("idx_practice_attempt_student", "student_id"),
+    )
+
+
+class PracticeAnswer(Base):
+    __tablename__ = "t_practice_answer"
+
+    id = Column(Integer, primary_key=True, index=True)
+    attempt_id = Column(
+        Integer,
+        ForeignKey("t_practice_attempt.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    question_id = Column(
+        Integer,
+        ForeignKey("t_question.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    selected_option = Column(Text, nullable=False)
+    is_correct = Column(Boolean, nullable=False)
+    answered_at = Column(DateTime, nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint("attempt_id", "question_id", name="uq_practice_answer"),
+        Index("idx_practice_answer_attempt", "attempt_id"),
+    )
+
+
+# =========================================================
 # ATTEMPT
 # =========================================================
 

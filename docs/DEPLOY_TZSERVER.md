@@ -54,6 +54,7 @@ Karena repository bersifat publik, lindungi branch `main` dan jangan memberi sec
 - Workflow backend memperbarui checkout aplikasi, memasang dependensi dari `backend/requirements.txt`, me-restart `tka-backend.service`, lalu memastikan endpoint backend merespons `401` atau `403` tanpa autentikasi.
 - Kedua workflow memerlukan tzserver yang aktif dan dapat dijangkau melalui Tailscale; secrets deployment hanya tersedia pada workflow branch `main`/dispatch.
 - Perubahan skema dan migrasi database harus ditinjau sebelum perubahan backend digabung ke `main`. Backend memiliki migrasi kolom otomatis tertentu saat startup; deploy dapat menjalankan perubahan tersebut terhadap database production.
+- Migrasi `v05` menambahkan tabel Latihan. Sebelum deploy backend yang memerlukan fitur ini, pastikan backup PostgreSQL dapat dipulihkan dan jalankan `python scripts/run_migrations.py --target v05` dari root checkout dengan konfigurasi database production yang telah diverifikasi. Jangan menganggap `create_all()` sebagai pengganti migrasi atau menjalankan runner tanpa memastikan target database.
 - Setelah pemasangan, workflow memastikan `http://127.0.0.1:8081/` membalas HTTP 200 dan `/api/auth/me` membalas 401 atau 403 tanpa autentikasi.
 - Jika persiapan SSH/sudo atau smoke test gagal, job akan gagal dan log Actions menunjukkan langkah yang bermasalah.
 

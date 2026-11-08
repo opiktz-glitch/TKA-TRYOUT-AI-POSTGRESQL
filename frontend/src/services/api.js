@@ -1213,3 +1213,52 @@ export async function getTryoutLeaderboard(tryoutId) {
 
 export async function getDuplicates() { return await apiFetch('/api/questions/find-duplicates'); }
 export async function bulkDeleteQuestions(question_ids) { return await apiFetch('/api/questions/bulk-delete', { method: 'POST', body: { question_ids } }); }
+
+export async function getPractices() {
+  return apiFetch("/api/practices");
+}
+
+export async function getPracticeQuestionOptions(params) {
+  const query = new URLSearchParams({
+    subject_id: params.subjectId,
+    page: params.page,
+    limit: params.limit,
+  });
+  if (params.search) query.set("search", params.search);
+  return apiFetch(`/api/practices/question-bank?${query}`);
+}
+
+export async function createPractice(data) {
+  return apiFetch("/api/practices", { method: "POST", body: data });
+}
+
+export async function updatePractice(practiceId, data) {
+  return apiFetch(`/api/practices/${practiceId}`, { method: "PUT", body: data });
+}
+
+export async function getStudentPractices() {
+  return apiFetch("/api/student/practices");
+}
+
+export async function startPracticeAttempt(practiceId) {
+  return apiFetch(`/api/student/practices/${practiceId}/attempts`, {
+    method: "POST",
+  });
+}
+
+export async function getPracticeAttempt(attemptId) {
+  return apiFetch(`/api/student/practice-attempts/${attemptId}`);
+}
+
+export async function answerPracticeQuestion(attemptId, data) {
+  return apiFetch(`/api/student/practice-attempts/${attemptId}/answers`, {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function finishPracticeAttempt(attemptId) {
+  return apiFetch(`/api/student/practice-attempts/${attemptId}/finish`, {
+    method: "POST",
+  });
+}

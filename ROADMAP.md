@@ -59,6 +59,13 @@ Roadmap ini adalah usulan prioritas berdasarkan kondisi repository saat ini, buk
   - Sediakan ringkasan validasi/pratinjau dan cara melanjutkan atau mengulang bagian yang gagal.
 - [ ] **Tingkatkan analitik tryout**
   - Kembangkan laporan berdasarkan kebutuhan guru/admin, dengan definisi metrik yang konsisten dan akses berbasis role.
+- [ ] **Tambahkan fitur Latihan Siswa yang terpisah dari Tryout**
+  1. [x] **Rancang alur dan aturan:** Admin mengelola semua latihan; Guru mengelola latihan dan soal buatannya sendiri; latihan terbit tersedia untuk semua siswa tanpa relasi penugasan guru-siswa.
+  2. [x] **Bangun pengelolaan Admin:** buat, edit, pratinjau, terbitkan, dan arsipkan latihan.
+  3. [x] **Bangun pengelolaan Guru:** sediakan alur yang sama dengan akses terbatas pada latihan dan soal buatan Guru; latihan terbit tetap tersedia untuk semua siswa.
+  4. [x] **Bangun pengalaman Siswa:** daftar latihan, pengerjaan berulang, pengacakan soal/pilihan, pembahasan, dan ringkasan hasil tanpa timer wajib atau dampak ke rekap Tryout.
+  5. [x] **Verifikasi sebelum rilis:** migrasi v05 dan alur API Admin/Guru/Siswa diuji pada database PostgreSQL khusus tes; pengulangan, pembahasan, batas akses, tampilan Admin desktop dan Siswa mobile, serta tidak adanya data pada attempt/nilai Tryout resmi sudah diperiksa. Verifikasi lokal selesai; deploy belum dilakukan.
+  - Jangan membuka soal dari Tryout aktif secara otomatis; latihan hanya memakai soal yang dipilih secara sengaja.
 - [ ] **Tonjolkan tryout prioritas pada Dashboard Siswa**
   - Buat tryout yang belum dikerjakan atau perlu dilanjutkan lebih mudah ditemukan daripada riwayat nilai.
 - [ ] **Sederhanakan aksi tryout pada Dashboard Guru**

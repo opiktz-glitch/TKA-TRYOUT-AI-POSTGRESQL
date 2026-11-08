@@ -32,6 +32,9 @@ const StudentTryoutList = lazy(() => import("./pages/StudentTryoutList"));
 const StudentHistory = lazy(() => import("./pages/StudentHistory"));
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const StudentTryoutAttempt = lazy(() => import("./pages/StudentTryoutAttempt"));
+const PracticeManagement = lazy(() => import("./pages/PracticeManagement"));
+const StudentPractices = lazy(() => import("./pages/StudentPractices"));
+const StudentPracticeAttempt = lazy(() => import("./pages/StudentPracticeAttempt"));
 
 import Layout from "./components/Layout";
 
@@ -159,9 +162,36 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-
-        {/* =================================================
-            CHANGE PASSWORD
+
+        <Route
+          path="/practices"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GURU"]}>
+              <PracticeManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/student/practices"
+          element={
+            <ProtectedRoute allowedRoles={["SISWA"]}>
+              <StudentPractices />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/student/practice-attempts/:attemptId"
+          element={
+            <ProtectedRoute allowedRoles={["SISWA"]}>
+              <StudentPracticeAttempt />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =================================================
+            CHANGE PASSWORD
             Semua user yang sudah login
             ================================================= */}
         <Route

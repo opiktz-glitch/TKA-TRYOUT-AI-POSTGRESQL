@@ -501,6 +501,141 @@ class PostgresRestoreResponse(BaseModel):
     safety_backup_filename: str
 
 
+class PracticeUpsertRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    subject_id: int
+    question_ids: list[int] = Field(min_length=1, max_length=200)
+    status: str = "DRAFT"
+    shuffle_questions: bool = True
+    shuffle_options: bool = False
+
+
+class PracticeManagementResponse(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    subject_id: int
+    subject_name: str
+    created_by: int
+    created_by_name: str
+    status: str
+    shuffle_questions: bool
+    shuffle_options: bool
+    question_ids: list[int] = Field(default_factory=list)
+    question_count: int
+    student_count: int
+    attempt_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class PracticeManagementListResponse(BaseModel):
+    practices: list[PracticeManagementResponse] = Field(default_factory=list)
+
+
+class PracticeQuestionPickerOption(BaseModel):
+    option_code: str
+    option_text: str
+
+
+class PracticeQuestionPickerItem(BaseModel):
+    id: int
+    question_text: str
+    question_type: str
+    is_active: bool
+    has_image: bool
+    options: list[PracticeQuestionPickerOption] = Field(default_factory=list)
+
+
+class PracticeQuestionPickerResponse(BaseModel):
+    data: list[PracticeQuestionPickerItem] = Field(default_factory=list)
+    total: int
+
+
+class PracticeStudentListItem(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    subject_id: int
+    subject_name: str
+    question_count: int
+    attempt_count: int
+    completed_attempt_count: int
+    active_attempt_id: int | None = None
+
+
+class PracticeStudentListResponse(BaseModel):
+    practices: list[PracticeStudentListItem] = Field(default_factory=list)
+
+
+class PracticeAttemptStartResponse(BaseModel):
+    attempt_id: int
+    practice_id: int
+    title: str
+    question_count: int
+    status: str
+
+
+class PracticeAttemptQuestionOption(BaseModel):
+    option_code: str
+    option_text: str
+
+
+class PracticeAttemptQuestion(BaseModel):
+    id: int
+    question_number: int
+    question_text: str
+    question_type: str
+    true_label: str | None = None
+    false_label: str | None = None
+    has_image: bool
+    options: list[PracticeAttemptQuestionOption] = Field(default_factory=list)
+    selected_option: str | None = None
+    is_correct: bool | None = None
+    correct_option_codes: list[str] | None = None
+    correct_answers: list[str] | None = None
+    explanation: str | None = None
+
+
+class PracticeAttemptDetailResponse(BaseModel):
+    attempt_id: int
+    practice_id: int
+    title: str
+    description: str | None = None
+    status: str
+    question_count: int
+    current_answers: int
+    correct_count: int
+    wrong_count: int
+    unanswered_count: int
+    questions: list[PracticeAttemptQuestion] = Field(default_factory=list)
+
+
+class PracticeAnswerRequest(BaseModel):
+    question_id: int
+    selected_option: str = Field(min_length=1, max_length=2000)
+
+
+class PracticeAnswerResponse(BaseModel):
+    question_id: int
+    selected_option: str
+    is_correct: bool
+    correct_option_codes: list[str] = Field(default_factory=list)
+    correct_answers: list[str] = Field(default_factory=list)
+    explanation: str | None = None
+
+
+class PracticeAttemptFinishResponse(BaseModel):
+    attempt_id: int
+    status: str
+    question_count: int
+    correct_count: int
+    wrong_count: int
+    unanswered_count: int
+    message: str
+
+
 class QuestionResponse(BaseModel):
     id: int
     subject_id: int

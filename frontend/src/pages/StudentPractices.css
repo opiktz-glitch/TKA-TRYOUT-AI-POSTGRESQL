@@ -1,0 +1,144 @@
+.student-practice-page {
+  display: grid;
+  gap: 20px;
+}
+
+.student-practice-header h1 {
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.student-practice-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.student-practice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 16px;
+}
+
+.student-practice-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(31 41 55 / 4%);
+}
+
+.student-practice-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.student-practice-subject {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.student-practice-resume {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: #176d65;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.student-practice-card h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.student-practice-card > p {
+  flex: 1;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.student-practice-stats {
+  display: flex;
+  gap: 24px;
+  margin: 2px 0;
+}
+
+.student-practice-stats div {
+  display: grid;
+  gap: 3px;
+}
+
+.student-practice-stats dt {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.student-practice-stats dd {
+  margin: 0;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.student-practice-card .primary-button {
+  align-self: flex-start;
+  min-height: 38px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.student-practice-card .primary-button:hover {
+  background: var(--accent-hover);
+}
+
+.student-practice-card .primary-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.student-practice-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  text-align: center;
+}
+
+.student-practice-state p {
+  margin: 0;
+}
+
+.student-practice-state.is-error {
+  color: #9f332b;
+}
+
+@media (max-width: 600px) {
+  .student-practice-card {
+    padding: 15px;
+  }
+}

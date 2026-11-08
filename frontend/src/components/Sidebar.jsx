@@ -323,6 +323,20 @@ function Sidebar() {
 
             </NavLink>
 
+            <NavLink
+              to="/practices"
+              onClick={closeMobileMenu}
+              className={menuClass}
+              data-tooltip="Latihan Siswa"
+              onMouseEnter={handleTooltipEnter}
+              onMouseLeave={handleTooltipLeave}
+            >
+              <span className="menu-icon">
+                <IconNotebook />
+              </span>
+              <span>Latihan Siswa</span>
+            </NavLink>
+
 
             {/* Data Siswa */}
 
@@ -527,6 +541,20 @@ function Sidebar() {
 
             </NavLink>
 
+            <NavLink
+              to="/practices"
+              onClick={closeMobileMenu}
+              className={menuClass}
+              data-tooltip="Latihan Siswa"
+              onMouseEnter={handleTooltipEnter}
+              onMouseLeave={handleTooltipLeave}
+            >
+              <span className="menu-icon">
+                <IconNotebook />
+              </span>
+              <span>Latihan Siswa</span>
+            </NavLink>
+
 
             {/* Peserta */}
 
@@ -660,6 +688,20 @@ function Sidebar() {
               <span>
                 Daftar Tryout
               </span>
+            </NavLink>
+
+            <NavLink
+              to="/student/practices"
+              onClick={closeMobileMenu}
+              className={menuClass}
+              data-tooltip="Latihan"
+              onMouseEnter={handleTooltipEnter}
+              onMouseLeave={handleTooltipLeave}
+            >
+              <span className="menu-icon">
+                <IconNotebook size={19} />
+              </span>
+              <span>Latihan</span>
             </NavLink>
             
             

@@ -10,6 +10,9 @@ from dependencies import require_role
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from models import (
     Answer,
+    Practice,
+    PracticeAttempt,
+    PracticeQuestion,
     Question,
     QuestionOption,
     Subject,
@@ -43,6 +46,36 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_question_not_locked_by_practice(db: Session, question_id: int) -> None:
+    has_published_practice = (
+        db.query(PracticeQuestion.id)
+        .join(Practice, Practice.id == PracticeQuestion.practice_id)
+        .filter(
+            PracticeQuestion.question_id == question_id,
+            Practice.status == "PUBLISHED",
+        )
+        .first()
+    )
+    has_practice_attempt = (
+        db.query(PracticeAttempt.id)
+        .join(
+            PracticeQuestion,
+            PracticeQuestion.practice_id == PracticeAttempt.practice_id,
+        )
+        .filter(PracticeQuestion.question_id == question_id)
+        .first()
+    )
+    if has_published_practice or has_practice_attempt:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Soal ini sedang digunakan atau memiliki riwayat latihan. "
+                "Arsipkan latihan terlebih dahulu; soal dengan riwayat latihan "
+                "tidak dapat diubah agar pembahasan siswa tetap konsisten."
+            ),
+        )
 
 
 ALLOWED_TYPES = [
@@ -363,6 +396,7 @@ def bulk_delete_questions(
     """
     deleted_count = 0
     archived_count = 0
+    skipped_practice_count = 0
 
     for qid in request.question_ids:
         try:
@@ -370,7 +404,12 @@ def bulk_delete_questions(
         except (ValueError, TypeError):
             continue
 
-        q = db.query(Question).filter(Question.id == qid_int).first()
+        q = (
+            db.query(Question)
+            .filter(Question.id == qid_int)
+            .with_for_update()
+            .first()
+        )
         if not q:
             continue
 
@@ -381,8 +420,25 @@ def bulk_delete_questions(
         # Cek apakah soal pernah dijawab siswa atau terkait paket tryout
         has_answers = db.query(Answer).filter(Answer.question_id == q.id).count() > 0
         is_in_tryout = db.query(TryoutQuestion).filter(TryoutQuestion.question_id == q.id).count() > 0
+        is_in_practice = db.query(PracticeQuestion).filter(
+            PracticeQuestion.question_id == q.id
+        ).first() is not None
+        is_in_published_practice = (
+            db.query(PracticeQuestion.id)
+            .join(Practice, Practice.id == PracticeQuestion.practice_id)
+            .filter(
+                PracticeQuestion.question_id == q.id,
+                Practice.status == "PUBLISHED",
+            )
+            .first()
+            is not None
+        )
 
-        if has_answers or is_in_tryout:
+        if is_in_published_practice:
+            skipped_practice_count += 1
+            continue
+
+        if has_answers or is_in_tryout or is_in_practice:
             # Proteksi Riwayat: Jangan hapus permanen agar tidak merusak foreign key t_answer & t_tryout_question
             q.is_active = False
             archived_count += 1
@@ -399,6 +455,10 @@ def bulk_delete_questions(
         msg_parts.append(f"{deleted_count} soal berhasil dihapus")
     if archived_count > 0:
         msg_parts.append(f"{archived_count} soal dinonaktifkan/diarsipkan demi integritas data riwayat nilai")
+    if skipped_practice_count > 0:
+        msg_parts.append(
+            f"{skipped_practice_count} soal tidak diproses karena masih dipakai latihan terbit"
+        )
 
     return {"message": ", ".join(msg_parts) or "Tidak ada soal yang diproses."}
 
@@ -965,6 +1025,8 @@ async def preview_ai_prompt(
             status_code=400,
             detail="Materi / lingkup soal wajib diisi"
         )
+
+    _ensure_question_not_locked_by_practice(db, question.id)
 
     subject = (
         db.query(Subject)
@@ -2575,6 +2637,7 @@ def update_question(
         .filter(
             Question.id == question_id
         )
+        .with_for_update()
         .first()
     )
 
@@ -2584,6 +2647,8 @@ def update_question(
             status_code=404,
             detail="Soal tidak ditemukan"
         )
+
+    _ensure_question_not_locked_by_practice(db, question.id)
 
     subject = (
         db.query(Subject)
@@ -2722,6 +2787,7 @@ def delete_question(
         .filter(
             Question.id == question_id
         )
+        .with_for_update()
         .first()
     )
 
@@ -2753,6 +2819,18 @@ def delete_question(
         raise HTTPException(
             status_code=403,
             detail="Anda hanya dapat menghapus soal yang Anda buat sendiri."
+        )
+
+    if db.query(PracticeQuestion.id).filter(
+        PracticeQuestion.question_id == question.id
+    ).first():
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Soal ini masih menjadi bagian dari latihan. Lepaskan soal dari "
+                "latihan yang belum memiliki riwayat pengerjaan terlebih dahulu; "
+                "soal ber-riwayat harus dipertahankan."
+            ),
         )
 
     # -----------------------------------------------------
@@ -2861,6 +2939,8 @@ async def upload_question_image(
             detail="Soal tidak ditemukan"
         )
 
+    _ensure_question_not_locked_by_practice(db, question.id)
+
     raw_bytes = await file.read()
 
     # process_question_image() sendiri yang validasi ukuran & format,
@@ -2901,6 +2981,7 @@ def get_question_image(
     question = (
         db.query(Question)
         .filter(Question.id == question_id)
+        .with_for_update()
         .first()
     )
 
@@ -2935,6 +3016,7 @@ def delete_question_image(
     question = (
         db.query(Question)
         .filter(Question.id == question_id)
+        .with_for_update()
         .first()
     )
 
@@ -2944,6 +3026,8 @@ def delete_question_image(
             status_code=404,
             detail="Soal tidak ditemukan"
         )
+
+    _ensure_question_not_locked_by_practice(db, question.id)
 
     question.image_data = None
     question.image_mime_type = None

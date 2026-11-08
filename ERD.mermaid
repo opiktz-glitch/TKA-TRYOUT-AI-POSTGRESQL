@@ -3,21 +3,29 @@ erDiagram
     t_user ||--o| t_teacher : "punya profil"
     t_user ||--o{ t_question : "membuat (created_by)"
     t_user ||--o{ t_tryout : "membuat (created_by)"
+    t_user ||--o{ t_practice : "membuat (created_by)"
 
     t_subject ||--o{ t_question : "punya"
     t_subject ||--o{ t_tryout : "punya"
+    t_subject ||--o{ t_practice : "punya"
 
     t_question ||--o{ t_question_option : "punya opsi"
     t_question ||--o{ t_tryout_question : "dipakai di"
     t_question ||--o{ t_answer : "dijawab lewat"
+    t_question ||--o{ t_practice_question : "dipakai di"
+    t_question ||--o{ t_practice_answer : "dijawab lewat"
 
     t_tryout ||--o{ t_tryout_question : "berisi"
     t_tryout ||--o{ t_attempt : "dikerjakan lewat"
+    t_practice ||--o{ t_practice_question : "berisi"
+    t_practice ||--o{ t_practice_attempt : "dikerjakan lewat"
 
     t_student ||--o{ t_attempt : "mengerjakan"
+    t_student ||--o{ t_practice_attempt : "berlatih"
 
     t_attempt ||--o{ t_answer : "berisi"
     t_attempt ||--|| t_result : "menghasilkan"
+    t_practice_attempt ||--o{ t_practice_answer : "berisi"
 
     t_user {
         int id PK
@@ -101,6 +109,49 @@ erDiagram
         int question_id FK
         int question_number
         float points
+    }
+
+    t_practice {
+        int id PK
+        string title
+        text description
+        int subject_id FK
+        int created_by FK
+        string status "DRAFT / PUBLISHED / ARCHIVED"
+        boolean shuffle_questions
+        boolean shuffle_options
+        datetime created_at
+        datetime updated_at
+    }
+
+    t_practice_question {
+        int id PK
+        int practice_id FK "UK bareng question_id & question_number"
+        int question_id FK
+        int question_number
+    }
+
+    t_practice_attempt {
+        int id PK
+        int practice_id FK
+        int student_id FK
+        string status
+        text question_order
+        text option_order
+        int correct_count
+        int wrong_count
+        int unanswered_count
+        datetime started_at
+        datetime finished_at
+    }
+
+    t_practice_answer {
+        int id PK
+        int attempt_id FK "UK bareng question_id"
+        int question_id FK
+        text selected_option
+        boolean is_correct
+        datetime answered_at
     }
 
     t_attempt {

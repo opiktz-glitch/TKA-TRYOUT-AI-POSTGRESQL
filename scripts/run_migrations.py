@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PostgreSQL migration runner for schema versions v01 through v03."""
+"""PostgreSQL migration runner for schema versions v01 through v05."""
 
 import argparse
 import sys
@@ -24,20 +24,19 @@ def get_current_schema_version(conn) -> str:
     if "t_app_setting" not in tables:
         return "v01"
 
-    # Check setting
-    try:
-        res = conn.execute(
-            text("SELECT value FROM t_app_setting WHERE key = 'app:schema_version'")
-        ).fetchone()
-        if res and res[0]:
-            return res[0]
-    except Exception:
-        pass
+    res = conn.execute(
+        text("SELECT value FROM t_app_setting WHERE key = 'app:schema_version'")
+    ).fetchone()
+    if res and res[0]:
+        return res[0]
 
     # Inspect columns if version tag not yet saved
     q_cols = {col["name"] for col in inspector.get_columns("t_question")}
     u_cols = {col["name"] for col in inspector.get_columns("t_user")}
     if "image_data" in q_cols and "active_session_id" in u_cols:
+        attempt_cols = {col["name"] for col in inspector.get_columns("t_attempt")}
+        if "tab_switches_count" in attempt_cols:
+            return "v04"
         # Check if v03 index exists
         indexes = [idx["name"] for idx in inspector.get_indexes("t_attempt")]
         if "uq_attempt_active_per_student_tryout" in indexes:
@@ -76,13 +75,13 @@ def apply_sql_file(conn, filepath: Path):
         except Exception as e:
             # If column or index already exists, skip gracefully
             msg = str(e).lower()
-            if any(term in msg for term in ["already exists", "duplicate column", "syntax error"]):
+            if any(term in msg for term in ["already exists", "duplicate column"]):
                 print(f"    [Catatan/Lewati] {e}")
             else:
                 raise e
 
 
-def run_migrations(target_version: str = "v03", check_only: bool = False):
+def run_migrations(target_version: str = "v05", check_only: bool = False):
     migrations_dir = ROOT_DIR / "migrations"
     dialect = engine.dialect.name
     print(f"==================================================")
@@ -92,6 +91,11 @@ def run_migrations(target_version: str = "v03", check_only: bool = False):
 
     with engine.begin() as conn:
         current_version = get_current_schema_version(conn)
+        if current_version not in {"none", "v01", "v02", "v03", "v04", "v05"}:
+            raise RuntimeError(
+                f"Versi skema tidak dikenal: {current_version!r}. "
+                "Periksa nilai app:schema_version sebelum melanjutkan."
+            )
         print(f"Versi Skema Saat Ini: {current_version.upper()}")
 
         if check_only:
@@ -101,32 +105,47 @@ def run_migrations(target_version: str = "v03", check_only: bool = False):
         v01_file = migrations_dir / "v01_initial_schema.sql"
         v02_file = migrations_dir / "v02_update_media_session_settings.sql"
         v03_file = migrations_dir / "v03_optimize_concurrency_indexes_pgk.sql"
+        v04_file = migrations_dir / "v04_anti_cheat_telemetry.sql"
+        v05_file = migrations_dir / "v05_practice_module.sql"
+        target_number = int(target_version[1:])
 
         if current_version == "none":
             print("\n[MIGRASI] Mengaplikasikan Skema Awal v01...")
             apply_sql_file(conn, v01_file)
             current_version = "v01"
 
-        if current_version == "v01" and target_version in ["v02", "v03"]:
+        if current_version == "v01" and target_number >= 2:
             print("\n[MIGRASI] Mengaplikasikan Upgrade v01 -> v02...")
             apply_sql_file(conn, v02_file)
             current_version = "v02"
 
-        if current_version in ["v01", "v02"] and target_version == "v03":
+        if current_version == "v02" and target_number >= 3:
             print("\n[MIGRASI] Mengaplikasikan Upgrade v02 -> v03...")
             apply_sql_file(conn, v03_file)
             current_version = "v03"
 
-        # Explicitly ensure version tag is updated
-        if current_version == "v03":
+        if current_version == "v03" and target_number >= 4:
+            print("\n[MIGRASI] Mengaplikasikan Upgrade v03 -> v04...")
+            apply_sql_file(conn, v04_file)
+            current_version = "v04"
+
+        if current_version == "v04" and target_number >= 5:
+            print("\n[MIGRASI] Mengaplikasikan Upgrade v04 -> v05...")
+            apply_sql_file(conn, v05_file)
+            current_version = "v05"
+
+        if current_version in {"v03", "v04", "v05"}:
             conn.execute(
                 text(
                     """
                     INSERT INTO t_app_setting (key, value, updated_at)
-                    VALUES ('app:schema_version', 'v03', CURRENT_TIMESTAMP)
-                    ON CONFLICT (key) DO UPDATE SET value = 'v03', updated_at = CURRENT_TIMESTAMP;
+                    VALUES ('app:schema_version', :version, CURRENT_TIMESTAMP)
+                    ON CONFLICT (key) DO UPDATE SET
+                        value = EXCLUDED.value,
+                        updated_at = CURRENT_TIMESTAMP
                     """
-                )
+                ),
+                {"version": current_version},
             )
 
         print("\n==================================================")
@@ -139,9 +158,9 @@ def main():
     parser = argparse.ArgumentParser(description="TKA TryOut Database Migrator")
     parser.add_argument(
         "--target",
-        choices=["v01", "v02", "v03"],
-        default="v03",
-        help="Target schema version (default: v03)",
+        choices=["v01", "v02", "v03", "v04", "v05"],
+        default="v05",
+        help="Target schema version (default: v05)",
     )
     parser.add_argument(
         "--check",

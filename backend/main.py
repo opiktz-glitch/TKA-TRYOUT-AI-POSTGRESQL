@@ -20,6 +20,7 @@ from routers import (
     auth,
     image_import,
     notifications,
+    practices,
     questions,
     settings,
     student,
@@ -350,6 +351,10 @@ app.include_router(
 
 app.include_router(
     notifications.router
+)
+
+app.include_router(
+    practices.router
 )
 
 # Import soal dari gambar (fitur terpisah). Untuk mematikannya, hapus blok ini

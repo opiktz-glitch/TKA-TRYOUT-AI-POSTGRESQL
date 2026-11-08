@@ -17,6 +17,7 @@ export const NAV_ITEMS = [
   { path: "/subjects", label: "Mata Pelajaran", roles: ["ADMIN", "GURU"] },
   { path: "/questions", label: "Bank Soal", roles: ["ADMIN", "GURU"] },
   { path: "/tryouts", label: "Paket Tryout", roles: ["ADMIN", "GURU"] },
+  { path: "/practices", label: "Latihan Siswa", roles: ["ADMIN", "GURU"] },
   { path: "/students", label: "Data Siswa", roles: ["ADMIN"] },
   { path: "/teachers", label: "Data Guru", roles: ["ADMIN"] },
   { path: "/admin/scores", label: "Nilai", roles: ["ADMIN"] },
@@ -30,6 +31,7 @@ export const NAV_ITEMS = [
 
   // SISWA
   { path: "/student/tryouts", label: "Daftar Tryout", roles: ["SISWA"] },
+  { path: "/student/practices", label: "Latihan", roles: ["SISWA"] },
   { path: "/student/history", label: "Riwayat & Hasil", roles: ["SISWA"] },
   { path: "/student/profile", label: "Profil", roles: ["SISWA"] },
 ];

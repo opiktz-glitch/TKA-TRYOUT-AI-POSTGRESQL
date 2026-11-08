@@ -2,9 +2,9 @@
 
 Backend memakai SQLAlchemy dengan PostgreSQL sebagai satu-satunya database yang didukung. Model aplikasi berada di `backend/models.py`; file ini menjelaskan fungsi tabel secara konseptual dan bukan pengganti definisi model atau skrip migrasi.
 
-Saat ini model mendefinisikan **13 tabel**:
+Saat ini model mendefinisikan **17 tabel**:
 
-`t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, dan `t_app_setting`.
+`t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_practice`, `t_practice_question`, `t_practice_attempt`, `t_practice_answer`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, dan `t_app_setting`.
 
 ## Pengguna dan profil
 
@@ -56,6 +56,26 @@ Jawaban siswa untuk soal dalam attempt, termasuk pilihan yang dikirim dan inform
 
 Hasil/rekap penilaian untuk attempt yang telah diselesaikan.
 
+## Latihan siswa
+
+Latihan merupakan alur belajar terpisah dari Tryout. Latihan berstatus `PUBLISHED` dapat diakses semua siswa; tidak ada relasi penugasan guru ke siswa. Guru hanya dapat mengelola latihan dan memakai soal yang dibuatnya sendiri, sedangkan Admin dapat mengelola semua latihan dan soal.
+
+### `t_practice`
+
+Metadata latihan, mata pelajaran, pembuat, status `DRAFT`/`PUBLISHED`/`ARCHIVED`, dan pengaturan pengacakan.
+
+### `t_practice_question`
+
+Daftar dan urutan soal yang dipilih secara sengaja untuk latihan. Soal yang masih direferensikan latihan tidak dapat dihapus permanen.
+
+### `t_practice_attempt`
+
+Sesi latihan siswa yang dapat diulang. Urutan soal dan pilihan disimpan per sesi agar konsisten saat siswa melanjutkan. Hasilnya tidak disimpan ke tabel nilai Tryout.
+
+### `t_practice_answer`
+
+Jawaban dan hasil pemeriksaan per soal dalam satu sesi latihan. Kunci dan pembahasan hanya dikirim untuk soal yang sudah dijawab.
+
 ## Notifikasi dan pengaturan aplikasi
 
 ### `t_notification`
@@ -79,15 +99,16 @@ Penyimpanan konfigurasi aplikasi berbentuk key-value, termasuk pemilihan/provide
   | `migrations/v02_update_media_session_settings.sql` | Media soal, pengaturan aplikasi, sesi aktif, label Benar/Salah, dan bobot soal. |
   | `migrations/v03_optimize_concurrency_indexes_pgk.sql` | Indeks unik untuk attempt aktif, indeks query, dan perluasan keterangan tryout. |
   | `migrations/v04_anti_cheat_telemetry.sql` | Kolom penghitung perpindahan tab selama attempt. |
+  | `migrations/v05_practice_module.sql` | Tabel dan indeks untuk pengelolaan latihan serta attempt/jawaban siswa. |
 
-- `scripts/run_migrations.py` saat ini hanya menerapkan target `v01` sampai `v03`; migrasi `v04` belum didukung runner tersebut dan harus ditangani secara eksplisit sebelum deployment yang membutuhkannya.
+- `scripts/run_migrations.py` menerapkan migrasi berurutan sampai target `v05` (default). `Base.metadata.create_all()` juga dapat membuat tabel latihan yang belum ada, tetapi tidak menggantikan runner untuk pencatatan versi skema.
 - Runner migrasi memakai konfigurasi database aplikasi. Periksa target konfigurasi terlebih dahulu dan buat backup yang dapat dipulihkan sebelum menerapkan migrasi; opsi `--check` hanya memeriksa versi skema, bukan memvalidasi keamanan atau lingkungan database.
 
 Contoh penggunaan runner dari root repository setelah target database dipastikan:
 
 ```powershell
 python scripts/run_migrations.py --check
-python scripts/run_migrations.py --target v03
+python scripts/run_migrations.py --target v05
 ```
 
 - Jangan menerapkan perubahan skema langsung ke database production tanpa backup, rencana pemulihan, dan verifikasi kompatibilitas PostgreSQL.
