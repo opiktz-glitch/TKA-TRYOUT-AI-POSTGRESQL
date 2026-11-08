@@ -51,7 +51,7 @@ docs/          Panduan deployment tzserver dan laporan audit
 
 Model SQLAlchemy mendefinisikan tabel inti aplikasi serta tabel Latihan: `t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, `t_app_setting`, `t_practice`, `t_practice_question`, `t_practice_attempt`, dan `t_practice_answer`.
 
-Lihat [SCHEMA_DOCS.md](SCHEMA_DOCS.md) dan [ERD.mermaid](ERD.mermaid). `Base.metadata.create_all()` membuat tabel yang belum ada; migrasi startup hanya menangani kolom tertentu. File migrasi dan `scripts/run_migrations.py` mendukung versi sampai v06. Sebelum memakai versi aplikasi yang memerlukan skema baru, periksa versi dan target database, siapkan backup yang dapat dipulihkan, lalu ikuti [prosedur migrasi PostgreSQL untuk Neon dan tzserver](docs/DEPLOY_TZSERVER.md#migrasi-postgresql-production-neon-dan-tzserver).
+Lihat [SCHEMA_DOCS.md](SCHEMA_DOCS.md) dan [ERD.mermaid](ERD.mermaid). `Base.metadata.create_all()` membuat tabel yang belum ada; migrasi startup hanya menangani kolom tertentu. File migrasi dan `scripts/run_migrations.py` mendukung versi sampai v06. Migrasi Neon dikonfirmasi selesai oleh pengguna pada 8 November 2026; status database tzserver perlu diperiksa secara terpisah. Sebelum memakai versi aplikasi yang memerlukan skema baru pada database lain, periksa versi dan target database serta siapkan backup yang dapat dipulihkan. Ikuti [panduan migrasi Neon](docs/MIGRASI_NEON.md) untuk SQL Editor, atau [prosedur migrasi PostgreSQL](docs/DEPLOY_TZSERVER.md#migrasi-postgresql-production-neon-dan-tzserver) untuk Neon dan tzserver.
 
 ## Pengujian
 

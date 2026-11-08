@@ -1222,6 +1222,11 @@ export async function getPracticeReview(practiceId) {
   return apiFetch(`/api/practices/${practiceId}/review`);
 }
 
+export async function getPracticeAttemptHistory(practiceId, { offset = 0, limit = 50 } = {}) {
+  const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+  return apiFetch(`/api/practices/${practiceId}/attempts?${query}`);
+}
+
 export async function getPracticeQuestionOptions(params) {
   const query = new URLSearchParams({
     subject_id: params.subjectId,
@@ -1238,6 +1243,14 @@ export async function createPractice(data) {
 
 export async function updatePractice(practiceId, data) {
   return apiFetch(`/api/practices/${practiceId}`, { method: "PUT", body: data });
+}
+
+export async function archivePractice(practiceId) {
+  return apiFetch(`/api/practices/${practiceId}/archive`, { method: "POST" });
+}
+
+export async function deletePractice(practiceId) {
+  return apiFetch(`/api/practices/${practiceId}`, { method: "DELETE" });
 }
 
 export async function getStudentPractices() {

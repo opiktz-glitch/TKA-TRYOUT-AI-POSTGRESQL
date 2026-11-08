@@ -132,6 +132,9 @@ function TryoutQuestionPicker({
   active = true,
   disabled = false,
   defaultScope = "all",
+  showScopeToggle = true,
+  maxSelected = Number.POSITIVE_INFINITY,
+  onSelectionLimitReached,
 }) {
   // =====================================================
   // FILTER & DATA BANK SOAL
@@ -304,6 +307,11 @@ function TryoutQuestionPicker({
     for (const question of questions) {
       if (existing.has(Number(question.id))) {
         continue;
+      }
+
+      if (next.length >= maxSelected) {
+        onSelectionLimitReached?.();
+        break;
       }
 
       existing.add(Number(question.id));
@@ -641,24 +649,26 @@ function TryoutQuestionPicker({
           />
         </div>
 
-        <div className="tqp-segmented" role="group" aria-label="Cakupan soal">
-          <button
-            type="button"
-            className={query.scope === "all" ? "is-active" : ""}
-            onClick={() => changeScope("all")}
-            disabled={disabled}
-          >
-            Semua soal
-          </button>
-          <button
-            type="button"
-            className={query.scope === "mine" ? "is-active" : ""}
-            onClick={() => changeScope("mine")}
-            disabled={disabled}
-          >
-            Soal saya
-          </button>
-        </div>
+        {showScopeToggle && (
+          <div className="tqp-segmented" role="group" aria-label="Cakupan soal">
+            <button
+              type="button"
+              className={query.scope === "all" ? "is-active" : ""}
+              onClick={() => changeScope("all")}
+              disabled={disabled}
+            >
+              Semua soal
+            </button>
+            <button
+              type="button"
+              className={query.scope === "mine" ? "is-active" : ""}
+              onClick={() => changeScope("mine")}
+              disabled={disabled}
+            >
+              Soal saya
+            </button>
+          </div>
+        )}
 
         <div className="tqp-chips">
           <button
@@ -1176,4 +1186,3 @@ function TryoutQuestionPicker({
 }
 
 export default TryoutQuestionPicker;
-

@@ -534,6 +534,27 @@ class PracticeManagementListResponse(BaseModel):
     practices: list[PracticeManagementResponse] = Field(default_factory=list)
 
 
+class PracticeAttemptHistoryItem(BaseModel):
+    attempt_id: int
+    student_name: str
+    student_code: str
+    school_name: str | None = None
+    status: str
+    question_count: int
+    correct_count: int
+    wrong_count: int
+    unanswered_count: int
+    started_at: datetime
+    finished_at: datetime | None = None
+
+
+class PracticeAttemptHistoryResponse(BaseModel):
+    attempts: list[PracticeAttemptHistoryItem] = Field(default_factory=list)
+    total: int
+    offset: int
+    limit: int
+
+
 class PracticeQuestionPickerOption(BaseModel):
     option_code: str
     option_text: str

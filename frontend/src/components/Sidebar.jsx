@@ -9,6 +9,7 @@ import {
   IconBook,
   IconNotebook,
   IconClipboard,
+  IconTarget,
   IconGraduationCap,
   IconBarChart,
   IconTrendingUp,
@@ -332,7 +333,7 @@ function Sidebar() {
               onMouseLeave={handleTooltipLeave}
             >
               <span className="menu-icon">
-                <IconNotebook />
+                <IconTarget />
               </span>
               <span>Latihan Siswa</span>
             </NavLink>
@@ -550,7 +551,7 @@ function Sidebar() {
               onMouseLeave={handleTooltipLeave}
             >
               <span className="menu-icon">
-                <IconNotebook />
+                <IconTarget />
               </span>
               <span>Latihan Siswa</span>
             </NavLink>
@@ -699,7 +700,7 @@ function Sidebar() {
               onMouseLeave={handleTooltipLeave}
             >
               <span className="menu-icon">
-                <IconNotebook size={19} />
+                <IconTarget size={19} />
               </span>
               <span>Latihan</span>
             </NavLink>

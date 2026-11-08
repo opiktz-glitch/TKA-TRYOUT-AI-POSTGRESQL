@@ -21,6 +21,7 @@ from schemas import (
     PracticeAnswerResponse,
     PracticeAttemptDetailResponse,
     PracticeAttemptFinishResponse,
+    PracticeAttemptHistoryResponse,
     PracticeAttemptQuestion,
     PracticeAttemptQuestionOption,
     PracticeAttemptStartResponse,
@@ -244,6 +245,8 @@ def get_practice_review(
             Question.id.label("question_id"),
             Question.question_text,
             Question.question_type,
+            Question.difficulty,
+            Question.is_active,
             Question.true_label,
             Question.false_label,
             Question.points,
@@ -284,6 +287,8 @@ def get_practice_review(
                 "question_id": question.question_id,
                 "question_text": question.question_text,
                 "question_type": question.question_type,
+                "difficulty": question.difficulty,
+                "is_active": question.is_active,
                 "true_label": question.true_label or "Benar",
                 "false_label": question.false_label or "Salah",
                 "points": question.points,
@@ -294,6 +299,58 @@ def get_practice_review(
             for question in practice_questions
         ],
     }
+
+
+@router.get(
+    "/api/practices/{practice_id}/attempts",
+    response_model=PracticeAttemptHistoryResponse,
+)
+def list_practice_attempt_history(
+    practice_id: int,
+    offset: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN", "GURU")),
+):
+    if offset < 0 or limit < 1 or limit > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Offset tidak boleh negatif dan batas riwayat maksimal 100.",
+        )
+    practice = _practice_or_404(db, practice_id, current_user)
+    query = (
+        db.query(PracticeAttempt, Student)
+        .join(Student, Student.id == PracticeAttempt.student_id)
+        .filter(PracticeAttempt.practice_id == practice.id)
+    )
+    total = query.count()
+    rows = (
+        query.order_by(PracticeAttempt.started_at.desc(), PracticeAttempt.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return PracticeAttemptHistoryResponse(
+        attempts=[
+            {
+                "attempt_id": attempt.id,
+                "student_name": student.full_name,
+                "student_code": student.student_code,
+                "school_name": student.school_name,
+                "status": attempt.status,
+                "question_count": len(json.loads(attempt.question_order)),
+                "correct_count": attempt.correct_count,
+                "wrong_count": attempt.wrong_count,
+                "unanswered_count": attempt.unanswered_count,
+                "started_at": attempt.started_at,
+                "finished_at": attempt.finished_at,
+            }
+            for attempt, student in rows
+        ],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.get(
@@ -503,6 +560,57 @@ def update_practice(
     db.commit()
     db.refresh(practice)
     return _management_items(db, [practice])[0]
+
+
+@router.post("/api/practices/{practice_id}/archive")
+def archive_practice(
+    practice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN", "GURU")),
+):
+    practice = _practice_or_404(db, practice_id, current_user)
+    if practice.status != "ARCHIVED":
+        practice.status = "ARCHIVED"
+        practice.updated_at = utc_now()
+        db.commit()
+    return {"message": "Latihan berhasil diarsipkan."}
+
+
+@router.delete("/api/practices/{practice_id}")
+def delete_practice(
+    practice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN", "GURU")),
+):
+    practice = _practice_or_404(db, practice_id, current_user)
+    if practice.status != "DRAFT":
+        raise HTTPException(
+            status_code=409,
+            detail="Hanya latihan berstatus draf yang dapat dihapus permanen.",
+        )
+    has_attempts = (
+        db.query(PracticeAttempt.id)
+        .filter(PracticeAttempt.practice_id == practice.id)
+        .first()
+    )
+    if has_attempts:
+        raise HTTPException(
+            status_code=409,
+            detail="Latihan yang memiliki riwayat pengerjaan tidak dapat dihapus. Arsipkan latihan agar riwayat tetap tersimpan.",
+        )
+    db.query(PracticeQuestion).filter(
+        PracticeQuestion.practice_id == practice.id
+    ).delete(synchronize_session=False)
+    db.delete(practice)
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Latihan tidak dapat dihapus karena sudah memiliki riwayat pengerjaan. Arsipkan latihan agar riwayat tetap tersimpan.",
+        ) from error
+    return {"message": "Latihan draf berhasil dihapus."}
 
 
 @router.get(

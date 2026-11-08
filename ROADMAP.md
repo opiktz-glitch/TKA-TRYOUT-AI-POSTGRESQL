@@ -8,9 +8,9 @@ Roadmap ini adalah usulan prioritas berdasarkan kondisi repository saat ini, buk
   - Pastikan runner memilih konfigurasi khusus tes secara eksplisit, memvalidasi bahwa database tujuan terisolasi, dan gagal dengan pesan jelas bila konfigurasi tidak aman.
   - Gunakan path absolut/berdasarkan lokasi skrip agar pemanggilan konsisten dari root maupun folder `backend`.
   - Dokumentasikan cara menyiapkan database tes tanpa mengekspos kredensial.
-- [ ] **Selaraskan migrasi skema**
-  - Tambahkan dukungan migrasi `v04` ke `scripts/run_migrations.py` atau dokumentasikan secara eksplisit cara menerapkannya.
-  - Tetapkan prosedur versi skema, backup sebelum migrasi, serta pemeriksaan hasil pada PostgreSQL.
+- [x] **Selaraskan migrasi skema**
+  - `scripts/run_migrations.py` mendukung migrasi berurutan sampai `v06`; prosedur SQL manual versi sebelumnya, pemeriksaan, dan pencadangan didokumentasikan untuk PostgreSQL.
+  - Panduan Neon mencatat migrasi `v06` selesai berdasarkan konfirmasi pengguna pada 8 November 2026; database tzserver tetap perlu diperiksa secara terpisah.
   - Hindari mengandalkan migrasi kolom startup yang terbatas sebagai satu-satunya mekanisme perubahan skema.
 - [ ] **Perkuat pengelolaan konfigurasi deployment**
   - Tegaskan pemisahan konfigurasi development, tes, LAN, dan production.
@@ -64,7 +64,7 @@ Roadmap ini adalah usulan prioritas berdasarkan kondisi repository saat ini, buk
   2. [x] **Bangun pengelolaan Admin:** buat, edit, pratinjau, terbitkan, dan arsipkan latihan.
   3. [x] **Bangun pengelolaan Guru:** sediakan alur yang sama dengan akses terbatas pada latihan dan soal buatan Guru; latihan terbit tetap tersedia untuk semua siswa.
   4. [x] **Bangun pengalaman Siswa:** daftar latihan, pengerjaan berulang, pengacakan soal/pilihan, pembahasan, dan ringkasan hasil tanpa timer wajib atau dampak ke rekap Tryout.
-  5. [x] **Verifikasi sebelum rilis:** migrasi v05 dan alur API Admin/Guru/Siswa diuji pada database PostgreSQL khusus tes; pengulangan, pembahasan, batas akses, tampilan Admin desktop dan Siswa mobile, serta tidak adanya data pada attempt/nilai Tryout resmi sudah diperiksa. Verifikasi lokal selesai; deploy belum dilakukan.
+  5. [x] **Verifikasi sebelum rilis:** migrasi v05 dan alur API Admin/Guru/Siswa diuji pada database PostgreSQL khusus tes; pengulangan, pembahasan, batas akses, tampilan Admin desktop dan Siswa mobile, serta tidak adanya data pada attempt/nilai Tryout resmi sudah diperiksa. Migrasi Neon dikonfirmasi selesai oleh pengguna pada 8 November 2026; status deploy aplikasi dan migrasi database tzserver belum dikonfirmasi.
   - Jangan membuka soal dari Tryout aktif secara otomatis; latihan hanya memakai soal yang dipilih secara sengaja.
 - [ ] **Tonjolkan tryout prioritas pada Dashboard Siswa**
   - Buat tryout yang belum dikerjakan atau perlu dilanjutkan lebih mudah ditemukan daripada riwayat nilai.

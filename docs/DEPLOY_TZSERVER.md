@@ -63,6 +63,8 @@ Karena repository bersifat publik, lindungi branch `main` dan jangan memberi sec
 
 Setiap PostgreSQL yang dipakai backend adalah database terpisah dan harus diperiksa sendiri. Deploy frontend ke Vercel atau tzserver tidak menjalankan migrasi database. Migrasikan Neon jika backend yang melayani aplikasi Vercel terhubung ke Neon; migrasikan database tzserver jika backend tzserver memakainya.
 
+**Status:** Pengguna mengonfirmasi migrasi database Neon selesai pada 8 November 2026. Status database tzserver tidak dikonfirmasi oleh catatan ini; periksa dan migrasikan secara terpisah jika backend tzserver memakai database tersebut. Lihat [MIGRASI_NEON.md](MIGRASI_NEON.md) untuk panduan Neon.
+
 ### Sebelum migrasi
 
 1. Pastikan perubahan aplikasi yang membutuhkan skema baru sudah tersedia pada checkout/server terkait.
@@ -99,6 +101,8 @@ Runner menerapkan versi yang belum ada secara berurutan. Bila pemeriksaan awal m
 ### Neon melalui SQL Editor
 
 Pilih project, branch, dan database Neon yang benar sebelum menjalankan SQL. Lakukan backup/branch point terlebih dahulu. Jalankan pemeriksaan versi:
+
+Panduan langkah demi langkah yang berfokus pada penerapan `v06` tersedia di [MIGRASI_NEON.md](MIGRASI_NEON.md).
 
 ```sql
 SELECT value AS schema_version

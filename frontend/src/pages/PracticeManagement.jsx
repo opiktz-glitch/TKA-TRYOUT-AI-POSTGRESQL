@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../auth/AuthContext";
-import QuestionImage from "../components/QuestionImage";
+import PracticeFormWizardModal from "../components/PracticeFormWizardModal";
 import TryoutReviewModal from "../components/TryoutReviewModal";
 import {
+  archivePractice,
   createPractice,
+  deletePractice,
+  getPracticeAttemptHistory,
   getPracticeReview,
   getPractices,
-  getPracticeQuestionOptions,
   getSubjects,
   updatePractice,
 } from "../services/api";
-import { IconEdit, IconEye } from "../components/Icons";
+import { IconEdit, IconEye, IconHistory, IconTrash } from "../components/Icons";
+import { formatDateTime } from "../utils/date";
 import "../components/ScoreTable.css";
 import "./PracticeManagement.css";
 
@@ -35,27 +38,30 @@ function PracticeManagement() {
   const { user } = useAuth();
   const [practices, setPractices] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [questions, setQuestions] = useState([]);
-  const [questionTotal, setQuestionTotal] = useState(0);
-  const [questionPage, setQuestionPage] = useState(1);
-  const [questionSearch, setQuestionSearch] = useState("");
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [questionLoadError, setQuestionLoadError] = useState("");
-  const [questionReload, setQuestionReload] = useState(0);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [previewQuestion, setPreviewQuestion] = useState(null);
+  const [openingEditId, setOpeningEditId] = useState(null);
   const [reviewPractice, setReviewPractice] = useState(null);
   const [reviewData, setReviewData] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [reviewTab, setReviewTab] = useState("soal");
+  const [historyPractice, setHistoryPractice] = useState(null);
+  const [historyAttempts, setHistoryAttempts] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [actionPracticeId, setActionPracticeId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [wizardStep, setWizardStep] = useState(1);
   const reviewRequest = useRef(0);
+  const historyRequest = useRef(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -102,46 +108,6 @@ function PracticeManagement() {
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    async function loadQuestions() {
-      if (!form.subject_id) {
-        return;
-      }
-      try {
-        const result = await getPracticeQuestionOptions({
-          page: questionPage,
-          limit: 100,
-          search: questionSearch,
-          subjectId: form.subject_id,
-        });
-        if (active) {
-          setQuestionTotal(result.total || 0);
-          setQuestionLoadError("");
-          setQuestions((current) => {
-            if (questionPage === 1) return result.data || [];
-            const existingIds = new Set(current.map((question) => question.id));
-            return [
-              ...current,
-              ...(result.data || []).filter((question) => !existingIds.has(question.id)),
-            ];
-          });
-        }
-      } catch (error) {
-        if (active) {
-          setQuestionLoadError(error.message || "Gagal memuat bank soal.");
-          toast.error(error.message || "Gagal memuat bank soal.");
-        }
-      } finally {
-        if (active) setLoadingQuestions(false);
-      }
-    }
-    loadQuestions();
-    return () => {
-      active = false;
-    };
-  }, [form.subject_id, questionPage, questionReload, questionSearch, user?.role]);
-
   const filteredPractices = useMemo(() => {
     const search = filter.trim().toLocaleLowerCase("id");
     if (!search) return practices;
@@ -154,34 +120,44 @@ function PracticeManagement() {
 
   function openCreate() {
     setEditing(null);
-    setPreviewQuestion(null);
     setForm({ ...EMPTY_FORM });
-    setQuestionPage(1);
-    setQuestionSearch("");
-    setQuestionLoadError("");
-    setLoadingQuestions(false);
-    setQuestions([]);
-    setQuestionTotal(0);
+    setSelectedQuestions([]);
+    setWizardStep(1);
     setFormOpen(true);
   }
 
-  function openEdit(practice) {
-    setEditing(practice);
-    setPreviewQuestion(null);
-    setQuestionPage(1);
-    setQuestionSearch("");
-    setQuestionLoadError("");
-    setLoadingQuestions(true);
-    setFormOpen(true);
-    setForm({
-      title: practice.title,
-      description: practice.description || "",
-      subject_id: String(practice.subject_id),
-      question_ids: practice.question_ids,
-      status: practice.status,
-      shuffle_questions: practice.shuffle_questions,
-      shuffle_options: practice.shuffle_options,
-    });
+  async function openEdit(practice) {
+    setOpeningEditId(practice.id);
+    try {
+      const review = await getPracticeReview(practice.id);
+      const selected = (review.questions || []).map((question) => ({
+        question_id: Number(question.question_id),
+        question_number: Number(question.question_number),
+        points: 1,
+        question_text: question.question_text || "",
+        difficulty: question.difficulty || "",
+        question_type: question.question_type || "MULTIPLE_CHOICE",
+        has_image: Boolean(question.has_image),
+        is_active: question.is_active !== false,
+      }));
+      setEditing(practice);
+      setSelectedQuestions(selected);
+      setWizardStep(1);
+      setForm({
+        title: practice.title,
+        description: practice.description || "",
+        subject_id: String(practice.subject_id),
+        question_ids: selected.map((question) => question.question_id),
+        status: practice.status,
+        shuffle_questions: practice.shuffle_questions,
+        shuffle_options: practice.shuffle_options,
+      });
+      setFormOpen(true);
+    } catch (error) {
+      toast.error(error.message || "Gagal memuat detail latihan.");
+    } finally {
+      setOpeningEditId(null);
+    }
   }
 
   async function loadPracticeReview(practice) {
@@ -216,6 +192,82 @@ function PracticeManagement() {
     setReviewLoading(false);
   }
 
+  async function loadPracticeHistory(practice, offset = 0) {
+    const requestId = historyRequest.current + 1;
+    historyRequest.current = requestId;
+    setHistoryPractice(practice);
+    setHistoryOffset(offset);
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const data = await getPracticeAttemptHistory(practice.id, { offset });
+      if (historyRequest.current === requestId) {
+        setHistoryAttempts(data.attempts || []);
+        setHistoryTotal(data.total || 0);
+      }
+    } catch (error) {
+      if (historyRequest.current === requestId) {
+        setHistoryError(error.message || "Gagal memuat riwayat pengerjaan.");
+      }
+    } finally {
+      if (historyRequest.current === requestId) {
+        setHistoryLoading(false);
+      }
+    }
+  }
+
+  function closePracticeHistory() {
+    historyRequest.current += 1;
+    setHistoryPractice(null);
+    setHistoryAttempts([]);
+    setHistoryTotal(0);
+    setHistoryOffset(0);
+    setHistoryError("");
+    setHistoryLoading(false);
+  }
+
+  async function handleArchivePractice(practice) {
+    if (
+      !window.confirm(
+        `Arsipkan latihan "${practice.title}"? Siswa tidak dapat memulai latihan baru, sesi berjalan tetap dapat dilanjutkan, dan riwayat pengerjaan tetap tersimpan.`
+      )
+    ) {
+      return;
+    }
+    setActionPracticeId(practice.id);
+    try {
+      await archivePractice(practice.id);
+      toast.success("Latihan berhasil diarsipkan.");
+      setLoading(true);
+      await loadData();
+    } catch (error) {
+      toast.error(error.message || "Gagal mengarsipkan latihan.");
+    } finally {
+      setActionPracticeId(null);
+    }
+  }
+
+  async function handleDeletePractice(practice) {
+    if (
+      !window.confirm(
+        `Hapus permanen draf "${practice.title}" beserta susunan soalnya? Tindakan ini tidak dapat dibatalkan.`
+      )
+    ) {
+      return;
+    }
+    setActionPracticeId(practice.id);
+    try {
+      await deletePractice(practice.id);
+      toast.success("Draf latihan berhasil dihapus.");
+      setLoading(true);
+      await loadData();
+    } catch (error) {
+      toast.error(error.message || "Gagal menghapus draf latihan.");
+    } finally {
+      setActionPracticeId(null);
+    }
+  }
+
   function printPracticeReview() {
     window.print();
   }
@@ -223,45 +275,60 @@ function PracticeManagement() {
   function closeForm() {
     if (saving) return;
     setEditing(null);
-    setPreviewQuestion(null);
     setForm({ ...EMPTY_FORM });
+    setSelectedQuestions([]);
+    setWizardStep(1);
     setFormOpen(false);
-    setQuestions([]);
-    setQuestionTotal(0);
-    setLoadingQuestions(false);
   }
 
-  function retryQuestionLoad() {
-    setQuestionLoadError("");
-    setPreviewQuestion(null);
-    setLoadingQuestions(true);
-    setQuestionReload((current) => current + 1);
-  }
-
-  function toggleQuestion(questionId) {
-    if (
-      !form.question_ids.includes(questionId) &&
-      form.question_ids.length >= 200
-    ) {
-      toast.error("Satu latihan maksimal 200 soal.");
-      return;
-    }
-    const removing = form.question_ids.includes(questionId);
-    if (removing && previewQuestion?.id === questionId) {
-      setPreviewQuestion(null);
-    }
+  function handleSelectedQuestionsChange(questions) {
+    setSelectedQuestions(questions);
     setForm((current) => ({
       ...current,
-      question_ids: removing
-        ? current.question_ids.filter((id) => id !== questionId)
-        : [...current.question_ids, questionId],
+      question_ids: questions.map((question) => Number(question.question_id)),
     }));
+  }
+
+  function validateInformation() {
+    if (!form.title.trim()) {
+      return "Nama latihan wajib diisi.";
+    }
+    if (!form.subject_id) {
+      return "Mata pelajaran wajib dipilih.";
+    }
+    return null;
+  }
+
+  function goToStep(target) {
+    if (saving) return;
+    if (target > 1) {
+      const error = validateInformation();
+      if (error) {
+        toast.error(error);
+        setWizardStep(1);
+        return;
+      }
+    }
+    if (target > 2 && form.question_ids.length === 0) {
+      toast.error("Pilih minimal satu soal untuk latihan.");
+      setWizardStep(2);
+      return;
+    }
+    setWizardStep(target);
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (wizardStep !== 3) return;
+    const infoError = validateInformation();
+    if (infoError) {
+      toast.error(infoError);
+      setWizardStep(1);
+      return;
+    }
     if (!form.subject_id || form.question_ids.length === 0) {
       toast.error("Pilih mata pelajaran dan minimal satu soal.");
+      setWizardStep(2);
       return;
     }
     if (
@@ -298,9 +365,8 @@ function PracticeManagement() {
       setFormOpen(false);
       setEditing(null);
       setForm({ ...EMPTY_FORM });
-      setQuestionPage(1);
-      setQuestionSearch("");
-      setPreviewQuestion(null);
+      setSelectedQuestions([]);
+      setWizardStep(1);
       setLoading(true);
       await loadData();
     } catch (error) {
@@ -318,6 +384,7 @@ function PracticeManagement() {
           <p>
             Buat dan kelola latihan dari bank soal. Semua siswa dapat mengakses
             latihan yang terbit dan mengulanginya tanpa memengaruhi nilai Tryout.
+            Riwayat siswa tersedia dari daftar latihan.
           </p>
         </div>
         <button type="button" className="primary-button" onClick={openCreate}>
@@ -372,14 +439,14 @@ function PracticeManagement() {
               <div className="table-container">
                 <table className="score-table">
                   <colgroup>
-                    <col style={{ width: user?.role === "ADMIN" ? "25%" : "33%" }} />
-                    <col style={{ width: user?.role === "ADMIN" ? "14%" : "18%" }} />
-                    {user?.role === "ADMIN" && <col style={{ width: "13%" }} />}
+                    <col style={{ width: user?.role === "ADMIN" ? "23%" : "32%" }} />
+                    <col style={{ width: user?.role === "ADMIN" ? "13%" : "17%" }} />
+                    {user?.role === "ADMIN" && <col style={{ width: "10%" }} />}
+                    <col style={{ width: user?.role === "ADMIN" ? "7%" : "8%" }} />
+                    <col style={{ width: user?.role === "ADMIN" ? "7%" : "8%" }} />
                     <col style={{ width: "8%" }} />
-                    <col style={{ width: user?.role === "ADMIN" ? "8%" : "9%" }} />
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "10%" }} />
+                    <col style={{ width: user?.role === "ADMIN" ? "10%" : "9%" }} />
+                    <col style={{ width: user?.role === "ADMIN" ? "22%" : "18%" }} />
                   </colgroup>
                   <thead>
                     <tr>
@@ -456,13 +523,53 @@ function PracticeManagement() {
                             </button>
                             <button
                               type="button"
+                              className="review-button"
+                              onClick={() => loadPracticeHistory(practice)}
+                              title={`Riwayat pengerjaan ${practice.title}`}
+                              aria-label={`Riwayat pengerjaan ${practice.title}`}
+                              disabled={Boolean(actionPracticeId)}
+                            >
+                              <IconHistory size={16} />
+                            </button>
+                            <button
+                              type="button"
                               className="edit-button"
                               onClick={() => openEdit(practice)}
                               title={`Kelola ${practice.title}`}
-                              aria-label={`Kelola ${practice.title}`}
+                              aria-label={
+                                openingEditId === practice.id
+                                  ? `Memuat ${practice.title}`
+                                  : `Kelola ${practice.title}`
+                              }
+                              disabled={Boolean(actionPracticeId) || openingEditId === practice.id}
                             >
                               <IconEdit size={16} />
                             </button>
+                            {practice.status !== "ARCHIVED" && (
+                              <button
+                                type="button"
+                                className="practice-archive-button"
+                                onClick={() => handleArchivePractice(practice)}
+                                disabled={Boolean(actionPracticeId)}
+                              >
+                                {actionPracticeId === practice.id
+                                  ? "Memproses..."
+                                  : "Arsipkan"}
+                              </button>
+                            )}
+                            {practice.status === "DRAFT" &&
+                              practice.attempt_count === 0 && (
+                                <button
+                                  type="button"
+                                  className="delete-button"
+                                  onClick={() => handleDeletePractice(practice)}
+                                  title={`Hapus draf ${practice.title}`}
+                                  aria-label={`Hapus draf ${practice.title}`}
+                                  disabled={Boolean(actionPracticeId)}
+                                >
+                                  <IconTrash size={16} />
+                                </button>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -475,273 +582,24 @@ function PracticeManagement() {
         )}
       </section>
 
-      {formOpen && (
-        <div className="practice-modal-backdrop">
-          <section
-            className="practice-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="practice-form-title"
-          >
-            <header className="practice-modal-header">
-              <div>
-                <h2 id="practice-form-title">
-                  {editing ? "Kelola Latihan" : "Buat Latihan"}
-                </h2>
-                <p>Soal yang digunakan latihan tidak dapat dihapus permanen.</p>
-              </div>
-              <button
-                type="button"
-                className="practice-close"
-                onClick={closeForm}
-                aria-label="Tutup formulir"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </header>
-            <form onSubmit={handleSubmit}>
-              <fieldset disabled={saving} className="practice-form-fieldset">
-              <div className="practice-form-grid">
-                <label className="form-group">
-                  Nama latihan
-                  <input
-                    required
-                    maxLength={200}
-                    value={form.title}
-                    onChange={(event) =>
-                      setForm({ ...form, title: event.target.value })
-                    }
-                  />
-                </label>
-                <label className="form-group">
-                  Mata pelajaran
-                  <select
-                    required
-                    value={form.subject_id}
-                    onChange={(event) => {
-                      const subjectId = event.target.value;
-                      setQuestionPage(1);
-                      setQuestionLoadError("");
-                      setLoadingQuestions(Boolean(subjectId));
-                      if (!subjectId) {
-                        setQuestions([]);
-                        setQuestionTotal(0);
-                      }
-                      setForm({
-                        ...form,
-                        subject_id: subjectId,
-                        question_ids: [],
-                      });
-                    }}
-                    disabled={Boolean(editing?.attempt_count)}
-                  >
-                    <option value="">Pilih mata pelajaran</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <label className="form-group">
-                Deskripsi
-                <textarea
-                  rows={3}
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm({ ...form, description: event.target.value })
-                  }
-                />
-              </label>
-
-              <div className="practice-form-grid">
-                <label className="form-group">
-                  Status
-                  <select
-                    value={form.status}
-                    onChange={(event) =>
-                      setForm({ ...form, status: event.target.value })
-                    }
-                  >
-                    <option value="DRAFT">Draf — hanya terlihat pengelola</option>
-                    <option value="PUBLISHED">Terbit — dapat diakses siswa</option>
-                    <option value="ARCHIVED">Diarsipkan — tidak muncul untuk siswa</option>
-                  </select>
-                </label>
-                <div className="practice-shuffle-options">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={form.shuffle_questions}
-                      onChange={(event) =>
-                        setForm({ ...form, shuffle_questions: event.target.checked })
-                      }
-                    />
-                    Acak urutan soal
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={form.shuffle_options}
-                      onChange={(event) =>
-                        setForm({ ...form, shuffle_options: event.target.checked })
-                      }
-                    />
-                    Acak pilihan jawaban
-                  </label>
-                </div>
-              </div>
-
-              <div className="practice-question-picker">
-                <div className="practice-question-picker-heading">
-                  <div>
-                    <h3>Pilih soal</h3>
-                    <p>{form.question_ids.length} soal dipilih</p>
-                  </div>
-                </div>
-                {form.subject_id && (
-                  <label className="practice-question-search">
-                    <span className="sr-only">Cari soal</span>
-                    <input
-                      type="search"
-                      value={questionSearch}
-                      onChange={(event) => {
-                        setQuestionPage(1);
-                        setQuestionLoadError("");
-                        setLoadingQuestions(true);
-                        setQuestionSearch(event.target.value);
-                      }}
-                      placeholder="Cari teks soal"
-                    />
-                  </label>
-                )}
-                {!form.subject_id ? (
-                  <p className="practice-state">Pilih mata pelajaran terlebih dahulu.</p>
-                ) : questionLoadError ? (
-                  <div className="practice-state" role="alert">
-                    <p>{questionLoadError}</p>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={retryQuestionLoad}
-                    >
-                      Coba lagi
-                    </button>
-                  </div>
-                ) : loadingQuestions ? (
-                  <p className="practice-state">Memuat soal...</p>
-                ) : questions.length === 0 ? (
-                  <p className="practice-state">
-                    Belum ada soal untuk mata pelajaran ini. Tambahkan soal di Bank Soal.
-                  </p>
-                ) : (
-                  <div className="practice-question-list">
-                    {questions.map((question) => {
-                      const selected = form.question_ids.includes(question.id);
-                      return (
-                        <div
-                          key={question.id}
-                          className={`practice-question-option${selected ? " is-selected" : ""}`}
-                        >
-                          <label className="practice-question-select">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              disabled={
-                                Boolean(editing?.attempt_count) ||
-                                (!question.is_active && !selected)
-                              }
-                              onChange={() => toggleQuestion(question.id)}
-                            />
-                            <span>
-                              <strong>
-                                {question.question_text.replace(/<[^>]*>/g, "").slice(0, 180)}
-                                {question.question_text.length > 180 ? "…" : ""}
-                              </strong>
-                              <small>
-                                {question.question_type.replaceAll("_", " ")} ·{" "}
-                                {question.is_active ? "Aktif" : "Nonaktif"}
-                              </small>
-                            </span>
-                          </label>
-                          {selected && (
-                            <button
-                              type="button"
-                              className="practice-preview-trigger"
-                              onClick={() => setPreviewQuestion(question)}
-                            >
-                              Pratinjau
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {previewQuestion && (
-                  <section className="practice-question-preview" aria-live="polite">
-                    <div className="practice-preview-heading">
-                      <h4>Pratinjau soal</h4>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewQuestion(null)}
-                        aria-label="Tutup pratinjau soal"
-                      >
-                        Tutup
-                      </button>
-                    </div>
-                    <p>{previewQuestion.question_text}</p>
-                    {previewQuestion.has_image && (
-                      <QuestionImage questionId={previewQuestion.id} />
-                    )}
-                    <ol>
-                      {previewQuestion.options.map((option) => (
-                        <li key={option.option_code}>
-                          <strong>{option.option_code}.</strong> {option.option_text}
-                        </li>
-                      ))}
-                    </ol>
-                  </section>
-                )}
-                {!loadingQuestions && questions.length < questionTotal && (
-                  <button
-                    type="button"
-                    className="practice-load-more"
-                    onClick={() => {
-                      setQuestionLoadError("");
-                      setLoadingQuestions(true);
-                      setQuestionPage((page) => page + 1);
-                    }}
-                  >
-                    Muat soal berikutnya ({questions.length} dari {questionTotal})
-                  </button>
-                )}
-              </div>
-
-              <footer className="practice-modal-footer">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={closeForm}
-                  disabled={saving}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={saving || loadingQuestions}
-                >
-                  {saving ? "Menyimpan..." : "Simpan Latihan"}
-                </button>
-              </footer>
-              </fieldset>
-            </form>
-          </section>
-        </div>
-      )}
+      <PracticeFormWizardModal
+        show={formOpen}
+        close={closeForm}
+        step={wizardStep}
+        goToStep={goToStep}
+        editing={editing}
+        saving={saving}
+        form={form}
+        setForm={setForm}
+        subjects={subjects}
+        selectedQuestions={selectedQuestions}
+        onQuestionsChange={handleSelectedQuestionsChange}
+        onSubmit={handleSubmit}
+        defaultBankScope={user?.role === "GURU" ? "mine" : "all"}
+        onSelectionLimitReached={() =>
+          toast.error("Satu latihan maksimal 200 soal.")
+        }
+      />
 
       <TryoutReviewModal
         showReviewModal={Boolean(reviewPractice)}
@@ -756,6 +614,142 @@ function PracticeManagement() {
         reviewError={reviewError}
         retryReview={() => reviewPractice && loadPracticeReview(reviewPractice)}
       />
+
+      {historyPractice && (
+        <div className="modal-overlay practice-history-overlay">
+          <section
+            className="modal practice-history-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="practice-history-title"
+          >
+            <header className="practice-history-header">
+              <div>
+                <h2 id="practice-history-title">Riwayat Pengerjaan</h2>
+                <p>{historyPractice.title}</p>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Tutup riwayat pengerjaan"
+                onClick={closePracticeHistory}
+              >
+                ×
+              </button>
+            </header>
+
+            {historyLoading ? (
+              <div className="loading-message">Memuat riwayat pengerjaan...</div>
+            ) : historyError ? (
+              <div className="error-message" role="alert">
+                <p>{historyError}</p>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => loadPracticeHistory(historyPractice, historyOffset)}
+                >
+                  Coba lagi
+                </button>
+              </div>
+            ) : historyAttempts.length === 0 ? (
+              <div className="empty-message">
+                Belum ada siswa yang mengerjakan latihan ini.
+              </div>
+            ) : (
+              <>
+                <div className="practice-history-table-wrap">
+                  <table className="score-table practice-history-table">
+                    <thead>
+                      <tr>
+                        <th className="is-left">Siswa</th>
+                        <th className="is-left">Sekolah</th>
+                        <th>Status</th>
+                        <th>Mulai</th>
+                        <th>Selesai</th>
+                        <th>Benar</th>
+                        <th>Salah</th>
+                        <th>Kosong</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyAttempts.map((attempt) => (
+                        <tr key={attempt.attempt_id}>
+                          <td>
+                            <div className="score-primary is-strong">
+                              {attempt.student_name}
+                            </div>
+                            <div className="score-secondary">
+                              {attempt.student_code}
+                            </div>
+                          </td>
+                          <td>{attempt.school_name || "-"}</td>
+                          <td className="is-center">
+                            {attempt.status === "COMPLETED"
+                              ? "Selesai"
+                              : "Sedang dikerjakan"}
+                          </td>
+                          <td className="is-center is-nowrap">
+                            {formatDateTime(attempt.started_at)}
+                          </td>
+                          <td className="is-center is-nowrap">
+                            {formatDateTime(attempt.finished_at)}
+                          </td>
+                          {[
+                            attempt.correct_count,
+                            attempt.wrong_count,
+                            attempt.unanswered_count,
+                          ].map((count, index) => (
+                            <td className="is-center" key={`${attempt.attempt_id}-${index}`}>
+                              {attempt.status === "COMPLETED" ? count : "-"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="practice-history-pagination">
+                  <span>
+                    Menampilkan {historyOffset + 1}–
+                    {historyOffset + historyAttempts.length} dari {historyTotal} percobaan
+                  </span>
+                  <div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={historyLoading || historyOffset === 0}
+                      onClick={() =>
+                        loadPracticeHistory(
+                          historyPractice,
+                          Math.max(0, historyOffset - 50)
+                        )
+                      }
+                    >
+                      Sebelumnya
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={
+                        historyLoading ||
+                        historyOffset + historyAttempts.length >= historyTotal
+                      }
+                      onClick={() =>
+                        loadPracticeHistory(
+                          historyPractice,
+                          historyOffset + historyAttempts.length
+                        )
+                      }
+                    >
+                      Berikutnya
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,20 +9,30 @@
 
 ## Verifikasi frontend
 
-Jika mengubah frontend, jalankan build dari folder `frontend`:
+Tentukan level validasi berdasarkan risiko dan cakupan perubahan. Jalankan pemeriksaan secukupnya; jangan otomatis menjalankan seluruh build dan tes untuk setiap perubahan.
+
+### Level validasi
+
+1. **Teks/konten** — perubahan caption, judul, label, atau pesan tanpa mengubah perilaku. Periksa diff dan lint file yang diubah. Tidak perlu build atau tes logika.
+2. **Tampilan** — perubahan CSS, ukuran, jarak, atau tata letak tanpa mengubah alur data. Jalankan build dan lint file frontend yang diubah. Periksa tampilan desktop jika perubahan dapat memengaruhi keterbacaan, posisi, scroll, atau tombol.
+3. **Perilaku** — perubahan state, validasi input, interaksi, request API, atau alur pengguna. Jalankan tes terarah untuk perilaku yang diubah, ditambah build/lint frontend atau pemeriksaan backend yang relevan.
+4. **Data/akses/risiko tinggi** — perubahan model atau migrasi, transaksi database, izin akses, penghapusan, autentikasi, atau lintas layanan. Jalankan tes backend/integrasi terarah yang aman; periksa migrasi dan aturan akses. Jangan arahkan tes ke database default yang belum dipastikan aman.
+
+Naikkan level hanya jika perubahan menyentuh aspek tersebut. Untuk perubahan campuran, gunakan level tertinggi yang relevan. Jangan mengulang pemeriksaan yang sudah lulus tanpa perubahan lanjutan yang memengaruhinya; laporkan pemeriksaan yang dilewati beserta batas verifikasinya.
+
+Untuk perubahan frontend level 2 atau lebih, jalankan build dari folder `frontend`:
 
 ```powershell
 npm run build
 ```
 
-Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terverifikasi.
-Untuk perubahan frontend, jalankan build dan lint file yang diubah dalam satu pemanggilan dari folder `frontend`, misalnya:
+Pastikan build selesai tanpa error sebelum menyatakan perubahan frontend terverifikasi. Jalankan lint hanya pada file yang diubah. Build dan lint dapat dijalankan dalam satu pemanggilan dari folder `frontend`, misalnya:
 
 ```powershell
 npm run build; if ($?) { npm run lint -- src/components/SomeComponent.jsx src/services/api.js }
 ```
 
-Pilih hanya file yang memang diubah. Jangan mengulang build atau lint yang sudah lulus tanpa ada perubahan lanjutan yang memengaruhinya.
+Pilih hanya file yang memang diubah. Perubahan frontend level 1 cukup lint dan pemeriksaan diff; jangan menjalankan build atau tes logika kecuali ada dampak lain yang menjadikannya relevan.
 
 ## Pemeriksaan yang efektif
 
@@ -40,12 +50,13 @@ Pilih hanya file yang memang diubah. Jangan mengulang build atau lint yang sudah
 - Letakkan CSS khusus komponen di file CSS komponen dengan nama class yang ter-namespace. Hindari selector global baru dan perubahan luas di `App.css` kecuali memang memperbaiki sistem bersama. Untuk pola berulang, gunakan class/CSS bersama daripada menyalin inline style.
 - Buat halaman tetap rapi pada layar sempit: gunakan grid/flex yang dapat membungkus atau menjadi satu kolom, cegah teks/path panjang meluber, dan bungkus tabel lebar dengan area scroll horizontal. Ikuti breakpoint yang sudah dipakai di stylesheet terkait, bukan menambahkan breakpoint berbeda tanpa alasan.
 - Setiap alur data perlu tampilan yang jelas untuk loading, kosong, gagal, berhasil, dan aksi yang sedang berjalan. Nonaktifkan tombol selama aksi yang berkonflik dan tampilkan pesan yang menjelaskan tindakan berikutnya.
+- **Validasi UI laptop/desktop wajib dan menjadi prioritas utama.** Setelah perubahan UI, periksa tampilan serta alur utama pada viewport laptop/PC terlebih dahulu (disarankan 1366×768 atau 1280×720); pastikan judul, konten, navigasi, tombol aksi, dan area scroll terlihat serta dapat digunakan tanpa terpotong atau tertutup. Jangan melewatkan pemeriksaan desktop hanya karena tampilan HP sudah dicek. Pemeriksaan HP/mobile bersifat opsional kecuali diminta pengguna atau perubahan secara khusus memengaruhi breakpoint/perilaku mobile.
 - Modul Latihan terpisah dari Tryout dan nilai resmi. Latihan yang diterbitkan dapat diakses semua siswa; jangan menambahkan asumsi penugasan guru-ke-siswa/kelas yang tidak ada di model aplikasi.
 - Ikuti pola layout bersama serta komponen visual yang sudah tersedia untuk UI Admin/Guru/Siswa Latihan. Soal Tryout aktif tidak dimasukkan otomatis, dan kunci jawaban/pembahasan tidak boleh dikirim sebelum siswa menjawab soal.
 - Gunakan elemen semantik dan aksesibel: `button type="button"` untuk aksi, label yang terhubung ke input, nama aksesibel untuk kontrol ikon, fokus keyboard yang terlihat, serta `role`/atribut dialog yang sesuai. Jangan mengandalkan warna saja untuk menyampaikan status.
 - Semua tanggal yang ditampilkan kepada pengguna harus memakai format `dd-mm-yyyy`; tanggal dan waktu memakai `dd-mm-yyyy HH:mm`. Gunakan formatter bersama di `frontend/src/utils/date.js`, termasuk untuk dashboard/grafik, notifikasi, tabel, laporan, dan ekspor. Format API/database tetap ISO agar dapat diproses mesin.
 - Jaga hierarki informasi: judul dan deskripsi singkat, kelompokkan pengaturan terkait, gunakan label aksi spesifik, dan tampilkan peringatan dekat tindakan berdampak tinggi. Konfirmasi eksplisit diperlukan untuk aksi destruktif atau sulit dibatalkan.
-- Setelah perubahan UI, jalankan build frontend dan lint untuk file yang diubah. Jika aplikasi lokal dapat diakses, periksa tampilan desktop dan mobile serta state utama; jika terhalang login, data, atau konfigurasi, nyatakan batas verifikasi dan jangan mengklaim pemeriksaan visual sudah dilakukan.
+- Setelah perubahan UI, jalankan build frontend dan lint untuk file yang diubah. Jika aplikasi lokal dapat diakses, periksa tampilan desktop/laptop terlebih dahulu dan state utama; pemeriksaan mobile opsional kecuali diminta atau relevan dengan perubahan. Jika terhalang login, data, atau konfigurasi, nyatakan batas verifikasi dan jangan mengklaim pemeriksaan visual sudah dilakukan.
 
 ## Deployment
 
