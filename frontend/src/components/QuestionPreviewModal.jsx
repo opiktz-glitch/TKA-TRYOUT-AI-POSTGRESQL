@@ -27,7 +27,7 @@ function QuestionPreviewModal({ question, subjectName, difficultyLabel, onClose 
       <div className="modal review-modal" style={{ width: "700px", maxWidth: "96vw" }}>
         <div className="modal-header">
           <div>
-            <h2>Preview Soal</h2>
+            <h2>Pratinjau Soal</h2>
             <p>Tampilan soal beserta kunci jawaban dan pembahasan.</p>
           </div>
 

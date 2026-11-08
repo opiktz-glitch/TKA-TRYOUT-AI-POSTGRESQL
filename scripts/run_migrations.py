@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PostgreSQL migration runner for schema versions v01 through v05."""
+"""PostgreSQL migration runner for schema versions v01 through v06."""
 
 import argparse
 import sys
@@ -81,7 +81,7 @@ def apply_sql_file(conn, filepath: Path):
                 raise e
 
 
-def run_migrations(target_version: str = "v05", check_only: bool = False):
+def run_migrations(target_version: str = "v06", check_only: bool = False):
     migrations_dir = ROOT_DIR / "migrations"
     dialect = engine.dialect.name
     print(f"==================================================")
@@ -91,7 +91,7 @@ def run_migrations(target_version: str = "v05", check_only: bool = False):
 
     with engine.begin() as conn:
         current_version = get_current_schema_version(conn)
-        if current_version not in {"none", "v01", "v02", "v03", "v04", "v05"}:
+        if current_version not in {"none", "v01", "v02", "v03", "v04", "v05", "v06"}:
             raise RuntimeError(
                 f"Versi skema tidak dikenal: {current_version!r}. "
                 "Periksa nilai app:schema_version sebelum melanjutkan."
@@ -107,6 +107,7 @@ def run_migrations(target_version: str = "v05", check_only: bool = False):
         v03_file = migrations_dir / "v03_optimize_concurrency_indexes_pgk.sql"
         v04_file = migrations_dir / "v04_anti_cheat_telemetry.sql"
         v05_file = migrations_dir / "v05_practice_module.sql"
+        v06_file = migrations_dir / "v06_practice_draft_answers.sql"
         target_number = int(target_version[1:])
 
         if current_version == "none":
@@ -134,7 +135,12 @@ def run_migrations(target_version: str = "v05", check_only: bool = False):
             apply_sql_file(conn, v05_file)
             current_version = "v05"
 
-        if current_version in {"v03", "v04", "v05"}:
+        if current_version == "v05" and target_number >= 6:
+            print("\n[MIGRASI] Mengaplikasikan Upgrade v05 -> v06...")
+            apply_sql_file(conn, v06_file)
+            current_version = "v06"
+
+        if current_version in {"v03", "v04", "v05", "v06"}:
             conn.execute(
                 text(
                     """
@@ -158,9 +164,9 @@ def main():
     parser = argparse.ArgumentParser(description="TKA TryOut Database Migrator")
     parser.add_argument(
         "--target",
-        choices=["v01", "v02", "v03", "v04", "v05"],
-        default="v05",
-        help="Target schema version (default: v05)",
+        choices=["v01", "v02", "v03", "v04", "v05", "v06"],
+        default="v06",
+        help="Target schema version (default: v06)",
     )
     parser.add_argument(
         "--check",

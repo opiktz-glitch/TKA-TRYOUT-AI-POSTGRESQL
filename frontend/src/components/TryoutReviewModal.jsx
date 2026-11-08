@@ -8,7 +8,11 @@ export default function TryoutReviewModal({
   loadingReview,
   reviewData,
   reviewTab,
-  setReviewTab
+  setReviewTab,
+  title = "Review Soal Tryout",
+  description = "Pratinjau soal yang akan ditampilkan dalam tryout ini. Gunakan tab di bawah untuk melihat soal polos atau kunci jawaban & pembahasan.",
+  reviewError = "",
+  retryReview
 }) {
   if (!showReviewModal) return null;
 
@@ -26,12 +30,8 @@ export default function TryoutReviewModal({
           >
             <div className="modal-header no-print">
               <div>
-                <h2>Review Soal Tryout</h2>
-                <p>
-                  Pratinjau soal yang akan ditampilkan dalam tryout ini.
-                  Gunakan tab di bawah untuk melihat soal polos atau kunci
-                  jawaban & pembahasan.
-                </p>
+                <h2>{title}</h2>
+                <p>{description}</p>
               </div>
 
               <div style={{ display: "flex", gap: "8px" }}>
@@ -88,14 +88,31 @@ export default function TryoutReviewModal({
               <div className="loading-message">Memuat soal...</div>
             )}
 
+            {!loadingReview && reviewError && (
+              <div className="error-message" role="alert">
+                <p>{reviewError}</p>
+                {retryReview && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={retryReview}
+                  >
+                    Coba lagi
+                  </button>
+                )}
+              </div>
+            )}
+
             {!loadingReview && reviewData && reviewTab === "soal" && (
               <div className="review-print-page">
                 <div className="review-print-header">
                   <h3>{reviewData.title}</h3>
                   <div className="review-print-meta">
                     <span>Mapel: {reviewData.subject_name}</span>
-                    <span>Kelas: {reviewData.grade || "-"}</span>
-                    <span>Durasi: {reviewData.duration_minutes} menit</span>
+                    {reviewData.grade && <span>Kelas: {reviewData.grade}</span>}
+                    {reviewData.duration_minutes != null && (
+                      <span>Durasi: {reviewData.duration_minutes} menit</span>
+                    )}
                     <span>Jumlah Soal: {reviewData.total_questions}</span>
                   </div>
                 </div>
@@ -185,7 +202,7 @@ export default function TryoutReviewModal({
                   <h3>{reviewData.title} — Kunci Jawaban &amp; Pembahasan</h3>
                   <div className="review-print-meta">
                     <span>Mapel: {reviewData.subject_name}</span>
-                    <span>Kelas: {reviewData.grade || "-"}</span>
+                    {reviewData.grade && <span>Kelas: {reviewData.grade}</span>}
                     <span>Jumlah Soal: {reviewData.total_questions}</span>
                   </div>
                 </div>

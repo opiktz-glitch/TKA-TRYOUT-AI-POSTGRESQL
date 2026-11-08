@@ -593,6 +593,7 @@ class PracticeAnswer(Base):
     )
     selected_option = Column(Text, nullable=False)
     is_correct = Column(Boolean, nullable=False)
+    is_checked = Column(Boolean, nullable=False, default=True)
     answered_at = Column(DateTime, nullable=False, default=utc_now)
 
     __table_args__ = (

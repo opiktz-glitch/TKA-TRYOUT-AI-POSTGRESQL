@@ -592,6 +592,7 @@ class PracticeAttemptQuestion(BaseModel):
     has_image: bool
     options: list[PracticeAttemptQuestionOption] = Field(default_factory=list)
     selected_option: str | None = None
+    is_checked: bool = False
     is_correct: bool | None = None
     correct_option_codes: list[str] | None = None
     correct_answers: list[str] | None = None
@@ -617,6 +618,11 @@ class PracticeAnswerRequest(BaseModel):
     selected_option: str = Field(min_length=1, max_length=2000)
 
 
+class PracticeDraftAnswerRequest(BaseModel):
+    question_id: int
+    selected_option: str = Field(max_length=2000)
+
+
 class PracticeAnswerResponse(BaseModel):
     question_id: int
     selected_option: str
@@ -624,6 +630,12 @@ class PracticeAnswerResponse(BaseModel):
     correct_option_codes: list[str] = Field(default_factory=list)
     correct_answers: list[str] = Field(default_factory=list)
     explanation: str | None = None
+
+
+class PracticeDraftAnswerResponse(BaseModel):
+    question_id: int
+    selected_option: str
+    is_checked: bool = False
 
 
 class PracticeAttemptFinishResponse(BaseModel):

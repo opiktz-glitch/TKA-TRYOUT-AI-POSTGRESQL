@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../auth/AuthContext";
 import QuestionImage from "../components/QuestionImage";
+import TryoutReviewModal from "../components/TryoutReviewModal";
 import {
   createPractice,
+  getPracticeReview,
   getPractices,
   getPracticeQuestionOptions,
   getSubjects,
   updatePractice,
 } from "../services/api";
+import { IconEdit, IconEye } from "../components/Icons";
+import "../components/ScoreTable.css";
 import "./PracticeManagement.css";
 
 const EMPTY_FORM = {
@@ -44,8 +48,14 @@ function PracticeManagement() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
   const [previewQuestion, setPreviewQuestion] = useState(null);
+  const [reviewPractice, setReviewPractice] = useState(null);
+  const [reviewData, setReviewData] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewTab, setReviewTab] = useState("soal");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const reviewRequest = useRef(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -174,6 +184,42 @@ function PracticeManagement() {
     });
   }
 
+  async function loadPracticeReview(practice) {
+    const requestId = reviewRequest.current + 1;
+    reviewRequest.current = requestId;
+    setReviewPractice(practice);
+    setReviewData(null);
+    setReviewError("");
+    setReviewLoading(true);
+    setReviewTab("soal");
+    try {
+      const data = await getPracticeReview(practice.id);
+      if (reviewRequest.current === requestId) {
+        setReviewData(data);
+      }
+    } catch (error) {
+      if (reviewRequest.current === requestId) {
+        setReviewError(error.message || "Gagal memuat review soal latihan.");
+      }
+    } finally {
+      if (reviewRequest.current === requestId) {
+        setReviewLoading(false);
+      }
+    }
+  }
+
+  function closePracticeReview() {
+    reviewRequest.current += 1;
+    setReviewPractice(null);
+    setReviewData(null);
+    setReviewError("");
+    setReviewLoading(false);
+  }
+
+  function printPracticeReview() {
+    window.print();
+  }
+
   function closeForm() {
     if (saving) return;
     setEditing(null);
@@ -266,98 +312,166 @@ function PracticeManagement() {
 
   return (
     <div className="practice-page">
-      <header className="practice-page-header">
+      <header className="page-header management-page-header">
         <div>
           <h1>Latihan Siswa</h1>
           <p>
-            Buat latihan dari bank soal. Latihan terbit dapat diakses semua siswa
-            dan tidak masuk ke rekap nilai Tryout.
+            Buat dan kelola latihan dari bank soal. Semua siswa dapat mengakses
+            latihan yang terbit dan mengulanginya tanpa memengaruhi nilai Tryout.
           </p>
         </div>
         <button type="button" className="primary-button" onClick={openCreate}>
-          + Buat Latihan
+          + Tambah Latihan
         </button>
       </header>
 
-      <section className="practice-panel" aria-label="Daftar latihan">
-        <div className="practice-toolbar">
-          <label className="practice-search">
-            <span className="sr-only">Cari latihan</span>
-            <input
-              type="search"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              placeholder="Cari nama latihan atau mata pelajaran"
-            />
-          </label>
-          <span>{filteredPractices.length} latihan</span>
+      <section className="score-card" aria-label="Daftar latihan">
+        <div className="question-filter management-list-filter">
+          <div className="question-filter-row question-filter-row-primary">
+            <div className="filter-group">
+              <label className="sr-only" htmlFor="practice-search">
+                Cari latihan
+              </label>
+              <input
+                id="practice-search"
+                type="search"
+                className="search-input"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                placeholder="Cari judul latihan atau mata pelajaran..."
+              />
+            </div>
+          </div>
         </div>
 
         {loading ? (
-          <p className="practice-state">Memuat daftar latihan...</p>
+          <div className="loading-message">Memuat daftar latihan...</div>
         ) : loadError ? (
-          <div className="practice-state" role="alert">
+          <div className="error-message" role="alert">
             <p>{loadError}</p>
             <button type="button" className="secondary-button" onClick={retryLoadData}>
               Coba lagi
             </button>
           </div>
-        ) : filteredPractices.length === 0 ? (
-          <p className="practice-state">
-            {practices.length
-              ? "Tidak ada latihan yang cocok dengan pencarian."
-              : "Belum ada latihan. Buat latihan pertama dari soal yang tersedia."}
-          </p>
         ) : (
-          <div className="practice-table-wrap">
-            <table className="practice-table">
-              <thead>
-                <tr>
-                  <th>Nama latihan</th>
-                  <th>Mata pelajaran</th>
-                  {user?.role === "ADMIN" && <th>Pembuat</th>}
-                  <th>Soal</th>
-                  <th>Siswa</th>
-                  <th>Percobaan</th>
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPractices.map((practice) => (
-                  <tr key={practice.id}>
-                    <td>
-                      <strong>{practice.title}</strong>
-                      {practice.description && (
-                        <span className="practice-description">
-                          {practice.description}
-                        </span>
-                      )}
-                    </td>
-                    <td>{practice.subject_name}</td>
-                    {user?.role === "ADMIN" && <td>{practice.created_by_name}</td>}
-                    <td>{practice.question_count}</td>
-                    <td>{practice.student_count}</td>
-                    <td>{practice.attempt_count}</td>
-                    <td>
-                      <span className={`practice-status is-${practice.status.toLowerCase()}`}>
-                        {STATUS_LABELS[practice.status] || practice.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => openEdit(practice)}
-                      >
-                        Kelola
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="score-meta">
+              <span>
+                {filteredPractices.length} latihan
+                {filter.trim() ? " ditemukan" : ""}
+              </span>
+            </div>
+
+            {filteredPractices.length === 0 ? (
+              <div className="empty-message">
+                {practices.length
+                  ? "Latihan tidak ditemukan. Coba kata kunci lain."
+                  : "Belum ada latihan. Pilih “Tambah Latihan” untuk membuat latihan pertama."}
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="score-table">
+                  <colgroup>
+                    <col style={{ width: user?.role === "ADMIN" ? "25%" : "33%" }} />
+                    <col style={{ width: user?.role === "ADMIN" ? "14%" : "18%" }} />
+                    {user?.role === "ADMIN" && <col style={{ width: "13%" }} />}
+                    <col style={{ width: "8%" }} />
+                    <col style={{ width: user?.role === "ADMIN" ? "8%" : "9%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="is-left">Latihan</th>
+                      <th className="is-left">Mata Pelajaran</th>
+                      {user?.role === "ADMIN" && <th className="is-left">Pembuat</th>}
+                      <th>Soal</th>
+                      <th>Siswa</th>
+                      <th>Percobaan</th>
+                      <th>Status</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPractices.map((practice) => (
+                      <tr key={practice.id}>
+                        <td>
+                          <div
+                            className="score-primary is-strong score-ellipsis"
+                            title={practice.title}
+                          >
+                            {practice.title}
+                          </div>
+                          {practice.description && (
+                            <div
+                              className="score-secondary score-ellipsis"
+                              title={practice.description}
+                            >
+                              {practice.description}
+                            </div>
+                          )}
+                        </td>
+                        <td className="score-ellipsis" title={practice.subject_name}>
+                          {practice.subject_name}
+                        </td>
+                        {user?.role === "ADMIN" && (
+                          <td
+                            className="score-ellipsis"
+                            title={practice.created_by_name}
+                          >
+                            {practice.created_by_name}
+                          </td>
+                        )}
+                        <td className="is-center is-nowrap">
+                          <span className="score-value">{practice.question_count}</span>
+                        </td>
+                        <td className="is-center is-nowrap">{practice.student_count}</td>
+                        <td className="is-center is-nowrap">{practice.attempt_count}</td>
+                        <td className="is-center">
+                          <span
+                            className={`score-badge ${
+                              practice.status === "PUBLISHED"
+                                ? "is-pass"
+                                : "is-none"
+                            }`}
+                          >
+                            {STATUS_LABELS[practice.status] || practice.status}
+                          </span>
+                        </td>
+                        <td className="is-center is-nowrap">
+                          <div className="action-buttons management-table-actions">
+                            <button
+                              type="button"
+                              className="review-button"
+                              onClick={() => loadPracticeReview(practice)}
+                              title={`Review soal ${practice.title}`}
+                              aria-label={`Review soal ${practice.title}`}
+                              disabled={
+                                reviewLoading ||
+                                !practice.question_ids?.length
+                              }
+                            >
+                              <IconEye size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="edit-button"
+                              onClick={() => openEdit(practice)}
+                              title={`Kelola ${practice.title}`}
+                              aria-label={`Kelola ${practice.title}`}
+                            >
+                              <IconEdit size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -628,6 +742,20 @@ function PracticeManagement() {
           </section>
         </div>
       )}
+
+      <TryoutReviewModal
+        showReviewModal={Boolean(reviewPractice)}
+        closeReviewModal={closePracticeReview}
+        handlePrintReview={printPracticeReview}
+        loadingReview={reviewLoading}
+        reviewData={reviewData}
+        reviewTab={reviewTab}
+        setReviewTab={setReviewTab}
+        title="Review Soal Latihan"
+        description="Pratinjau seluruh soal dalam latihan ini. Gunakan tab untuk melihat soal atau kunci jawaban dan pembahasan; cetak tab yang sedang dibuka ke PDF."
+        reviewError={reviewError}
+        retryReview={() => reviewPractice && loadPracticeReview(reviewPractice)}
+      />
     </div>
   );
 }

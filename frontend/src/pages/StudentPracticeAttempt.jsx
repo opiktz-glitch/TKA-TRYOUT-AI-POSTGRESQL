@@ -6,6 +6,7 @@ import {
   answerPracticeQuestion,
   finishPracticeAttempt,
   getPracticeAttempt,
+  savePracticeAnswerDraft,
 } from "../services/api";
 import "./StudentPracticeAttempt.css";
 
@@ -21,6 +22,21 @@ function parseTrueFalse(value) {
   );
 }
 
+function isPracticeAnswerComplete(question, selectedOption) {
+  if (!selectedOption) return false;
+  if (question.question_type !== "TRUE_FALSE") return true;
+  const selectedCodes = new Set(
+    selectedOption
+      .split(",")
+      .map((part) => part.split(":", 1)[0])
+      .filter(Boolean)
+  );
+  return (
+    selectedCodes.size === question.options.length &&
+    question.options.every((option) => selectedCodes.has(option.option_code))
+  );
+}
+
 function StudentPracticeAttempt() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -30,6 +46,7 @@ function StudentPracticeAttempt() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selections, setSelections] = useState({});
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [finishing, setFinishing] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -84,9 +101,45 @@ function StudentPracticeAttempt() {
     [selection]
   );
 
-  function updateSelection(value) {
-    if (!question) return;
+  async function updateSelection(value) {
+    if (!question || saving || finishing) return;
     setSelections((current) => ({ ...current, [question.id]: value }));
+    setSaveError("");
+    setAttempt((current) => {
+      const questions = current.questions.map((item) =>
+        item.id === question.id
+          ? {
+              ...item,
+              selected_option: value,
+              is_checked: false,
+              is_correct: null,
+              correct_option_codes: null,
+              correct_answers: null,
+              explanation: null,
+            }
+          : item
+      );
+      return {
+        ...current,
+        current_answers: questions.filter((item) =>
+          isPracticeAnswerComplete(item, item.selected_option)
+        ).length,
+        questions,
+      };
+    });
+
+    setSaving(true);
+    try {
+      await savePracticeAnswerDraft(attemptId, {
+        question_id: question.id,
+        selected_option: value,
+      });
+    } catch (requestError) {
+      setSaveError(requestError.message || "Jawaban belum tersimpan.");
+      toast.error(requestError.message || "Jawaban belum tersimpan.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function toggleMultipleResponse(code) {
@@ -120,33 +173,37 @@ function StudentPracticeAttempt() {
       return;
     }
     setSaving(true);
+    setSaveError("");
     try {
       const answer = await answerPracticeQuestion(attemptId, {
         question_id: question.id,
         selected_option: selection,
       });
-      setAttempt((current) => ({
-        ...current,
-        current_answers: current.questions.filter(
-          (item) => item.selected_option
-        ).length + (question.selected_option ? 0 : 1),
-        correct_count:
-          current.correct_count -
-          (question.is_correct ? 1 : 0) +
-          (answer.is_correct ? 1 : 0),
-        questions: current.questions.map((item) =>
+      setAttempt((current) => {
+        const questions = current.questions.map((item) =>
           item.id === question.id
             ? {
                 ...item,
                 selected_option: answer.selected_option,
+                is_checked: true,
                 is_correct: answer.is_correct,
                 correct_option_codes: answer.correct_option_codes,
                 correct_answers: answer.correct_answers,
                 explanation: answer.explanation,
               }
             : item
-        ),
-      }));
+        );
+        const answered = questions.filter((item) =>
+          isPracticeAnswerComplete(item, item.selected_option)
+        );
+        return {
+          ...current,
+          current_answers: answered.length,
+          correct_count: answered.filter((item) => item.is_correct).length,
+          wrong_count: answered.filter((item) => !item.is_correct).length,
+          questions,
+        };
+      });
     } catch (requestError) {
       toast.error(requestError.message || "Jawaban belum tersimpan.");
     } finally {
@@ -235,8 +292,14 @@ function StudentPracticeAttempt() {
             <article key={item.id} className="student-attempt-review-item">
               <h3>Soal {index + 1}</h3>
               <p>{item.question_text}</p>
-              <strong className={item.is_correct ? "is-correct" : "is-wrong"}>
-                {item.selected_option
+              <strong
+                className={
+                  isPracticeAnswerComplete(item, item.selected_option)
+                    ? item.is_correct ? "is-correct" : "is-wrong"
+                    : ""
+                }
+              >
+                {isPracticeAnswerComplete(item, item.selected_option)
                   ? item.is_correct ? "Benar" : "Belum tepat"
                   : "Tidak dijawab"}
               </strong>
@@ -275,14 +338,6 @@ function StudentPracticeAttempt() {
           </button>
           <h1>{attempt.title}</h1>
         </div>
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={finishAttempt}
-          disabled={finishing || saving}
-        >
-          {finishing ? "Menyelesaikan..." : "Selesaikan latihan"}
-        </button>
       </header>
 
       <div className="student-attempt-progress">
@@ -304,131 +359,172 @@ function StudentPracticeAttempt() {
         />
       </div>
 
-      {question && (
-        <section className="student-attempt-question">
-          <div className="student-attempt-question-heading">
-            <span>Soal {question.question_number}</span>
-            <span>{question.question_type.replaceAll("_", " ")}</span>
-          </div>
-          <p className="student-attempt-question-text">{question.question_text}</p>
-          {question.has_image && <QuestionImage questionId={question.id} />}
-
-          <form onSubmit={submitAnswer}>
-            <div className="student-attempt-options">
-              {question.options.map((option) => {
-                if (question.question_type === "TRUE_FALSE") {
-                  return (
-                    <fieldset className="student-attempt-true-false" key={option.option_code}>
-                      <legend>{option.option_code}. {option.option_text}</legend>
-                      {[
-                        ["T", question.true_label || "Benar"],
-                        ["F", question.false_label || "Salah"],
-                      ].map(([value, label]) => (
-                        <label key={value}>
-                          <input
-                            type="radio"
-                            name={`answer-${question.id}-${option.option_code}`}
-                            value={value}
-                            checked={trueFalseSelection[option.option_code] === value}
-                            onChange={() => setTrueFalseAnswer(option.option_code, value)}
-                            disabled={saving || finishing}
-                          />
-                          {label}
-                        </label>
-                      ))}
-                    </fieldset>
-                  );
-                }
-
-                const checked = question.question_type === "MULTIPLE_RESPONSE"
-                  ? selection.split(",").includes(option.option_code)
-                  : selection === option.option_code;
-                return (
-                  <label className="student-attempt-option" key={option.option_code}>
-                    <input
-                      type={question.question_type === "MULTIPLE_RESPONSE" ? "checkbox" : "radio"}
-                      name={`answer-${question.id}`}
-                      value={option.option_code}
-                      checked={checked}
-                      onChange={() =>
-                        question.question_type === "MULTIPLE_RESPONSE"
-                          ? toggleMultipleResponse(option.option_code)
-                          : updateSelection(option.option_code)
-                      }
-                      disabled={saving || finishing}
-                    />
-                    <span><strong>{option.option_code}.</strong> {option.option_text}</span>
-                  </label>
-                );
-              })}
+      <div className="student-attempt-workspace">
+        {question && (
+          <section className="student-attempt-question">
+            <div className="student-attempt-question-heading">
+              <span>Soal {question.question_number}</span>
+              <span>{question.question_type.replaceAll("_", " ")}</span>
             </div>
+            <p className="student-attempt-question-text">{question.question_text}</p>
+            {question.has_image && <QuestionImage questionId={question.id} />}
 
-            {question.selected_option && (
-              <div
-                className={`student-attempt-feedback ${question.is_correct ? "is-correct" : "is-wrong"}`}
-                role="status"
-              >
-                <strong>{question.is_correct ? "Jawaban benar" : "Jawaban belum tepat"}</strong>
-                {correctAnswerLabels?.length > 0 && (
-                  <p>Jawaban benar: {correctAnswerLabels.join("; ")}</p>
-                )}
-                {question.explanation && <p>{question.explanation}</p>}
-              </div>
-            )}
-
-            <div className="student-attempt-actions">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={saving || finishing || !selection}
-              >
-                {saving ? "Menyimpan jawaban..." : "Periksa jawaban"}
-              </button>
-              <div className="student-attempt-nav">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}
-                  disabled={questionIndex === 0 || saving || finishing}
-                >
-                  Sebelumnya
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    setQuestionIndex((index) =>
-                      Math.min(attempt.questions.length - 1, index + 1)
-                    )
+            <form onSubmit={submitAnswer}>
+              <div className="student-attempt-options">
+                {question.options.map((option) => {
+                  if (question.question_type === "TRUE_FALSE") {
+                    return (
+                      <fieldset className="student-attempt-true-false" key={option.option_code}>
+                        <legend>{option.option_code}. {option.option_text}</legend>
+                        {[
+                          ["T", question.true_label || "Benar"],
+                          ["F", question.false_label || "Salah"],
+                        ].map(([value, label]) => (
+                          <label key={value}>
+                            <input
+                              type="radio"
+                              name={`answer-${question.id}-${option.option_code}`}
+                              value={value}
+                              checked={trueFalseSelection[option.option_code] === value}
+                              onChange={() => setTrueFalseAnswer(option.option_code, value)}
+                              disabled={saving || finishing}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </fieldset>
+                    );
                   }
-                  disabled={questionIndex >= attempt.questions.length - 1 || saving || finishing}
-                >
-                  Berikutnya
-                </button>
-              </div>
-            </div>
-          </form>
-        </section>
-      )}
 
-      <nav className="student-attempt-question-nav" aria-label="Pilih nomor soal">
-        {attempt.questions.map((item, index) => (
+                  const checked = question.question_type === "MULTIPLE_RESPONSE"
+                    ? selection.split(",").includes(option.option_code)
+                    : selection === option.option_code;
+                  return (
+                    <label className="student-attempt-option" key={option.option_code}>
+                      <input
+                        type={question.question_type === "MULTIPLE_RESPONSE" ? "checkbox" : "radio"}
+                        name={`answer-${question.id}`}
+                        value={option.option_code}
+                        checked={checked}
+                        onChange={() =>
+                          question.question_type === "MULTIPLE_RESPONSE"
+                            ? toggleMultipleResponse(option.option_code)
+                            : updateSelection(option.option_code)
+                        }
+                        disabled={saving || finishing}
+                      />
+                      <span><strong>{option.option_code}.</strong> {option.option_text}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {question.is_checked && question.selected_option === selection && (
+                <div
+                  className={`student-attempt-feedback ${question.is_correct ? "is-correct" : "is-wrong"}`}
+                  role="status"
+                >
+                  <strong>{question.is_correct ? "Jawaban benar" : "Jawaban belum tepat"}</strong>
+                  {correctAnswerLabels?.length > 0 && (
+                    <p>Jawaban benar: {correctAnswerLabels.join("; ")}</p>
+                  )}
+                  {question.explanation && <p>{question.explanation}</p>}
+                </div>
+              )}
+
+              <div className="student-attempt-actions">
+                <p className="student-attempt-save-status" aria-live="polite">
+                  {saveError
+                    ? "Pilihan belum tersimpan."
+                    : saving
+                      ? "Menyimpan jawaban..."
+                      : "Pilihan tersimpan otomatis."}
+                </p>
+                {saveError && (
+                  <div className="student-attempt-save-error" role="alert">
+                    <span>{saveError}</span>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => updateSelection(selection)}
+                      disabled={saving || finishing}
+                    >
+                      Coba simpan lagi
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={saving || finishing || !selection}
+                >
+                  Periksa jawaban
+                </button>
+                <div className="student-attempt-nav">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}
+                    disabled={questionIndex === 0 || saving || finishing}
+                  >
+                    Sebelumnya
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      setQuestionIndex((index) =>
+                        Math.min(attempt.questions.length - 1, index + 1)
+                      )
+                    }
+                    disabled={questionIndex >= attempt.questions.length - 1 || saving || finishing}
+                  >
+                    Berikutnya
+                  </button>
+                </div>
+              </div>
+            </form>
+          </section>
+        )}
+
+        <aside className="student-attempt-sidebar">
+          <nav className="student-attempt-question-nav" aria-label="Pilih nomor soal">
+            <p>Navigasi Soal</p>
+            <div className="student-attempt-question-nav-grid">
+              {attempt.questions.map((item, index) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={[
+                    index === questionIndex ? "is-current" : "",
+                    isPracticeAnswerComplete(item, item.selected_option)
+                      ? "is-answered"
+                      : "",
+                  ].filter(Boolean).join(" ")}
+                  aria-label={`Soal ${index + 1}${isPracticeAnswerComplete(item, item.selected_option) ? ", sudah dijawab" : ", belum dijawab"}`}
+                  aria-current={index === questionIndex ? "step" : undefined}
+                  onClick={() => setQuestionIndex(index)}
+                  disabled={saving || finishing}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+            <p className="student-attempt-question-nav-summary">
+              {attempt.current_answers} terjawab,{" "}
+              {attempt.question_count - attempt.current_answers} belum dijawab
+            </p>
+          </nav>
           <button
             type="button"
-            key={item.id}
-            className={[
-              index === questionIndex ? "is-current" : "",
-              item.selected_option ? "is-answered" : "",
-            ].filter(Boolean).join(" ")}
-            aria-label={`Soal ${index + 1}${item.selected_option ? ", sudah dijawab" : ", belum dijawab"}`}
-            aria-current={index === questionIndex ? "step" : undefined}
-            onClick={() => setQuestionIndex(index)}
-            disabled={saving || finishing}
+            className="primary-button student-attempt-finish"
+            onClick={finishAttempt}
+            disabled={finishing || saving || Boolean(saveError)}
           >
-            {index + 1}
+            {finishing ? "Menyelesaikan..." : "Selesaikan latihan"}
           </button>
-        ))}
-      </nav>
+        </aside>
+      </div>
     </div>
   );
 }

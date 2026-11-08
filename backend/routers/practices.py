@@ -24,6 +24,8 @@ from schemas import (
     PracticeAttemptQuestion,
     PracticeAttemptQuestionOption,
     PracticeAttemptStartResponse,
+    PracticeDraftAnswerResponse,
+    PracticeDraftAnswerRequest,
     PracticeManagementListResponse,
     PracticeManagementResponse,
     PracticeQuestionPickerResponse,
@@ -58,6 +60,23 @@ def _practice_or_404(
             detail="Guru hanya dapat mengelola latihan yang dibuat sendiri.",
         )
     return practice
+
+
+def _is_practice_answer_complete(
+    question_type: str,
+    selected_option: str,
+    option_codes: set[str],
+) -> bool:
+    if not selected_option:
+        return False
+    if question_type != "TRUE_FALSE":
+        return True
+    selected_codes = {
+        part.split(":", 1)[0]
+        for part in selected_option.split(",")
+        if ":" in part
+    }
+    return selected_codes == option_codes
 
 
 def _validate_questions(
@@ -202,6 +221,79 @@ def list_practices(
     return PracticeManagementListResponse(
         practices=_management_items(db, practices)
     )
+
+
+@router.get("/api/practices/{practice_id}/review")
+def get_practice_review(
+    practice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN", "GURU")),
+):
+    practice = db.query(Practice).filter(Practice.id == practice_id).first()
+    if not practice:
+        raise HTTPException(status_code=404, detail="Latihan tidak ditemukan.")
+    if current_user.role == "GURU" and practice.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Guru hanya dapat mengelola latihan yang dibuat sendiri.",
+        )
+    subject = db.query(Subject).filter(Subject.id == practice.subject_id).first()
+    practice_questions = (
+        db.query(
+            PracticeQuestion.question_number,
+            Question.id.label("question_id"),
+            Question.question_text,
+            Question.question_type,
+            Question.true_label,
+            Question.false_label,
+            Question.points,
+            Question.explanation,
+            Question.image_data.is_not(None).label("has_image"),
+        )
+        .join(Question, Question.id == PracticeQuestion.question_id)
+        .filter(PracticeQuestion.practice_id == practice.id)
+        .order_by(PracticeQuestion.question_number)
+        .all()
+    )
+    question_ids = [question.question_id for question in practice_questions]
+    options_by_question: dict[int, list[dict[str, str | bool]]] = defaultdict(list)
+    if question_ids:
+        for option in (
+            db.query(QuestionOption)
+            .filter(QuestionOption.question_id.in_(question_ids))
+            .order_by(QuestionOption.question_id, QuestionOption.option_code)
+            .all()
+        ):
+            options_by_question[option.question_id].append(
+                {
+                    "option_code": option.option_code,
+                    "option_text": option.option_text,
+                    "is_correct": option.is_correct,
+                }
+            )
+
+    return {
+        "id": practice.id,
+        "title": practice.title,
+        "description": practice.description,
+        "subject_name": subject.name if subject else "-",
+        "total_questions": len(practice_questions),
+        "questions": [
+            {
+                "question_number": question.question_number,
+                "question_id": question.question_id,
+                "question_text": question.question_text,
+                "question_type": question.question_type,
+                "true_label": question.true_label or "Benar",
+                "false_label": question.false_label or "Salah",
+                "points": question.points,
+                "explanation": question.explanation,
+                "has_image": question.has_image,
+                "options": options_by_question.get(question.question_id, []),
+            }
+            for question in practice_questions
+        ],
+    }
 
 
 @router.get(
@@ -697,6 +789,8 @@ def _attempt_detail(
         options_by_question_id[option.question_id].append(option)
 
     questions = []
+    answered_count = 0
+    correct_count = 0
     for question_number, question_id in enumerate(question_ids, start=1):
         question = questions_by_id.get(question_id)
         if not question or question_id not in linked_questions:
@@ -717,7 +811,22 @@ def _attempt_detail(
         ]
         correct_codes = sorted(option.option_code for option in correct_options)
         correct_answers = None
-        reveal_feedback = answer is not None
+        if answer and not answer.selected_option:
+            answer = None
+        is_answered = bool(
+            answer
+            and _is_practice_answer_complete(
+                question.question_type,
+                answer.selected_option,
+                set(options_by_code),
+            )
+        )
+        if is_answered:
+            answered_count += 1
+            correct_count += int(answer.is_correct)
+        reveal_feedback = answer is not None and (
+            answer.is_checked or attempt.status == "COMPLETED"
+        )
         if reveal_feedback:
             if question.question_type == "TRUE_FALSE":
                 correct_answers = [
@@ -742,15 +851,14 @@ def _attempt_detail(
                 has_image=image_by_question_id.get(question_id, False),
                 options=options,
                 selected_option=answer.selected_option if answer else None,
-                is_correct=answer.is_correct if answer else None,
-                correct_option_codes=correct_codes if answer else None,
+                is_checked=bool(answer and answer.is_checked),
+                is_correct=answer.is_correct if reveal_feedback else None,
+                correct_option_codes=correct_codes if reveal_feedback else None,
                 correct_answers=correct_answers,
                 explanation=question.explanation if reveal_feedback else None,
             )
         )
 
-    answered_count = len(answers_by_question)
-    correct_count = sum(answer.is_correct for answer in answers_by_question.values())
     return PracticeAttemptDetailResponse(
         attempt_id=attempt.id,
         practice_id=practice.id,
@@ -778,6 +886,103 @@ def get_practice_attempt(
     student = _student_or_404(db, current_user.id)
     attempt = _owned_attempt_or_404(db, attempt_id, student.id)
     return _attempt_detail(db, attempt)
+
+
+@router.post(
+    "/api/student/practice-attempts/{attempt_id}/answers/draft",
+    response_model=PracticeDraftAnswerResponse,
+)
+def save_practice_answer_draft(
+    attempt_id: int,
+    data: PracticeDraftAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("SISWA")),
+):
+    student = _student_or_404(db, current_user.id)
+    attempt = _owned_attempt_or_404(db, attempt_id, student.id, lock=True)
+    if attempt.status != "IN_PROGRESS":
+        raise HTTPException(status_code=409, detail="Sesi latihan sudah selesai.")
+    if not db.query(PracticeQuestion.id).filter(
+        PracticeQuestion.practice_id == attempt.practice_id,
+        PracticeQuestion.question_id == data.question_id,
+    ).first():
+        raise HTTPException(status_code=404, detail="Soal tidak ditemukan dalam latihan.")
+
+    question = db.query(Question).filter(Question.id == data.question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Soal tidak ditemukan.")
+    options = (
+        db.query(QuestionOption)
+        .filter(QuestionOption.question_id == question.id)
+        .all()
+    )
+    options_by_code = {option.option_code: option for option in options}
+    selected_option = data.selected_option.strip()
+    correct_codes = {option.option_code for option in options if option.is_correct}
+    is_correct = False
+
+    if selected_option:
+        if question.question_type == "TRUE_FALSE":
+            selected_map = {}
+            for part in selected_option.split(","):
+                pieces = part.split(":", 1)
+                if (
+                    len(pieces) != 2
+                    or pieces[0] not in options_by_code
+                    or pieces[1] not in {"T", "F"}
+                    or pieces[0] in selected_map
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Format jawaban Benar/Salah tidak valid.",
+                    )
+                selected_map[pieces[0]] = pieces[1] == "T"
+            is_correct = len(selected_map) == len(options_by_code) and all(
+                selected_map[code] == option.is_correct
+                for code, option in options_by_code.items()
+            )
+        elif question.question_type == "MULTIPLE_RESPONSE":
+            selected_codes = selected_option.split(",")
+            if (
+                len(set(selected_codes)) != len(selected_codes)
+                or any(code not in options_by_code for code in selected_codes)
+            ):
+                raise HTTPException(status_code=400, detail="Pilihan jawaban tidak valid.")
+            is_correct = set(selected_codes) == correct_codes
+        else:
+            if selected_option not in options_by_code:
+                raise HTTPException(status_code=400, detail="Pilihan jawaban tidak valid.")
+            is_correct = selected_option in correct_codes
+
+    answer = (
+        db.query(PracticeAnswer)
+        .filter(
+            PracticeAnswer.attempt_id == attempt.id,
+            PracticeAnswer.question_id == question.id,
+        )
+        .first()
+    )
+    if answer:
+        answer.selected_option = selected_option
+        answer.is_correct = is_correct
+        answer.is_checked = False
+        answer.answered_at = utc_now()
+    else:
+        db.add(
+            PracticeAnswer(
+                attempt_id=attempt.id,
+                question_id=question.id,
+                selected_option=selected_option,
+                is_correct=is_correct,
+                is_checked=False,
+                answered_at=utc_now(),
+            )
+        )
+    db.commit()
+    return PracticeDraftAnswerResponse(
+        question_id=question.id,
+        selected_option=selected_option,
+    )
 
 
 @router.post(
@@ -866,6 +1071,7 @@ def answer_practice_question(
     if answer:
         answer.selected_option = selected_option
         answer.is_correct = is_correct
+        answer.is_checked = True
         answer.answered_at = utc_now()
     else:
         db.add(
@@ -874,6 +1080,7 @@ def answer_practice_question(
                 question_id=question.id,
                 selected_option=selected_option,
                 is_correct=is_correct,
+                is_checked=True,
                 answered_at=utc_now(),
             )
         )
@@ -902,12 +1109,42 @@ def finish_practice_attempt(
     question_count = len(json.loads(attempt.question_order))
     answers = (
         db.query(PracticeAnswer)
-        .filter(PracticeAnswer.attempt_id == attempt.id)
+        .filter(
+            PracticeAnswer.attempt_id == attempt.id,
+            PracticeAnswer.selected_option != "",
+        )
         .all()
     )
-    correct_count = sum(answer.is_correct for answer in answers)
-    wrong_count = len(answers) - correct_count
-    unanswered_count = max(0, question_count - len(answers))
+    question_types = {
+        question.id: question.question_type
+        for question in db.query(Question.id, Question.question_type)
+        .filter(Question.id.in_([answer.question_id for answer in answers]))
+        .all()
+    }
+    option_codes_by_question: dict[int, set[str]] = defaultdict(set)
+    if answers:
+        for question_id, option_code in (
+            db.query(QuestionOption.question_id, QuestionOption.option_code)
+            .filter(
+                QuestionOption.question_id.in_(
+                    [answer.question_id for answer in answers]
+                )
+            )
+            .all()
+        ):
+            option_codes_by_question[question_id].add(option_code)
+    answered_answers = [
+        answer
+        for answer in answers
+        if _is_practice_answer_complete(
+            question_types[answer.question_id],
+            answer.selected_option,
+            option_codes_by_question[answer.question_id],
+        )
+    ]
+    correct_count = sum(answer.is_correct for answer in answered_answers)
+    wrong_count = len(answered_answers) - correct_count
+    unanswered_count = max(0, question_count - len(answered_answers))
     if attempt.status == "IN_PROGRESS":
         attempt.status = "COMPLETED"
         attempt.correct_count = correct_count

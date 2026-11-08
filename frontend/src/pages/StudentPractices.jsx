@@ -68,7 +68,7 @@ function StudentPractices() {
 
   return (
     <div className="student-practice-page">
-      <header className="student-practice-header">
+      <header className="page-header student-practice-header">
         <div>
           <h1>Latihan</h1>
           <p>Berlatih sebanyak yang diperlukan dan lihat pembahasan setelah menjawab.</p>

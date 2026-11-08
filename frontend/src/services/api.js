@@ -1218,6 +1218,10 @@ export async function getPractices() {
   return apiFetch("/api/practices");
 }
 
+export async function getPracticeReview(practiceId) {
+  return apiFetch(`/api/practices/${practiceId}/review`);
+}
+
 export async function getPracticeQuestionOptions(params) {
   const query = new URLSearchParams({
     subject_id: params.subjectId,
@@ -1252,6 +1256,13 @@ export async function getPracticeAttempt(attemptId) {
 
 export async function answerPracticeQuestion(attemptId, data) {
   return apiFetch(`/api/student/practice-attempts/${attemptId}/answers`, {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function savePracticeAnswerDraft(attemptId, data) {
+  return apiFetch(`/api/student/practice-attempts/${attemptId}/answers/draft`, {
     method: "POST",
     body: data,
   });

@@ -74,7 +74,7 @@ Sesi latihan siswa yang dapat diulang. Urutan soal dan pilihan disimpan per sesi
 
 ### `t_practice_answer`
 
-Jawaban dan hasil pemeriksaan per soal dalam satu sesi latihan. Kunci dan pembahasan hanya dikirim untuk soal yang sudah dijawab.
+Pilihan jawaban otomatis dan hasil pemeriksaan per soal dalam satu sesi latihan. `is_checked` membedakan jawaban yang baru tersimpan dari jawaban yang sudah diperiksa; kunci dan pembahasan hanya dikirim setelah pemeriksaan atau latihan selesai.
 
 ## Notifikasi dan pengaturan aplikasi
 
@@ -100,15 +100,16 @@ Penyimpanan konfigurasi aplikasi berbentuk key-value, termasuk pemilihan/provide
   | `migrations/v03_optimize_concurrency_indexes_pgk.sql` | Indeks unik untuk attempt aktif, indeks query, dan perluasan keterangan tryout. |
   | `migrations/v04_anti_cheat_telemetry.sql` | Kolom penghitung perpindahan tab selama attempt. |
   | `migrations/v05_practice_module.sql` | Tabel dan indeks untuk pengelolaan latihan serta attempt/jawaban siswa. |
+  | `migrations/v06_practice_draft_answers.sql` | Penanda jawaban yang sudah diperiksa, untuk mendukung simpan otomatis tanpa membuka kunci jawaban lebih awal. |
 
-- `scripts/run_migrations.py` menerapkan migrasi berurutan sampai target `v05` (default). `Base.metadata.create_all()` juga dapat membuat tabel latihan yang belum ada, tetapi tidak menggantikan runner untuk pencatatan versi skema.
+- `scripts/run_migrations.py` menerapkan migrasi berurutan sampai target `v06` (default). `Base.metadata.create_all()` juga dapat membuat tabel latihan yang belum ada, tetapi tidak menggantikan runner untuk pencatatan versi skema.
 - Runner migrasi memakai konfigurasi database aplikasi. Periksa target konfigurasi terlebih dahulu dan buat backup yang dapat dipulihkan sebelum menerapkan migrasi; opsi `--check` hanya memeriksa versi skema, bukan memvalidasi keamanan atau lingkungan database.
 
 Contoh penggunaan runner dari root repository setelah target database dipastikan:
 
 ```powershell
 python scripts/run_migrations.py --check
-python scripts/run_migrations.py --target v05
+python scripts/run_migrations.py --target v06
 ```
 
 - Jangan menerapkan perubahan skema langsung ke database production tanpa backup, rencana pemulihan, dan verifikasi kompatibilitas PostgreSQL.

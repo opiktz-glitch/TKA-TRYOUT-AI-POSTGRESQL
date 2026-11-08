@@ -1,0 +1,2 @@
+ALTER TABLE t_practice_answer
+    ADD COLUMN IF NOT EXISTS is_checked BOOLEAN NOT NULL DEFAULT TRUE;

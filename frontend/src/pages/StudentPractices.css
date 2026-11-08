@@ -1,16 +1,16 @@
 .student-practice-page {
   display: grid;
   gap: 20px;
+  font-size: 14px;
 }
 
 .student-practice-header h1 {
-  margin: 0 0 6px;
+  margin: 0;
   color: var(--ink);
 }
 
 .student-practice-header p {
-  margin: 0;
-  color: #64748b;
+  color: #6b7280;
 }
 
 .student-practice-grid {
@@ -56,7 +56,7 @@
 .student-practice-card h2 {
   margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }

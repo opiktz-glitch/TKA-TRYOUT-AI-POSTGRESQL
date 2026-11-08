@@ -41,7 +41,7 @@ Frontend tersedia di `http://localhost:5173`, backend di `http://localhost:8000`
 ```text
 backend/       FastAPI, model, router, layanan, skrip, dan database lokal
 frontend/      Aplikasi React/Vite
-migrations/    Skrip SQL migrasi v01-v04
+migrations/    Skrip SQL migrasi v01-v06
 scripts/       Runner migrasi dan pemeriksaan pasca-update
 tests/         Tes alur backend, migrasi, API, dan integritas frontend
 docs/          Panduan deployment tzserver dan laporan audit
@@ -49,9 +49,9 @@ docs/          Panduan deployment tzserver dan laporan audit
 
 ## Database dan migrasi
 
-Model SQLAlchemy mendefinisikan 13 tabel: `t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, dan `t_app_setting`.
+Model SQLAlchemy mendefinisikan tabel inti aplikasi serta tabel Latihan: `t_user`, `t_student`, `t_teacher`, `t_subject`, `t_question`, `t_question_option`, `t_tryout`, `t_tryout_question`, `t_attempt`, `t_answer`, `t_result`, `t_notification`, `t_app_setting`, `t_practice`, `t_practice_question`, `t_practice_attempt`, dan `t_practice_answer`.
 
-Lihat [SCHEMA_DOCS.md](SCHEMA_DOCS.md) dan [ERD.mermaid](ERD.mermaid). `Base.metadata.create_all()` membuat tabel yang belum ada; migrasi startup hanya menangani kolom tertentu. File migrasi tersedia sampai v04, tetapi `scripts/run_migrations.py` saat ini mendukung sampai v03. Periksa dan siapkan skema database lama sebelum menjalankan versi aplikasi yang membutuhkannya.
+Lihat [SCHEMA_DOCS.md](SCHEMA_DOCS.md) dan [ERD.mermaid](ERD.mermaid). `Base.metadata.create_all()` membuat tabel yang belum ada; migrasi startup hanya menangani kolom tertentu. File migrasi dan `scripts/run_migrations.py` mendukung versi sampai v06. Sebelum memakai versi aplikasi yang memerlukan skema baru, periksa versi dan target database, siapkan backup yang dapat dipulihkan, lalu ikuti [prosedur migrasi PostgreSQL untuk Neon dan tzserver](docs/DEPLOY_TZSERVER.md#migrasi-postgresql-production-neon-dan-tzserver).
 
 ## Pengujian
 

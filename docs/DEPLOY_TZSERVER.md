@@ -54,9 +54,125 @@ Karena repository bersifat publik, lindungi branch `main` dan jangan memberi sec
 - Workflow backend memperbarui checkout aplikasi, memasang dependensi dari `backend/requirements.txt`, me-restart `tka-backend.service`, lalu memastikan endpoint backend merespons `401` atau `403` tanpa autentikasi.
 - Kedua workflow memerlukan tzserver yang aktif dan dapat dijangkau melalui Tailscale; secrets deployment hanya tersedia pada workflow branch `main`/dispatch.
 - Perubahan skema dan migrasi database harus ditinjau sebelum perubahan backend digabung ke `main`. Backend memiliki migrasi kolom otomatis tertentu saat startup; deploy dapat menjalankan perubahan tersebut terhadap database production.
-- Migrasi `v05` menambahkan tabel Latihan. Sebelum deploy backend yang memerlukan fitur ini, pastikan backup PostgreSQL dapat dipulihkan dan jalankan `python scripts/run_migrations.py --target v05` dari root checkout dengan konfigurasi database production yang telah diverifikasi. Jangan menganggap `create_all()` sebagai pengganti migrasi atau menjalankan runner tanpa memastikan target database.
+- Migrasi `v05` menambahkan tabel Latihan. Ikuti bagian [Migrasi PostgreSQL production](#migrasi-postgresql-production-neon-dan-tzserver) untuk memeriksa dan memperbarui setiap database secara terpisah.
+- Migrasi `v06` menambahkan penanda jawaban Latihan yang sudah diperiksa. Terapkan migrasi database sebelum deploy backend yang memakai fitur simpan otomatis jawaban Latihan.
 - Setelah pemasangan, workflow memastikan `http://127.0.0.1:8081/` membalas HTTP 200 dan `/api/auth/me` membalas 401 atau 403 tanpa autentikasi.
 - Jika persiapan SSH/sudo atau smoke test gagal, job akan gagal dan log Actions menunjukkan langkah yang bermasalah.
+
+## Migrasi PostgreSQL production (Neon dan tzserver)
+
+Setiap PostgreSQL yang dipakai backend adalah database terpisah dan harus diperiksa sendiri. Deploy frontend ke Vercel atau tzserver tidak menjalankan migrasi database. Migrasikan Neon jika backend yang melayani aplikasi Vercel terhubung ke Neon; migrasikan database tzserver jika backend tzserver memakainya.
+
+### Sebelum migrasi
+
+1. Pastikan perubahan aplikasi yang membutuhkan skema baru sudah tersedia pada checkout/server terkait.
+2. Buat backup database dengan prosedur provider/server dan pastikan backup dapat dipulihkan. Jangan menguji pemulihan pada database aktif.
+3. Jalankan pemeriksaan versi pada target yang benar. `--check` hanya membaca versi; periksa juga konfigurasi koneksi dan jangan menampilkan atau mengirim `DATABASE_URL`.
+4. Terapkan migrasi hanya pada urutan versi yang sesuai. Migrasi runner menerapkan versi berurutan; untuk SQL manual, terapkan semua versi yang hilang. Jangan mengubah nilai `app:schema_version` sebelum DDL pada tahap tersebut berhasil.
+
+### tzserver
+
+Pada instalasi tzserver saat ini, checkout dimiliki user `tka`, service `tka-backend.service` membaca konfigurasi melalui `ENV_FILE=/etc/tka/backend.env`, dan workflow tidak menyalin file konfigurasi itu. Karena itu jangan mengandalkan `backend/.env` atau menjalankan migrasi sebagai `admintz` langsung.
+
+Jalankan dari akun `admintz` memakai izin sudo yang sesuai:
+
+```bash
+sudo -u tka env \
+  ENV_FILE=/etc/tka/backend.env \
+  PYTHONPATH=/var/www/tka/app/backend \
+  /var/www/tka/app/backend/venv/bin/python \
+  /var/www/tka/app/scripts/run_migrations.py --check
+```
+
+Pastikan versi database sudah diperiksa dan backup tersedia. Setelah itu terapkan target terbaru `v06`:
+
+```bash
+sudo -u tka env \
+  ENV_FILE=/etc/tka/backend.env \
+  PYTHONPATH=/var/www/tka/app/backend \
+  /var/www/tka/app/backend/venv/bin/python \
+  /var/www/tka/app/scripts/run_migrations.py --target v06
+```
+
+Runner menerapkan versi yang belum ada secara berurutan. Bila pemeriksaan awal menunjukkan versi lain yang tidak dipahami atau lebih baru daripada target, berhenti dan tinjau skema sebelum melanjutkan. Setelah sukses, jalankan lagi `--check` dan pastikan hasil `v06`.
+
+### Neon melalui SQL Editor
+
+Pilih project, branch, dan database Neon yang benar sebelum menjalankan SQL. Lakukan backup/branch point terlebih dahulu. Jalankan pemeriksaan versi:
+
+```sql
+SELECT value AS schema_version
+FROM t_app_setting
+WHERE key = 'app:schema_version';
+```
+
+Jika hasilnya `v03`, terapkan isi [`migrations/v04_anti_cheat_telemetry.sql`](../migrations/v04_anti_cheat_telemetry.sql) di SQL Editor. Setelah DDL berhasil, catat versinya:
+
+```sql
+INSERT INTO t_app_setting (key, value, updated_at)
+VALUES ('app:schema_version', 'v04', CURRENT_TIMESTAMP)
+ON CONFLICT (key) DO UPDATE SET
+    value = EXCLUDED.value,
+    updated_at = CURRENT_TIMESTAMP;
+```
+
+Jika hasil awal `v04`, terapkan [`migrations/v05_practice_module.sql`](../migrations/v05_practice_module.sql), lalu catat `v05` setelah DDL berhasil:
+
+```sql
+INSERT INTO t_app_setting (key, value, updated_at)
+VALUES ('app:schema_version', 'v05', CURRENT_TIMESTAMP)
+ON CONFLICT (key) DO UPDATE SET
+    value = EXCLUDED.value,
+    updated_at = CURRENT_TIMESTAMP;
+```
+
+Setelah versi terkonfirmasi `v05`, jalankan isi [`migrations/v06_practice_draft_answers.sql`](../migrations/v06_practice_draft_answers.sql):
+
+```sql
+ALTER TABLE t_practice_answer
+    ADD COLUMN IF NOT EXISTS is_checked BOOLEAN NOT NULL DEFAULT TRUE;
+```
+
+Setelah DDL berhasil, catat v06:
+
+```sql
+INSERT INTO t_app_setting (key, value, updated_at)
+VALUES ('app:schema_version', 'v06', CURRENT_TIMESTAMP)
+ON CONFLICT (key) DO UPDATE SET
+    value = EXCLUDED.value,
+    updated_at = CURRENT_TIMESTAMP;
+```
+
+Jangan menjalankan penanda versi jika DDL terkait gagal. Jika database masih `v03` atau lebih lama, terapkan setiap migrasi yang hilang secara berurutan sebelum mencatat `v06`.
+
+### Verifikasi hasil
+
+Jalankan pada database yang baru dimigrasikan:
+
+```sql
+SELECT value AS schema_version
+FROM t_app_setting
+WHERE key = 'app:schema_version';
+
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = current_schema()
+  AND table_name IN (
+      't_practice',
+      't_practice_question',
+      't_practice_attempt',
+      't_practice_answer'
+  )
+ORDER BY table_name;
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = current_schema()
+  AND table_name = 't_practice_answer'
+  AND column_name = 'is_checked';
+```
+
+Hasil yang diharapkan adalah versi `v06`, empat tabel Latihan, dan kolom `is_checked` pada `t_practice_answer`. Verifikasi setiap database secara terpisah; versi Neon tidak menunjukkan versi tzserver dan sebaliknya. Jangan kirim atau commit `.env`, URL koneksi, password, atau backup.
 
 ## Deploy otomatis backend tzserver
 
